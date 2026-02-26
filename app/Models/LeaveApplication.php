@@ -10,12 +10,14 @@ class LeaveApplication extends Model
     use HasFactory;
 
     protected $fillable = [
-        'application_no', 'employee_id', 'leave_type_id',
+        'application_no', 'employee_id', 'leave_type_id', 'date_filed',
         'date_from', 'date_to', 'num_days', 'reason', 'attachment',
         'status', 'approved_by', 'approved_at', 'remarks', 'encoded_by',
+        'other_leave_type',
     ];
 
     protected $casts = [
+        'date_filed' => 'date',
         'date_from' => 'date',
         'date_to' => 'date',
         'approved_at' => 'datetime',
@@ -40,6 +42,11 @@ class LeaveApplication extends Model
     public function encoder()
     {
         return $this->belongsTo(User::class , 'encoded_by');
+    }
+
+    public function details()
+    {
+        return $this->hasMany(LeaveApplicationDetail::class);
     }
 
     public function getStatusBadgeAttribute(): string

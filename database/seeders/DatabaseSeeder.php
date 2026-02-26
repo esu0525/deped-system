@@ -25,12 +25,22 @@ class DatabaseSeeder extends Seeder
             Department::updateOrCreate(['code' => $dept['code']], $dept);
         }
 
-        // 2. Create Leave Types
+        // 2. Create Leave Types (CSC Official)
         $types = [
-            ['name' => 'Vacation Leave', 'code' => 'VL', 'is_earnable' => true, 'monthly_credit' => 1.25],
-            ['name' => 'Sick Leave', 'code' => 'SL', 'is_earnable' => true, 'monthly_credit' => 1.25],
-            ['name' => 'Forced Leave', 'code' => 'FL', 'is_earnable' => false, 'monthly_credit' => 0],
-            ['name' => 'Special Privilege Leave', 'code' => 'SPL', 'is_earnable' => false, 'monthly_credit' => 0],
+            ['name' => 'Vacation Leave', 'code' => 'VL', 'is_earnable' => true, 'monthly_credit' => 1.25, 'description' => 'Sec. 51, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => 'Mandatory/Forced Leave', 'code' => 'FL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'Sec. 25, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => 'Sick Leave', 'code' => 'SL', 'is_earnable' => true, 'monthly_credit' => 1.25, 'description' => 'Sec. 43, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => 'Maternity Leave', 'code' => 'ML', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 11210 / IRR issued by CSC, DOLE, and SSS'],
+            ['name' => 'Paternity Leave', 'code' => 'PL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 8187 / CSC MC No. 71, s. 1998, as amended'],
+            ['name' => 'Special Privilege Leave', 'code' => 'SPL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'Sec. 21, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => 'Solo Parent Leave', 'code' => 'SoP', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 8972 / CSC MC No. 15, s. 2005'],
+            ['name' => 'Study Leave', 'code' => 'STL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'Sec. 68, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => '10-Day VAWC Leave', 'code' => 'VAWC', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 9262 / CSC MC No. 15, s. 2005'],
+            ['name' => 'Rehabilitation Privilege', 'code' => 'RL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'Sec. 55, Rule XVI, Omnibus Rules Implementing E.O. No. 292'],
+            ['name' => 'Special Leave Benefits for Women', 'code' => 'SLW', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 9710 / CSC MC No. 25, s. 2010'],
+            ['name' => 'Special Emergency (Calamity) Leave', 'code' => 'SEC', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'CSC MC No. 2, s. 2012, as amended'],
+            ['name' => 'Adoption Leave', 'code' => 'AL', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'R.A. No. 8552'],
+            ['name' => 'Others', 'code' => 'OTH', 'is_earnable' => false, 'monthly_credit' => 0, 'description' => 'Other types of leave'],
         ];
 
         foreach ($types as $type) {

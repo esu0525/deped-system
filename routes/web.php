@@ -94,13 +94,32 @@ Route::middleware(['auth'])->group(function () {
         }
         );
 
-        // ─── System Settings ──────────────────────────────────────────────────
-        Route::middleware(['role:super_admin'])->get('/settings', function () {
-            return view('settings.index');
-        }
-        )->name('settings.index');
+        Route::middleware(['role:super_admin'])->group(function () {
+            Route::get('/settings', function () {
+                    $settings = \App\Models\SystemSetting::all()->keyBy('key');
+                    return view('settings.index', compact('settings'));
+                }
+                )->name('settings.index');
 
-        Route::middleware(['role:super_admin'])->get('/audit-trails', function () {
+                Route::post('/settings', function (\Illuminate\Http\Request $request) {
+                    $settingsData = $request->input('settings', []);
+                    foreach ($settingsData as $key => $value) {
+                        \App\Models\SystemSetting::set($key, $value);
+                    }
+                    \App\Models\AuditTrail::create([
+                        'user_id' => auth()->id(),
+                        'action' => 'UPDATE',
+                        'module' => 'System Settings',
+                        'description' => 'Updated system settings: ' . implode(', ', array_keys($settingsData)),
+                        'ip_address' => $request->ip(),
+                    ]);
+                    return back()->with('success', 'System settings updated successfully.');
+                }
+                )->name('settings.update');
+            }
+            );
+
+            Route::middleware(['role:super_admin'])->get('/audit-trails', function () {
             $logs = \App\Models\AuditTrail::with('user')->latest()->paginate(50);
             return view('audit-trail.index', compact('logs'));
         }

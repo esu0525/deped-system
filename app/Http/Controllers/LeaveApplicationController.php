@@ -73,31 +73,59 @@ class LeaveApplicationController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'leave_type_id' => 'required|exists:leave_types,id',
-            'date_from' => 'required|date',
-            'date_to' => 'required|date|after_or_equal:date_from',
+            'date_filed' => 'required|date',
+            'entries' => 'required|array|min:1',
+            'entries.*.leave_type_id' => 'required|exists:leave_types,id',
+            'entries.*.inclusive_dates' => 'required|string|max:255',
+            'entries.*.num_days' => 'required|numeric|min:0.5',
             'reason' => 'nullable|string|max:1000',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
 
-        // Calculate working days
-        $from = Carbon::parse($request->date_from);
-        $to = Carbon::parse($request->date_to);
-        $numDays = $this->leaveCardService->calculateWorkingDays($from, $to);
+        $entries = $request->input('entries');
+        $totalDays = 0;
 
-        if ($request->hasFile('attachment')) {
-            $validated['attachment'] = $request->file('attachment')->store('leave-attachments', 'public');
+        foreach ($entries as $entry) {
+            $totalDays += floatval($entry['num_days']);
         }
 
-        $application = LeaveApplication::create(array_merge($validated, [
-            'num_days' => $numDays,
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('leave-attachments', 'public');
+        }
+
+        // Use the first entry's leave type as the main type
+        $firstEntry = $entries[array_key_first($entries)];
+
+        $application = LeaveApplication::create([
+            'employee_id' => $request->employee_id,
+            'leave_type_id' => $firstEntry['leave_type_id'],
+            'other_leave_type' => $firstEntry['other_type'] ?? null,
+            'date_filed' => $request->date_filed,
+            'date_from' => $request->date_filed, // Use filing date as reference
+            'date_to' => $request->date_filed,
+            'num_days' => $totalDays,
+            'reason' => $request->reason,
+            'attachment' => $attachmentPath,
             'status' => 'Pending',
             'encoded_by' => auth()->id(),
-        ]));
+        ]);
 
-        AuditTrail::log('CREATE', 'Leave Application', "Filed leave application #{$application->application_no} for employee ID {$application->employee_id}");
+        // Save each entry as a detail record
+        foreach ($entries as $entry) {
+            $application->details()->create([
+                'leave_type_id' => $entry['leave_type_id'],
+                'inclusive_dates' => $entry['inclusive_dates'],
+                'other_type' => $entry['other_type'] ?? null,
+                'date_from' => $request->date_filed,
+                'date_to' => $request->date_filed,
+                'num_days' => $entry['num_days'],
+            ]);
+        }
+
+        AuditTrail::log('CREATE', 'Leave Application', "Filed leave application #{$application->application_no} for employee ID {$application->employee_id} ({$totalDays} days, " . count($entries) . " entries)");
 
         return redirect()->route('leave-applications.show', $application)->with('success', 'Leave application submitted successfully.');
     }
