@@ -48,11 +48,13 @@ class LeaveCardController extends Controller
         $leaveCard = $employee->leaveCards->where('year', $year)->first();
 
         // Get transactions for selected year
-        $transactions = $employee->leaveTransactions()
+        $transactions = $leaveCard ? 
+            $employee->leaveTransactions()
             ->with(['leaveType', 'encoder'])
-            ->whereYear('transaction_date', $year)
-            ->orderBy('transaction_date', 'asc')
-            ->get();
+            ->where('leave_card_id', $leaveCard->id)
+            ->orderBy('id', 'asc')
+            ->get()
+            : collect();
 
         return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions'));
     }
@@ -92,6 +94,10 @@ class LeaveCardController extends Controller
             'description' => "Updated leave card balance for {$employee->full_name} (Year: {$year}) — VL: {$request->vl_beginning_balance}, SL: {$request->sl_beginning_balance}",
             'ip_address' => $request->ip(),
         ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()
             ->route('leave-cards.show', ['employee' => $employee, 'year' => $year])
@@ -163,5 +169,104 @@ class LeaveCardController extends Controller
         ]);
 
         return back()->with('success', "Monthly credits added successfully to {$count} employees.");
+    }
+
+    /**
+     * Sync the fully manual transactions grid.
+     */
+    public function syncTransactions(Request $request, Employee $employee)
+    {
+        $year = $request->input('year');
+        $transactionsData = $request->input('transactions', []);
+
+        $leaveCard = LeaveCard::firstOrCreate(
+        ['employee_id' => $employee->id, 'year' => $year],
+        ['vl_beginning_balance' => 0, 'sl_beginning_balance' => 0]
+        );
+
+        $existingIds = [];
+
+        foreach ($transactionsData as $data) {
+            // Ignore completely empty rows
+            if (empty(trim($data['date_text'] ?? '')) && empty(trim($data['particulars'] ?? '')) && empty(trim($data['vl_earned'] ?? '')) && empty(trim($data['vl_used'] ?? ''))) {
+                continue;
+            }
+
+            try {
+                // If it looks like a valid date visually, try to parse it. Otherwise, use now() for sorting but keep actual string in 'period'
+                $parsedStr = preg_replace('/[^0-9\/\-]/', '', $data['date_text'] ?? '');
+                $parsedDate = !empty($parsedStr) ?\Carbon\Carbon::parse($parsedStr) : now();
+            }
+            catch (\Exception $e) {
+                $parsedDate = now();
+            }
+
+            $updateData = [
+                'employee_id' => $employee->id,
+                'leave_card_id' => $leaveCard->id,
+                'transaction_date' => $parsedDate,
+                'period' => $data['date_text'] ?? null,
+                'remarks' => $data['particulars'] ?? null,
+                'vl_earned' => isset($data['vl_earned']) && $data['vl_earned'] !== '' ? floatval($data['vl_earned']) : null,
+                'vl_used' => isset($data['vl_used']) && $data['vl_used'] !== '' ? floatval($data['vl_used']) : null,
+                'vl_wop' => isset($data['vl_wop']) && $data['vl_wop'] !== '' ? floatval($data['vl_wop']) : null,
+                'sl_earned' => isset($data['sl_earned']) && $data['sl_earned'] !== '' ? floatval($data['sl_earned']) : null,
+                'sl_used' => isset($data['sl_used']) && $data['sl_used'] !== '' ? floatval($data['sl_used']) : null,
+                'sl_wop' => isset($data['sl_wop']) && $data['sl_wop'] !== '' ? floatval($data['sl_wop']) : null,
+                'action_taken' => $data['action_taken'] ?? null,
+                'encoded_by' => auth()->id(),
+            ];
+
+            if (isset($data['vl_balance']) && !in_array(trim($data['vl_balance']), ['', '-'])) {
+                $updateData['vl_balance_after'] = floatval($data['vl_balance']);
+            }
+            if (isset($data['sl_balance']) && !in_array(trim($data['sl_balance']), ['', '-'])) {
+                $updateData['sl_balance_after'] = floatval($data['sl_balance']);
+            }
+
+            if (!empty($data['id'])) {
+                $trans = LeaveTransaction::find($data['id']);
+                if ($trans && $trans->leave_card_id == $leaveCard->id) {
+                    $trans->update($updateData);
+                    $existingIds[] = $trans->id;
+                }
+            }
+            else {
+                $newTrans = LeaveTransaction::create($updateData);
+                $existingIds[] = $newTrans->id;
+            }
+        }
+
+        // Delete any transactions that were present before but no longer exist in the payload
+        LeaveTransaction::where('leave_card_id', $leaveCard->id)
+            ->whereNotIn('id', $existingIds)
+            ->delete();
+
+        // Optional: Do NOT recalculate to preserve the manual balances
+        // If we want system calculations, we would iterate existingIds, but user wants manual override.
+        $totalVLEarned = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('vl_earned') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'VL')->where('transaction_type', 'earned')->sum('days');
+        $totalVLUsed = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('vl_used') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'VL')->where('transaction_type', 'used')->sum('days');
+
+        $totalSLEarned = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('sl_earned') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'SL')->where('transaction_type', 'earned')->sum('days');
+        $totalSLUsed = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('sl_used') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'SL')->where('transaction_type', 'used')->sum('days');
+
+        $leaveCard->update([
+            'vl_earned' => $totalVLEarned,
+            'vl_used' => $totalVLUsed,
+            'vl_balance' => $leaveCard->vl_beginning_balance + $totalVLEarned - $totalVLUsed,
+            'sl_earned' => $totalSLEarned,
+            'sl_used' => $totalSLUsed,
+            'sl_balance' => $leaveCard->sl_beginning_balance + $totalSLEarned - $totalSLUsed,
+        ]);
+
+        AuditTrail::create([
+            'user_id' => auth()->id(),
+            'action' => 'UPDATE',
+            'module' => 'Leave Cards',
+            'description' => "Synced manual grid for {$employee->full_name} (Year {$year})",
+            'ip_address' => $request->ip(),
+        ]);
+
+        return response()->json(['success' => true]);
     }
 }

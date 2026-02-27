@@ -46,12 +46,37 @@
                 <p style="margin-top: 8px; line-height: 1.6;">{{ $leaveApplication->reason ?? 'No reason provided.' }}</p>
             </div>
 
-            @if($leaveApplication->attachment)
+            @if($leaveApplication->status === 'Approved' && $leaveApplication->cert_vl_total_earned !== null)
             <div style="margin-top: 20px;">
-                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Attachment</label>
-                <a href="{{ asset('storage/' . $leaveApplication->attachment) }}" target="_blank" class="btn btn-sm btn-secondary" style="margin-top: 8px;">
-                    <i class="fas fa-paperclip"></i> View Attachment
-                </a>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">7.A Certification of Leave Credits</label>
+                <div style="margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 1px solid #e2e8f0;"></th>
+                                <th style="padding: 10px 14px; text-align: center; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Vacation Leave</th>
+                                <th style="padding: 10px 14px; text-align: center; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Sick Leave</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0;"><em>Total Earned</em></td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 600; font-family: monospace; border-bottom: 1px solid #e2e8f0;">{{ number_format($leaveApplication->cert_vl_total_earned, 3) }}</td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 600; font-family: monospace; border-bottom: 1px solid #e2e8f0;">{{ number_format($leaveApplication->cert_sl_total_earned, 3) }}</td>
+                            </tr>
+                            <tr style="background: #fff7ed;">
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #c2410c;"><em>Less this application</em></td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 600; font-family: monospace; border-bottom: 1px solid #e2e8f0; color: #c2410c;">{{ number_format($leaveApplication->cert_vl_less_this, 3) }}</td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 600; font-family: monospace; border-bottom: 1px solid #e2e8f0; color: #c2410c;">{{ number_format($leaveApplication->cert_sl_less_this, 3) }}</td>
+                            </tr>
+                            <tr style="background: #f0f9ff;">
+                                <td style="padding: 10px 14px;"><strong>Balance</strong></td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 800; font-family: monospace; color: var(--primary); font-size: 0.95rem;">{{ number_format($leaveApplication->cert_vl_balance, 3) }}</td>
+                                <td style="padding: 10px 14px; text-align: center; font-weight: 800; font-family: monospace; color: var(--primary); font-size: 0.95rem;">{{ number_format($leaveApplication->cert_sl_balance, 3) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             @endif
 
@@ -61,6 +86,7 @@
                 <p style="margin-top: 8px;">{{ $leaveApplication->remarks }}</p>
             </div>
             @endif
+
         </div>
 
         <!-- Actions & Timeline -->
@@ -68,17 +94,17 @@
             @if($leaveApplication->status === 'Pending' && auth()->user()->canApproveLeave())
             <div class="card glass" style="margin-bottom: 20px;">
                 <h5 style="font-weight: 700; margin-bottom: 15px;"><i class="fas fa-gavel"></i> Actions</h5>
-                <form action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" style="margin-bottom: 10px;">
+                <form id="approveForm" action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" style="margin-bottom: 10px;">
                     @csrf
-                    <textarea name="remarks" class="form-control" rows="2" placeholder="Optional remarks..." style="margin-bottom: 10px;"></textarea>
-                    <button type="submit" class="btn btn-success" style="width: 100%;" onclick="return confirm('Approve this leave application?')">
+                    <textarea name="remarks" id="approveRemarksInput" class="form-control" rows="2" placeholder="Optional remarks..." style="margin-bottom: 10px;"></textarea>
+                    <button type="button" class="btn btn-success" style="width: 100%;" onclick="confirmApprove()">
                         <i class="fas fa-check"></i> Approve
                     </button>
                 </form>
-                <form action="{{ route('leave-applications.reject', $leaveApplication) }}" method="POST">
+                <form id="rejectForm" action="{{ route('leave-applications.reject', $leaveApplication) }}" method="POST">
                     @csrf
-                    <input type="hidden" name="remarks" id="reject-remarks">
-                    <button type="submit" class="btn btn-danger" style="width: 100%;" onclick="var r = prompt('Reason for rejection:'); if(!r) return false; document.getElementById('reject-remarks').value = r; return true;">
+                    <input type="hidden" name="remarks" id="rejectRemarksInput">
+                    <button type="button" class="btn btn-danger" style="width: 100%;" onclick="confirmReject()">
                         <i class="fas fa-times"></i> Reject
                     </button>
                 </form>
@@ -117,4 +143,48 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+<script>
+    function confirmApprove() {
+        Swal.fire({
+            title: 'Approve Leave Application?',
+            text: "This action will systematically process and potentially deduct leave credits according to the rules.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Approve'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('approveForm').submit();
+            }
+        });
+    }
+
+    function confirmReject() {
+        Swal.fire({
+            title: 'Reject Leave Application',
+            input: 'textarea',
+            inputLabel: 'Reason for rejection',
+            inputPlaceholder: 'Enter the reason why this is rejected...',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Reject',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'You need to write a reason to reject this application!'
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('rejectRemarksInput').value = result.value;
+                document.getElementById('rejectForm').submit();
+            }
+        });
+    }
+</script>
+@endpush
 @endsection

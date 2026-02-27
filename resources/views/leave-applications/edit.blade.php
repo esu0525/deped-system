@@ -7,7 +7,7 @@
     <div class="card glass">
         <h4 style="font-weight: 700; margin-bottom: 25px;"><i class="fas fa-edit text-primary"></i> Edit Application #{{ $leaveApplication->application_no }}</h4>
 
-        <form action="{{ route('leave-applications.update', $leaveApplication) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('leave-applications.update', $leaveApplication) }}" method="POST">
             @csrf
             @method('PUT')
 
@@ -36,13 +36,8 @@
                 <textarea name="reason" class="form-control" rows="4">{{ old('reason', $leaveApplication->reason) }}</textarea>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Attachment (Optional)</label>
-                <input type="file" name="attachment" class="form-control">
-                @if($leaveApplication->attachment)
-                    <small style="color: var(--secondary); margin-top: 5px; display: block;">Current: {{ basename($leaveApplication->attachment) }}</small>
-                @endif
-            </div>
+
+
 
             <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Application</button>

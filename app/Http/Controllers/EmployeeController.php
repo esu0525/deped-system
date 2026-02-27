@@ -58,11 +58,11 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'employee_id' => 'required|string|unique:employees',
+            'employee_id' => 'nullable|string|unique:employees',
             'full_name' => 'required|string|max:255',
             'gender' => 'nullable|in:Male,Female',
             'position' => 'nullable|string|max:255',
-            'department_id' => 'nullable|exists:departments,id',
+            'department_name' => 'nullable|string|max:255',
             'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
             'date_hired' => 'nullable|date',
             'email' => 'nullable|email|max:255',
@@ -71,16 +71,38 @@ class EmployeeController extends Controller
             'status' => 'nullable|in:Active,Inactive,Resigned,Retired',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'user_id' => 'nullable|exists:users,id',
+            'vl_balance' => 'nullable|numeric|min:0',
+            'sl_balance' => 'nullable|numeric|min:0',
         ]);
 
-        if ($request->hasFile('profile_picture')) {
-            $validated['profile_picture'] = $request->file('profile_picture')->store('profile-pictures', 'public');
+        // Dynamically find or create the department by name
+        $departmentId = null;
+        if (!empty($validated['department_name'])) {
+            $dept = Department::firstOrCreate(['name' => $validated['department_name']]);
+            $departmentId = $dept->id;
         }
+        $validated['department_id'] = $departmentId;
+        unset($validated['department_name']);
+
+        // Profile picture logic removed
 
         $employee = Employee::create($validated);
 
-        // Auto-create leave card for current year
-        $this->leaveCardService->getOrCreateLeaveCard($employee);
+        // Auto-create leave card for current year and set initial balances
+        $leaveCard = $this->leaveCardService->getOrCreateLeaveCard($employee);
+
+        $vlBalance = floatval($request->input('vl_balance', 0));
+        $slBalance = floatval($request->input('sl_balance', 0));
+
+        if ($vlBalance > 0 || $slBalance > 0) {
+            $leaveCard->update([
+                'vl_beginning_balance' => $vlBalance,
+                'vl_balance' => $vlBalance,
+                'sl_beginning_balance' => $slBalance,
+                'sl_balance' => $slBalance,
+            ]);
+        }
+
 
         AuditTrail::log('CREATE', 'Employee Management', "Created employee profile for {$employee->full_name} (ID: {$employee->employee_id})");
 
@@ -111,7 +133,7 @@ class EmployeeController extends Controller
             'full_name' => 'required|string|max:255',
             'gender' => 'nullable|in:Male,Female',
             'position' => 'nullable|string|max:255',
-            'department_id' => 'nullable|exists:departments,id',
+            'department_name' => 'nullable|string|max:255',
             'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
             'date_hired' => 'nullable|date',
             'email' => 'nullable|email|max:255',
@@ -122,14 +144,18 @@ class EmployeeController extends Controller
             'user_id' => 'nullable|exists:users,id',
         ]);
 
+        // Dynamically find or create the department by name
+        $departmentId = null;
+        if (!empty($validated['department_name'])) {
+            $dept = Department::firstOrCreate(['name' => $validated['department_name']]);
+            $departmentId = $dept->id;
+        }
+        $validated['department_id'] = $departmentId;
+        unset($validated['department_name']);
+
         $old = $employee->toArray();
 
-        if ($request->hasFile('profile_picture')) {
-            if ($employee->profile_picture) {
-                Storage::disk('public')->delete($employee->profile_picture);
-            }
-            $validated['profile_picture'] = $request->file('profile_picture')->store('profile-pictures', 'public');
-        }
+        // Profile picture logic removed
 
         $employee->update($validated);
 
@@ -141,9 +167,6 @@ class EmployeeController extends Controller
     public function destroy(Employee $employee)
     {
         $name = $employee->full_name;
-        if ($employee->profile_picture) {
-            Storage::disk('public')->delete($employee->profile_picture);
-        }
         $employee->delete();
         AuditTrail::log('DELETE', 'Employee Management', "Deleted employee profile for {$name}");
         return redirect()->route('employees.index')->with('success', "Employee {$name} deleted successfully.");

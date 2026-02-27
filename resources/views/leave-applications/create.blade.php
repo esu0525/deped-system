@@ -9,18 +9,60 @@
         <div class="card glass animate-fade">
             <h4 style="font-weight: 700; margin-bottom: 25px;"><i class="fas fa-file-signature text-primary"></i> Leave Application Details</h4>
             
-            <form action="{{ route('leave-applications.store') }}" method="POST" enctype="multipart/form-data" id="leaveForm">
+            <form action="{{ route('leave-applications.store') }}" method="POST" id="leaveForm">
                 @csrf
                 
                 @if(auth()->user()->canManageEmployees())
                 <div class="form-group">
-                    <label class="form-label">Employee</label>
-                    <select name="employee_id" id="employee_id" class="form-control" required>
-                        <option value="">Select Employee</option>
-                        @foreach($employees as $emp)
-                            <option value="{{ $emp->id }}" {{ old('employee_id') == $emp->id ? 'selected' : '' }}>{{ $emp->full_name }} ({{ $emp->employee_id }})</option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">Employee <span style="color: var(--danger);">*</span></label>
+                    <div style="position: relative;" id="employeeSearchWrapper">
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;"></i>
+                            <input type="text" id="employeeSearch" class="form-control" placeholder="Search employee by name or ID..." autocomplete="off" style="padding-left: 40px;">
+                        </div>
+                        <input type="hidden" name="employee_id" id="employee_id" value="{{ old('employee_id') }}" required>
+                        <div id="employeeDropdown" class="employee-dropdown" style="display: none;">
+                            @foreach($employees as $emp)
+                                <div class="employee-option" data-id="{{ $emp->id }}" data-name="{{ $emp->full_name }}" data-empid="{{ $emp->employee_id }}" data-position="{{ $emp->position }}" data-dept="{{ $emp->department->name ?? 'N/A' }}">
+                                    <div>
+                                        <div style="font-weight: 600; font-size: 0.88rem;">{{ $emp->full_name }}</div>
+                                        <div style="font-size: 0.75rem; color: var(--secondary);">{{ $emp->employee_id }} · {{ $emp->position ?? 'N/A' }} · {{ $emp->department->name ?? 'N/A' }}</div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employee Balance Card (shown after employee is selected) -->
+                <div id="employeeBalanceCard" style="display: none; margin-bottom: 20px;">
+                    <div class="balance-card">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+
+                            <div>
+                                <div id="empInfoName" style="font-weight: 700; font-size: 0.95rem;"></div>
+                                <div id="empInfoDetails" style="font-size: 0.78rem; color: var(--secondary);"></div>
+                            </div>
+                            <button type="button" onclick="clearEmployee()" style="margin-left: auto; background: none; border: none; color: var(--secondary); cursor: pointer; font-size: 0.85rem; padding: 4px 8px; border-radius: 6px; transition: all 0.2s;" title="Change employee">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="balance-box vl-box">
+                                <div class="balance-label"><i class="fas fa-umbrella-beach"></i> Vacation Leave</div>
+                                <div class="balance-value" id="vlBalance">—</div>
+                                <div class="balance-sub">Total Earned: <span id="vlTotalEarned">—</span></div>
+                            </div>
+                            <div class="balance-box sl-box">
+                                <div class="balance-label"><i class="fas fa-briefcase-medical"></i> Sick Leave</div>
+                                <div class="balance-value" id="slBalance">—</div>
+                                <div class="balance-sub">Total Earned: <span id="slTotalEarned">—</span></div>
+                            </div>
+                        </div>
+                        <div id="noLeaveCardWarning" style="display: none; margin-top: 12px; padding: 10px 14px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; font-size: 0.8rem; color: #92400e;">
+                            <i class="fas fa-exclamation-triangle"></i> No leave card found for this year. Balance starts at 0.
+                        </div>
+                    </div>
                 </div>
                 @else
                 <input type="hidden" name="employee_id" value="{{ auth()->user()->employee->id }}">
@@ -30,10 +72,7 @@
                 </div>
                 @endif
 
-                <div class="form-group">
-                    <label class="form-label">Date of Filing</label>
-                    <input type="date" name="date_filed" class="form-control" value="{{ old('date_filed', date('Y-m-d')) }}" required style="max-width: 250px;">
-                </div>
+                <input type="hidden" name="date_filed" value="{{ old('date_filed', date('Y-m-d')) }}">
 
                 <!-- Inclusive Dates Section -->
                 <div class="form-group">
@@ -77,121 +116,11 @@
                     </div>
                 </div>
 
-                <!-- 6.B Details of Leave -->
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.95rem; font-weight: 700;">6.B Details of Leave</label>
-                    
-                    <div class="details-section">
-                        <!-- Vacation / Special Privilege Leave -->
-                        <div class="detail-block">
-                            <p class="detail-heading"><em>In case of Vacation/Special Privilege Leave:</em></p>
-                            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 8px;">
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_within_ph" value="1" {{ old('detail_within_ph') ? 'checked' : '' }}>
-                                    <span>Within the Philippines</span>
-                                    <input type="text" name="detail_within_ph_specify" class="detail-line" placeholder="specify..." value="{{ old('detail_within_ph_specify') }}">
-                                </label>
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_abroad" value="1" {{ old('detail_abroad') ? 'checked' : '' }}>
-                                    <span>Abroad (Specify)</span>
-                                    <input type="text" name="detail_abroad_specify" class="detail-line" placeholder="specify country..." value="{{ old('detail_abroad_specify') }}">
-                                </label>
-                            </div>
-                        </div>
 
-                        <!-- Sick Leave -->
-                        <div class="detail-block">
-                            <p class="detail-heading"><em>In case of Sick Leave:</em></p>
-                            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 8px;">
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_in_hospital" value="1" {{ old('detail_in_hospital') ? 'checked' : '' }}>
-                                    <span>In Hospital (Specify Illness)</span>
-                                    <input type="text" name="detail_in_hospital_specify" class="detail-line" placeholder="specify illness..." value="{{ old('detail_in_hospital_specify') }}">
-                                </label>
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_out_patient" value="1" {{ old('detail_out_patient') ? 'checked' : '' }}>
-                                    <span>Out Patient (Specify Illness)</span>
-                                    <input type="text" name="detail_out_patient_specify" class="detail-line" placeholder="specify illness..." value="{{ old('detail_out_patient_specify') }}">
-                                </label>
-                            </div>
-                        </div>
 
-                        <!-- Special Leave Benefits for Women -->
-                        <div class="detail-block">
-                            <p class="detail-heading"><em>In case of Special Leave Benefits for Women:</em></p>
-                            <div style="padding-left: 8px;">
-                                <label class="detail-check">
-                                    <span>(Specify Illness)</span>
-                                    <input type="text" name="detail_women_specify" class="detail-line" placeholder="specify illness..." value="{{ old('detail_women_specify') }}" style="flex: 1;">
-                                </label>
-                            </div>
-                        </div>
 
-                        <!-- Study Leave -->
-                        <div class="detail-block">
-                            <p class="detail-heading"><em>In case of Study Leave:</em></p>
-                            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 8px;">
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_masters" value="1" {{ old('detail_masters') ? 'checked' : '' }}>
-                                    <span>Completion of Master's Degree</span>
-                                </label>
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_bar_review" value="1" {{ old('detail_bar_review') ? 'checked' : '' }}>
-                                    <span>BAR/Board Examination Review</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Other Purpose -->
-                        <div class="detail-block">
-                            <p class="detail-heading"><em>Other purpose:</em></p>
-                            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 8px;">
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_monetization" value="1" {{ old('detail_monetization') ? 'checked' : '' }}>
-                                    <span>Monetization of Leave Credits</span>
-                                </label>
-                                <label class="detail-check">
-                                    <input type="checkbox" name="detail_terminal" value="1" {{ old('detail_terminal') ? 'checked' : '' }}>
-                                    <span>Terminal Leave</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Additional Reason / Remarks -->
-                <div class="form-group">
-                    <label class="form-label">Additional Remarks (Optional)</label>
-                    <textarea name="reason" class="form-control" rows="2" placeholder="Any additional notes or remarks...">{{ old('reason') }}</textarea>
-                </div>
-
-                <!-- 6.D Commutation -->
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 0.95rem; font-weight: 700;">6.D Commutation</label>
-                    <div class="details-section">
-                        <div style="display: flex; flex-direction: column; gap: 10px; padding-left: 8px;">
-                            <label class="detail-check">
-                                <input type="radio" name="commutation" value="not_requested" {{ old('commutation', 'not_requested') == 'not_requested' ? 'checked' : '' }}>
-                                <span>Not Requested</span>
-                            </label>
-                            <label class="detail-check">
-                                <input type="radio" name="commutation" value="requested" {{ old('commutation') == 'requested' ? 'checked' : '' }}>
-                                <span>Requested</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Attachment (Optional)</label>
-                    <div style="border: 2px dashed #cbd5e1; padding: 30px; text-align: center; border-radius: 16px; transition: all 0.2s;" id="drop-zone">
-                        <i class="fas fa-cloud-upload-alt fa-3x" style="color: #94a3b8; margin-bottom: 15px;"></i>
-                        <p style="color: #64748b; margin-bottom: 15px;">Drag & drop files here or click to browse</p>
-                        <input type="file" name="attachment" id="attachment" style="display: none;">
-                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('attachment').click()">Select File</button>
-                        <p id="file-name" style="margin-top: 15px; font-weight: 600; font-size: 0.8rem; color: var(--primary);"></p>
-                    </div>
-                </div>
+                <!-- Commutation (Hidden default) -->
+                <input type="hidden" name="commutation" value="not_requested">
 
                 <div style="display: flex; gap: 15px; margin-top: 30px;">
                     <button type="submit" class="btn btn-primary" style="padding: 14px 40px;">Submit Application <i class="fas fa-paper-plane"></i></button>
@@ -200,9 +129,61 @@
             </form>
         </div>
 
-        <!-- Info Section -->
+        <!-- Info Section (Right Sidebar) -->
         <div>
-            <div class="card animate-fade" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe;">
+            <!-- 7.A Certification of Leave Credits (Live Preview) -->
+            <div class="card glass animate-fade" id="certificationCard">
+                <h5 style="font-weight: 700; margin-bottom: 4px;"><i class="fas fa-certificate text-primary"></i> 7.A Certification of Leave Credits</h5>
+                <p style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 16px;">As of {{ date('F d, Y') }}</p>
+                
+                <table class="cert-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Vacation Leave</th>
+                            <th>Sick Leave</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="row-label"><em>Total Earned</em></td>
+                            <td id="certVlEarned" class="num-cell">—</td>
+                            <td id="certSlEarned" class="num-cell">—</td>
+                        </tr>
+                        <tr class="less-row">
+                            <td class="row-label"><em>Less this application</em></td>
+                            <td id="certVlLess" class="num-cell">0.000</td>
+                            <td id="certSlLess" class="num-cell">0.000</td>
+                        </tr>
+                        <tr class="balance-row">
+                            <td class="row-label"><strong>Balance</strong></td>
+                            <td id="certVlBalance" class="num-cell balance-num">—</td>
+                            <td id="certSlBalance" class="num-cell balance-num">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div id="certNotice" style="margin-top: 12px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 0.78rem; color: #1e40af; border: 1px solid #bfdbfe;">
+                    <i class="fas fa-info-circle"></i> Select an employee to see leave credit certification.
+                </div>
+            </div>
+
+            <!-- Computation Preview -->
+            <div class="card glass animate-fade" style="margin-top: 20px;" id="calc-preview">
+                <h5 style="font-weight: 700; margin-bottom: 16px;"><i class="fas fa-calculator text-primary"></i> Computation Preview</h5>
+                <div id="entries-summary"></div>
+                <div style="display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--primary);">
+                    <span style="font-weight: 800;">Total Days:</span>
+                    <span id="total-days" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">0 days</span>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                <p style="font-size: 0.75rem; color: var(--secondary); font-style: italic;">
+                    Credits will be deducted upon approval of HR administrator.
+                </p>
+            </div>
+
+            <!-- Leave Reminders -->
+            <div class="card animate-fade" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; margin-top: 20px;">
                 <h5 style="color: var(--primary); font-weight: 700; margin-bottom: 20px;"><i class="fas fa-info-circle"></i> Leave Reminders</h5>
                 <ul style="list-style: none; font-size: 0.85rem; padding: 0; margin: 0;">
                     <li style="margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
@@ -223,25 +204,86 @@
                     </li>
                 </ul>
             </div>
-
-            <div class="card glass animate-fade" style="margin-top: 24px;" id="calc-preview">
-                <h5 style="font-weight: 700; margin-bottom: 16px;">Computation Preview</h5>
-                <div id="entries-summary"></div>
-                <div style="display: flex; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--primary);">
-                    <span style="font-weight: 800;">Total Days:</span>
-                    <span id="total-days" style="font-weight: 800; color: var(--primary); font-size: 1.1rem;">0 days</span>
-                </div>
-                <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-                <p style="font-size: 0.75rem; color: var(--secondary); font-style: italic;">
-                    Credits will be deducted upon approval of HR administrator.
-                </p>
-            </div>
         </div>
     </div>
 </div>
 
 @push('styles')
 <style>
+    /* Employee Search Dropdown */
+    .employee-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 100;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        margin-top: 4px;
+    }
+    .employee-option {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: all 0.15s;
+        border-bottom: 1px solid #f8fafc;
+    }
+    .employee-option:last-child { border-bottom: none; }
+    .employee-option:hover, .employee-option.active {
+        background: #eff6ff;
+    }
+    .employee-option:first-child { border-radius: 12px 12px 0 0; }
+    .employee-option:last-child { border-radius: 0 0 12px 12px; }
+
+    /* Balance Card */
+    .balance-card {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+    }
+    .balance-box {
+        padding: 16px;
+        border-radius: 12px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .vl-box {
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        border: 1px solid #bfdbfe;
+    }
+    .sl-box {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #bbf7d0;
+    }
+    .balance-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--secondary);
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+    }
+    .vl-box .balance-label { color: #2563eb; }
+    .sl-box .balance-label { color: #16a34a; }
+    .balance-value {
+        font-size: 1.6rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    .vl-box .balance-value { color: #1d4ed8; }
+    .sl-box .balance-value { color: #15803d; }
+    .balance-sub {
+        font-size: 0.72rem;
+        color: var(--secondary);
+    }
+
+    /* Date Entries */
     .date-entry {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -286,6 +328,7 @@
     .entry-summary-row:last-child {
         border-bottom: none;
     }
+
     /* 6.B Details of Leave styles */
     .details-section {
         background: #f8fafc;
@@ -317,12 +360,7 @@
         font-size: 0.85rem;
         color: var(--dark);
     }
-    .detail-check input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--primary);
-        flex-shrink: 0;
-    }
+    .detail-check input[type="checkbox"],
     .detail-check input[type="radio"] {
         width: 18px;
         height: 18px;
@@ -347,6 +385,69 @@
         border-bottom-color: var(--primary);
         border-bottom-width: 2px;
     }
+
+    /* 7.A Certification Table */
+    .cert-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+    }
+    .cert-table thead th {
+        background: #f1f5f9;
+        padding: 8px 12px;
+        font-weight: 700;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    .cert-table thead th:first-child {
+        text-align: left;
+        border-left: none;
+    }
+    .cert-table thead th:last-child {
+        border-right: none;
+    }
+    .cert-table td {
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+    }
+    .cert-table td:first-child { border-left: none; }
+    .cert-table td:last-child { border-right: none; }
+    .row-label {
+        font-size: 0.8rem;
+        color: var(--dark);
+    }
+    .num-cell {
+        text-align: center;
+        font-weight: 600;
+        font-family: monospace;
+        font-size: 0.88rem;
+    }
+    .less-row {
+        background: #fff7ed;
+    }
+    .less-row td {
+        color: #c2410c;
+    }
+    .balance-row {
+        background: #f0f9ff;
+    }
+    .balance-num {
+        font-weight: 800 !important;
+        color: var(--primary) !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Insufficient warning */
+    .balance-value.insufficient {
+        color: #dc2626 !important;
+    }
+    .cert-insufficient {
+        color: #dc2626 !important;
+        font-weight: 800 !important;
+    }
 </style>
 @endpush
 
@@ -355,8 +456,9 @@
     let entryIndex = 1;
     const entriesContainer = document.getElementById('dateEntries');
     const addBtn = document.getElementById('addEntryBtn');
-    const fileInput = document.getElementById('attachment');
-    const fileNameDisplay = document.getElementById('file-name');
+
+    // Employee balance data
+    let employeeBalance = null;
 
     // Leave type options HTML
     const leaveTypeOptions = `<option value="">— Select —</option>` +
@@ -364,7 +466,202 @@
         .map(t => `<option value="${t.id}" data-code="${t.code}">${t.name} (${t.code})</option>`)
         .join('');
 
-    // Add new leave entry
+    // ═══════════════════════════════════════════════════════
+    // Employee Search & Selection
+    // ═══════════════════════════════════════════════════════
+    @if(auth()->user()->canManageEmployees())
+    const searchInput = document.getElementById('employeeSearch');
+    const dropdown = document.getElementById('employeeDropdown');
+    const employeeIdInput = document.getElementById('employee_id');
+    const balanceCard = document.getElementById('employeeBalanceCard');
+    let activeIndex = -1;
+
+    searchInput.addEventListener('focus', () => {
+        filterEmployees();
+        dropdown.style.display = 'block';
+    });
+
+    searchInput.addEventListener('input', () => {
+        filterEmployees();
+        dropdown.style.display = 'block';
+        activeIndex = -1;
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', (e) => {
+        const options = dropdown.querySelectorAll('.employee-option:not([style*="display: none"])');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, options.length - 1);
+            highlightOption(options);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, 0);
+            highlightOption(options);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex >= 0 && options[activeIndex]) {
+                selectEmployee(options[activeIndex]);
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    function highlightOption(options) {
+        options.forEach(o => o.classList.remove('active'));
+        if (activeIndex >= 0 && options[activeIndex]) {
+            options[activeIndex].classList.add('active');
+            options[activeIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function filterEmployees() {
+        const q = searchInput.value.toLowerCase().trim();
+        dropdown.querySelectorAll('.employee-option').forEach(opt => {
+            const name = opt.dataset.name.toLowerCase();
+            const empid = opt.dataset.empid.toLowerCase();
+            const position = (opt.dataset.position || '').toLowerCase();
+            const dept = (opt.dataset.dept || '').toLowerCase();
+            const match = !q || name.includes(q) || empid.includes(q) || position.includes(q) || dept.includes(q);
+            opt.style.display = match ? '' : 'none';
+        });
+    }
+
+    // Click to select
+    dropdown.addEventListener('click', (e) => {
+        const option = e.target.closest('.employee-option');
+        if (option) selectEmployee(option);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#employeeSearchWrapper')) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    function selectEmployee(option) {
+        const id = option.dataset.id;
+        const name = option.dataset.name;
+        const empid = option.dataset.empid;
+        const position = option.dataset.position;
+        const dept = option.dataset.dept;
+
+        employeeIdInput.value = id;
+        searchInput.value = name;
+        searchInput.style.display = 'none';
+        dropdown.style.display = 'none';
+
+        // Show balance card
+        balanceCard.style.display = 'block';
+        document.getElementById('empInfoName').textContent = name;
+        document.getElementById('empInfoDetails').textContent = `${empid} · ${position || 'N/A'} · ${dept}`;
+
+        // Fetch balance via AJAX
+        fetchEmployeeBalance(id);
+    }
+
+    function clearEmployee() {
+        employeeIdInput.value = '';
+        searchInput.value = '';
+        searchInput.style.display = '';
+        balanceCard.style.display = 'none';
+        employeeBalance = null;
+        resetCertification();
+        searchInput.focus();
+    }
+
+    function fetchEmployeeBalance(employeeId) {
+        fetch(`/api/employee/${employeeId}/leave-balance`)
+            .then(r => r.json())
+            .then(data => {
+                employeeBalance = data;
+
+                document.getElementById('vlBalance').textContent = parseFloat(data.vl_balance);
+                document.getElementById('slBalance').textContent = parseFloat(data.sl_balance);
+                document.getElementById('vlTotalEarned').textContent = parseFloat(data.vl_total_earned);
+                document.getElementById('slTotalEarned').textContent = parseFloat(data.sl_total_earned);
+
+                document.getElementById('noLeaveCardWarning').style.display = data.has_leave_card ? 'none' : 'block';
+
+                // Update certification table
+                updateCertification();
+            })
+            .catch(err => {
+                console.error('Failed to fetch balance:', err);
+            });
+    }
+    @endif
+
+    function resetCertification() {
+        document.getElementById('certVlEarned').textContent = '—';
+        document.getElementById('certSlEarned').textContent = '—';
+        document.getElementById('certVlLess').textContent = '0.000';
+        document.getElementById('certSlLess').textContent = '0.000';
+        document.getElementById('certVlBalance').textContent = '—';
+        document.getElementById('certSlBalance').textContent = '—';
+        document.getElementById('certNotice').style.display = 'block';
+
+        // Remove insufficient warnings
+        document.getElementById('certVlBalance').classList.remove('cert-insufficient');
+        document.getElementById('certSlBalance').classList.remove('cert-insufficient');
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 7.A Certification Auto-Calculation
+    // ═══════════════════════════════════════════════════════
+    function updateCertification() {
+        if (!employeeBalance) return;
+
+        const vlTotalEarned = parseFloat(employeeBalance.vl_total_earned);
+        const slTotalEarned = parseFloat(employeeBalance.sl_total_earned);
+        const vlCurrentBalance = parseFloat(employeeBalance.vl_balance);
+        const slCurrentBalance = parseFloat(employeeBalance.sl_balance);
+
+        // Calculate VL/SL days from entries
+        let vlDays = 0;
+        let slDays = 0;
+
+        document.querySelectorAll('.date-entry').forEach(entry => {
+            const typeSelect = entry.querySelector('.entry-type');
+            const daysInput = entry.querySelector('.entry-days');
+            const selected = typeSelect.options[typeSelect.selectedIndex];
+            const days = parseFloat(daysInput.value) || 0;
+
+            if (selected && selected.dataset) {
+                if (selected.dataset.code === 'VL' || selected.dataset.code === 'FL') vlDays += days;
+                else if (selected.dataset.code === 'SL') slDays += days;
+            }
+        });
+
+        const vlNewBalance = vlCurrentBalance - vlDays;
+        const slNewBalance = slCurrentBalance - slDays;
+
+        document.getElementById('certVlEarned').textContent = vlTotalEarned;
+        document.getElementById('certSlEarned').textContent = slTotalEarned;
+        document.getElementById('certVlLess').textContent = vlDays;
+        document.getElementById('certSlLess').textContent = slDays;
+        document.getElementById('certVlBalance').textContent = vlNewBalance;
+        document.getElementById('certSlBalance').textContent = slNewBalance;
+        document.getElementById('certNotice').style.display = 'none';
+
+        // Highlight insufficient balance
+        const vlBalEl = document.getElementById('certVlBalance');
+        const slBalEl = document.getElementById('certSlBalance');
+        vlBalEl.classList.toggle('cert-insufficient', vlNewBalance < 0);
+        slBalEl.classList.toggle('cert-insufficient', slNewBalance < 0);
+
+        // Also update balance card values
+        const vlBalBox = document.getElementById('vlBalance');
+        const slBalBox = document.getElementById('slBalance');
+        if (vlBalBox) vlBalBox.classList.toggle('insufficient', vlNewBalance < 0);
+        if (slBalBox) slBalBox.classList.toggle('insufficient', slNewBalance < 0);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Entry Management
+    // ═══════════════════════════════════════════════════════
     addBtn.addEventListener('click', () => {
         const i = entryIndex++;
         const entry = document.createElement('div');
@@ -403,7 +700,6 @@
         renumberEntries();
     });
 
-    // Remove entry
     function removeEntry(btn) {
         const entry = btn.closest('.date-entry');
         entry.style.opacity = '0';
@@ -412,17 +708,16 @@
             entry.remove();
             renumberEntries();
             updatePreview();
+            updateCertification();
         }, 200);
     }
 
-    // Renumber entries
     function renumberEntries() {
         document.querySelectorAll('.date-entry').forEach((entry, idx) => {
             entry.querySelector('.entry-label').textContent = `#${idx + 1}`;
         });
     }
 
-    // Bind events to an entry
     function bindEntryEvents(entry) {
         const typeSelect = entry.querySelector('.entry-type');
         const daysInput = entry.querySelector('.entry-days');
@@ -440,13 +735,19 @@
                 othersDiv.querySelector('input').value = '';
             }
             updatePreview();
+            updateCertification();
         });
 
-        daysInput.addEventListener('input', updatePreview);
+        daysInput.addEventListener('input', () => {
+            updatePreview();
+            updateCertification();
+        });
         datesInput.addEventListener('input', updatePreview);
     }
 
-    // Update computation preview
+    // ═══════════════════════════════════════════════════════
+    // Computation Preview
+    // ═══════════════════════════════════════════════════════
     function updatePreview() {
         const summaryDiv = document.getElementById('entries-summary');
         const totalDisplay = document.getElementById('total-days');
@@ -477,14 +778,7 @@
         totalDisplay.textContent = totalDays + (totalDays === 1 ? ' day' : ' days');
     }
 
-    // File input
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            fileNameDisplay.innerText = "Selected: " + e.target.files[0].name;
-        }
-    });
-
-    // Initialize first entry
+    // Initialize
     bindEntryEvents(document.querySelector('.date-entry'));
     updatePreview();
 </script>

@@ -19,16 +19,16 @@ class LeaveCard extends Model
     ];
 
     protected $casts = [
-        'vl_beginning_balance' => 'decimal:3',
-        'sl_beginning_balance' => 'decimal:3',
-        'vl_earned' => 'decimal:3',
-        'sl_earned' => 'decimal:3',
-        'vl_used' => 'decimal:3',
-        'sl_used' => 'decimal:3',
-        'vl_balance' => 'decimal:3',
-        'sl_balance' => 'decimal:3',
-        'forced_leave_balance' => 'decimal:3',
-        'special_leave_balance' => 'decimal:3',
+        'vl_beginning_balance' => 'float',
+        'sl_beginning_balance' => 'float',
+        'vl_earned' => 'float',
+        'sl_earned' => 'float',
+        'vl_used' => 'float',
+        'sl_used' => 'float',
+        'vl_balance' => 'float',
+        'sl_balance' => 'float',
+        'forced_leave_balance' => 'float',
+        'special_leave_balance' => 'float',
     ];
 
     public function employee()

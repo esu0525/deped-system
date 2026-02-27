@@ -11,15 +11,20 @@ class LeaveTransaction extends Model
 
     protected $fillable = [
         'employee_id', 'leave_card_id', 'leave_type_id',
-        'transaction_date', 'transaction_type', 'days',
+        'transaction_date',
+        'period',
+        'transaction_type', 'days',
         'vl_balance_after', 'sl_balance_after', 'remarks', 'encoded_by',
+        'vl_earned', 'vl_used', 'vl_wop',
+        'sl_earned', 'sl_used', 'sl_wop',
+        'action_taken'
     ];
 
     protected $casts = [
         'transaction_date' => 'date',
-        'days' => 'decimal:3',
-        'vl_balance_after' => 'decimal:3',
-        'sl_balance_after' => 'decimal:3',
+        'days' => 'float',
+        'vl_balance_after' => 'float',
+        'sl_balance_after' => 'float',
     ];
 
     public function employee()

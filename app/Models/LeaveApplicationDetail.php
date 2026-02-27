@@ -18,7 +18,7 @@ class LeaveApplicationDetail extends Model
     protected $casts = [
         'date_from' => 'date',
         'date_to' => 'date',
-        'num_days' => 'decimal:3',
+        'num_days' => 'float',
     ];
 
     public function leaveApplication()

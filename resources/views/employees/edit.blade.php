@@ -13,7 +13,7 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group">
-                    <label class="form-label">Employee ID <span style="color: var(--danger);">*</span></label>
+                    <label class="form-label">Reference ID <span style="color: var(--danger);">*</span></label>
                     <input type="text" name="employee_id" class="form-control" value="{{ old('employee_id', $employee->employee_id) }}" required>
                     @error('employee_id') <small style="color: var(--danger);">{{ $message }}</small> @enderror
                 </div>
@@ -34,13 +34,8 @@
                     <input type="text" name="position" class="form-control" value="{{ old('position', $employee->position) }}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Department</label>
-                    <select name="department_id" class="form-control">
-                        <option value="">Select Department</option>
-                        @foreach($departments as $dept)
-                            <option value="{{ $dept->id }}" {{ old('department_id', $employee->department_id) == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">Office/Department</label>
+                    <input type="text" name="department_name" class="form-control" value="{{ old('department_name', $employee->department?->name) }}" placeholder="Type office/department name">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Employment Status</label>
@@ -51,18 +46,6 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Date Hired</label>
-                    <input type="date" name="date_hired" class="form-control" value="{{ old('date_hired', $employee->date_hired?->format('Y-m-d')) }}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ old('email', $employee->email) }}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Contact Number</label>
-                    <input type="text" name="contact_number" class="form-control" value="{{ old('contact_number', $employee->contact_number) }}">
-                </div>
-                <div class="form-group">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-control">
                         @foreach(['Active', 'Inactive', 'Resigned', 'Retired'] as $status)
@@ -70,29 +53,9 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Link to User Account</label>
-                    <select name="user_id" class="form-control">
-                        <option value="">None</option>
-                        @foreach($users as $user)
-                            <option value="{{ $user->id }}" {{ old('user_id', $employee->user_id) == $user->id ? 'selected' : '' }}>{{ $user->name }} ({{ $user->email }})</option>
-                        @endforeach
-                    </select>
-                </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <textarea name="address" class="form-control" rows="2">{{ old('address', $employee->address) }}</textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Profile Picture</label>
-                <input type="file" name="profile_picture" class="form-control" accept="image/*">
-                @if($employee->profile_picture)
-                    <small style="color: var(--secondary); margin-top: 5px; display: block;">Current photo uploaded</small>
-                @endif
-            </div>
+            <!-- Profile picture removed -->
 
             <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Employee</button>

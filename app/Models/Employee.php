@@ -19,6 +19,24 @@ class Employee extends Model
         'date_hired' => 'date',
     ];
 
+    protected static function booted()
+    {
+        static::creating(function ($employee) {
+            if (empty($employee->employee_id)) {
+                $employee->employee_id = self::generateUniqueId();
+            }
+        });
+    }
+
+    private static function generateUniqueId()
+    {
+        do {
+            $id = str_pad(mt_rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+        } while (self::where('employee_id', $id)->exists());
+
+        return $id;
+    }
+
     // Relationships
     public function user()
     {

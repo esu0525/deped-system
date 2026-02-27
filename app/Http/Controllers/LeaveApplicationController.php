@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
+use App\Models\LeaveCard;
 use App\Models\Employee;
 use App\Models\AuditTrail;
 use App\Services\LeaveCardService;
@@ -71,6 +72,49 @@ class LeaveApplicationController extends Controller
         return view('leave-applications.create', compact('leaveTypes', 'employees'));
     }
 
+    /**
+     * API: Get employee leave balance for AJAX.
+     */
+    public function getEmployeeBalance(Employee $employee)
+    {
+        $year = now()->year;
+        $leaveCard = LeaveCard::where('employee_id', $employee->id)
+            ->where('year', $year)
+            ->first();
+
+        if (!$leaveCard) {
+            return response()->json([
+                'employee' => [
+                    'full_name' => $employee->full_name,
+                    'employee_id' => $employee->employee_id,
+                    'position' => $employee->position,
+                    'department' => $employee->department->name ?? 'N/A',
+                ],
+                'year' => $year,
+                'vl_total_earned' => 0,
+                'vl_balance' => 0,
+                'sl_total_earned' => 0,
+                'sl_balance' => 0,
+                'has_leave_card' => false,
+            ]);
+        }
+
+        return response()->json([
+            'employee' => [
+                'full_name' => $employee->full_name,
+                'employee_id' => $employee->employee_id,
+                'position' => $employee->position,
+                'department' => $employee->department->name ?? 'N/A',
+            ],
+            'year' => $year,
+            'vl_total_earned' => floatval($leaveCard->vl_beginning_balance) + floatval($leaveCard->vl_earned),
+            'vl_balance' => floatval($leaveCard->vl_balance),
+            'sl_total_earned' => floatval($leaveCard->sl_beginning_balance) + floatval($leaveCard->sl_earned),
+            'sl_balance' => floatval($leaveCard->sl_balance),
+            'has_leave_card' => true,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -81,7 +125,7 @@ class LeaveApplicationController extends Controller
             'entries.*.inclusive_dates' => 'required|string|max:255',
             'entries.*.num_days' => 'required|numeric|min:0.5',
             'reason' => 'nullable|string|max:1000',
-            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'commutation' => 'nullable|string',
         ]);
 
         $entries = $request->input('entries');
@@ -89,11 +133,6 @@ class LeaveApplicationController extends Controller
 
         foreach ($entries as $entry) {
             $totalDays += floatval($entry['num_days']);
-        }
-
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('leave-attachments', 'public');
         }
 
         // Use the first entry's leave type as the main type
@@ -104,11 +143,20 @@ class LeaveApplicationController extends Controller
             'leave_type_id' => $firstEntry['leave_type_id'],
             'other_leave_type' => $firstEntry['other_type'] ?? null,
             'date_filed' => $request->date_filed,
-            'date_from' => $request->date_filed, // Use filing date as reference
+            'date_from' => $request->date_filed,
             'date_to' => $request->date_filed,
             'num_days' => $totalDays,
             'reason' => $request->reason,
-            'attachment' => $attachmentPath,
+            // 6.B Details of Leave
+            'leave_location' => $request->leave_location,
+            'leave_location_detail' => $request->leave_location_detail,
+            'sick_leave_type' => $request->sick_leave_type,
+            'sick_leave_detail' => $request->sick_leave_detail,
+            'women_leave_detail' => $request->women_leave_detail,
+            'study_leave_type' => $request->study_leave_type,
+            'other_leave_detail' => $request->other_leave_detail,
+            // 6.D Commutation
+            'commutation' => $request->commutation,
             'status' => 'Pending',
             'encoded_by' => auth()->id(),
         ]);
@@ -191,6 +239,14 @@ class LeaveApplicationController extends Controller
 
         $request->validate(['remarks' => 'nullable|string|max:500']);
 
+        // Get leave card before deduction for certification
+        $employee = $leaveApplication->employee;
+        $leaveCardBefore = $this->leaveCardService->getOrCreateLeaveCard($employee);
+
+        // Capture balance BEFORE deduction
+        $vlCurrentBalance = floatval($leaveCardBefore->vl_balance);
+        $slCurrentBalance = floatval($leaveCardBefore->sl_balance);
+
         // Deduct credits
         $deducted = $this->leaveCardService->deductLeaveCredits($leaveApplication);
 
@@ -198,11 +254,32 @@ class LeaveApplicationController extends Controller
             return back()->with('error', 'Insufficient leave credits. Cannot approve this application.');
         }
 
+        // Get leave card after deduction
+        $leaveCardAfter = $leaveCardBefore->fresh();
+
+        // Calculate VL/SL days for this application from actual details
+        $vlDays = 0;
+        $slDays = 0;
+        foreach ($leaveApplication->details as $detail) {
+            $type = $detail->leaveType;
+            if ($type->code === 'VL' || $type->code === 'FL')
+                $vlDays += floatval($detail->num_days);
+            elseif ($type->code === 'SL')
+                $slDays += floatval($detail->num_days);
+        }
+
         $leaveApplication->update([
             'status' => 'Approved',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
             'remarks' => $request->remarks,
+            // 7.A Certification of Leave Credits
+            'cert_vl_total_earned' => $vlCurrentBalance,
+            'cert_vl_less_this' => $vlDays,
+            'cert_vl_balance' => floatval($leaveCardAfter->vl_balance),
+            'cert_sl_total_earned' => $slCurrentBalance,
+            'cert_sl_less_this' => $slDays,
+            'cert_sl_balance' => floatval($leaveCardAfter->sl_balance),
         ]);
 
         // Send email notification

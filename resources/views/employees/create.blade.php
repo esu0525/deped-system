@@ -12,8 +12,8 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group">
-                    <label class="form-label">Employee ID <span style="color: var(--danger);">*</span></label>
-                    <input type="text" name="employee_id" class="form-control" value="{{ old('employee_id') }}" required>
+                    <label class="form-label">Reference ID (Auto-generated)</label>
+                    <input type="text" name="employee_id" class="form-control" value="{{ old('employee_id') }}" placeholder="Leave blank to auto-generate">
                     @error('employee_id') <small style="color: var(--danger);">{{ $message }}</small> @enderror
                 </div>
                 <div class="form-group">
@@ -33,13 +33,8 @@
                     <input type="text" name="position" class="form-control" value="{{ old('position') }}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Department</label>
-                    <select name="department_id" class="form-control">
-                        <option value="">Select Department</option>
-                        @foreach($departments as $dept)
-                            <option value="{{ $dept->id }}" {{ old('department_id') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">Office/Department</label>
+                    <input type="text" name="department_name" class="form-control" value="{{ old('department_name') }}" placeholder="Type office/department name">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Employment Status</label>
@@ -52,37 +47,16 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Date Hired</label>
-                    <input type="date" name="date_hired" class="form-control" value="{{ old('date_hired') }}">
+                    <label class="form-label">Initial VL Balance (Days)</label>
+                    <input type="number" step="any" name="vl_balance" class="form-control" value="{{ old('vl_balance') }}" placeholder="0">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" value="{{ old('email') }}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Contact Number</label>
-                    <input type="text" name="contact_number" class="form-control" value="{{ old('contact_number') }}">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Link to User Account</label>
-                    <select name="user_id" class="form-control">
-                        <option value="">None</option>
-                        @foreach($users as $user)
-                            <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>{{ $user->name }} ({{ $user->email }})</option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">Initial SL Balance (Days)</label>
+                    <input type="number" step="any" name="sl_balance" class="form-control" value="{{ old('sl_balance') }}" placeholder="0">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Address</label>
-                <textarea name="address" class="form-control" rows="2">{{ old('address') }}</textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Profile Picture</label>
-                <input type="file" name="profile_picture" class="form-control" accept="image/*">
-            </div>
+            <!-- Profile picture removed -->
 
             <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create Employee</button>

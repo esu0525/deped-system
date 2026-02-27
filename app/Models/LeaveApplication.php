@@ -14,6 +14,15 @@ class LeaveApplication extends Model
         'date_from', 'date_to', 'num_days', 'reason', 'attachment',
         'status', 'approved_by', 'approved_at', 'remarks', 'encoded_by',
         'other_leave_type',
+        // 6.B Details of Leave
+        'leave_location', 'leave_location_detail',
+        'sick_leave_type', 'sick_leave_detail',
+        'women_leave_detail', 'study_leave_type', 'other_leave_detail',
+        // 6.D Commutation
+        'commutation', 'salary',
+        // 7.A Certification of Leave Credits
+        'cert_vl_total_earned', 'cert_vl_less_this', 'cert_vl_balance',
+        'cert_sl_total_earned', 'cert_sl_less_this', 'cert_sl_balance',
     ];
 
     protected $casts = [
@@ -21,7 +30,7 @@ class LeaveApplication extends Model
         'date_from' => 'date',
         'date_to' => 'date',
         'approved_at' => 'datetime',
-        'num_days' => 'decimal:3',
+        'num_days' => 'float',
     ];
 
     public function employee()

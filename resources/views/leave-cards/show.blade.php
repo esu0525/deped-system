@@ -19,11 +19,7 @@
             </form>
         </div>
         <div style="display: flex; gap: 10px;">
-            @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
-            <button class="btn btn-success" onclick="document.getElementById('balanceModal').style.display='flex'">
-                <i class="fas fa-edit"></i> Edit Balance
-            </button>
-            @endif
+
             <button class="btn btn-primary" onclick="window.print()">
                 <i class="fas fa-print"></i> Print Leave Card
             </button>
@@ -66,8 +62,8 @@
                 <thead>
                     <!-- First header row with merged cells -->
                     <tr>
-                        <th rowspan="2" style="width: 90px;">PERIOD</th>
-                        <th rowspan="2" style="min-width: 140px;">PARTICULARS</th>
+                        <th rowspan="2" style="width: 100px;">PERIOD</th>
+                        <th rowspan="2" style="width: 160px;">PARTICULARS</th>
                         <th colspan="4" class="group-header vl-header">Vacation Leave</th>
                         <th colspan="4" class="group-header sl-header">Sick Leave</th>
                         <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>Appl. for Leave</th>
@@ -87,64 +83,88 @@
                 <tbody>
                     <!-- Beginning Balance Row -->
                     <tr class="beginning-row">
-                        <td></td>
-                        <td style="font-weight: 700;">BEGINNING BALANCE</td>
-                        <td></td>
-                        <td></td>
-                        <td class="bal-cell">{{ number_format($leaveCard->vl_beginning_balance, 3) }}</td>
+                        <td class="date-col" style="font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</td>
+                        <td class="particulars-col"></td>
                         <td></td>
                         <td></td>
+                        <td class="bal-cell" style="padding: 0;">
+                            @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
+                                <input type="number" id="vlBeginningBalance" value="{{ $leaveCard->vl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
+                            @else
+                                {{ number_format($leaveCard->vl_beginning_balance, 3) }}
+                            @endif
+                        </td>
                         <td></td>
-                        <td class="bal-cell">{{ number_format($leaveCard->sl_beginning_balance, 3) }}</td>
+                        <td></td>
+                        <td></td>
+                        <td class="bal-cell" style="padding: 0;">
+                            @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
+                                <input type="number" id="slBeginningBalance" value="{{ $leaveCard->sl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
+                            @else
+                                {{ number_format($leaveCard->sl_beginning_balance, 3) }}
+                            @endif
+                        </td>
                         <td></td>
                         <td></td>
                     </tr>
 
                     @forelse($transactions as $trans)
                     @php
-                        $isVL = ($trans->leaveType->code ?? '') === 'VL';
-                        $isSL = ($trans->leaveType->code ?? '') === 'SL';
+                        $code = $trans->leaveType->code ?? '';
+                        $isVL = in_array($code, ['VL', 'FL']);
+                        $isSL = $code === 'SL';
                         $isEarned = $trans->transaction_type === 'earned';
                         $isUsed = $trans->transaction_type === 'used';
+                        
+                        $isStrictlyVL = ($isUsed && $isVL);
+                        $isStrictlySL = ($isUsed && $isSL);
                     @endphp
-                    <tr>
+                    <tr class="tx-row" data-id="{{ $trans->id }}">
                         <!-- Period -->
-                        <td>{{ $trans->transaction_date->format('m/d/Y') }}</td>
+                        @php
+                            // If it's an empty transaction row that exists but has no date
+                            $rawPeriod = $trans->period ?? ($trans->transaction_date ? $trans->transaction_date->format('m/d/Y') : '');
+                            $rawParticulars = $trans->remarks ?: ($isEarned ? '' : ($trans->leaveType->code ?? ''));
+                            
+                            $isLess = strpos(strtoupper($rawPeriod), 'LESS') !== false || $isUsed;
+                            $textColor = $isLess ? 'color: #dc2626;' : 'color: #000;';
+                        @endphp
+                        <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $rawPeriod }}</td>
                         <!-- Particulars -->
-                        <td style="font-size: 0.78rem;">{{ $trans->remarks ?: ($isEarned ? 'Monthly Credit' : ($trans->leaveType->name ?? '')) }}</td>
+                        <td class="edit-cell particulars-col" style="font-size: 0.85rem; {{ $textColor }} font-weight: 600;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $rawParticulars }}</td>
 
                         <!-- VL columns -->
-                        <td class="num-cell">{{ ($isVL && $isEarned) ? number_format($trans->days, 3) : '' }}</td>
-                        <td class="num-cell">{{ ($isVL && $isUsed) ? number_format($trans->days, 3) : '' }}</td>
-                        <td class="bal-cell">{{ number_format($trans->vl_balance_after, 3) }}</td>
-                        <td class="num-cell"></td>
+                        <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_earned !== null ? (float)$trans->vl_earned : (($isVL && $isEarned) ? (float)$trans->days : ($isStrictlySL ? '' : '')) }}</td>
+                        <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_used !== null ? (float)$trans->vl_used : (($isVL && $isUsed) ? (float)$trans->days : ($isStrictlySL ? '' : '')) }}</td>
+                        <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isStrictlySL ? '-' : (float)$trans->vl_balance_after }}</td>
+                        <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_wop !== null ? (float)$trans->vl_wop : '' }}</td>
 
                         <!-- SL columns -->
-                        <td class="num-cell">{{ ($isSL && $isEarned) ? number_format($trans->days, 3) : '' }}</td>
-                        <td class="num-cell">{{ ($isSL && $isUsed) ? number_format($trans->days, 3) : '' }}</td>
-                        <td class="bal-cell">{{ number_format($trans->sl_balance_after, 3) }}</td>
-                        <td class="num-cell"></td>
+                        <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_earned !== null ? (float)$trans->sl_earned : (($isSL && $isEarned) ? (float)$trans->days : ($isStrictlyVL ? '' : '')) }}</td>
+                        <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_used !== null ? (float)$trans->sl_used : (($isSL && $isUsed) ? (float)$trans->days : ($isStrictlyVL ? '' : '')) }}</td>
+                        <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isStrictlyVL ? '-' : (float)$trans->sl_balance_after }}</td>
+                        <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_wop !== null ? (float)$trans->sl_wop : '' }}</td>
 
                         <!-- Date & Action -->
-                        <td style="font-size: 0.72rem; text-align: center;">{{ $isUsed ? $trans->transaction_date->format('m/d/Y') : '' }}</td>
+                        <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.72rem; text-align: center;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->action_taken ?: ($isUsed ? (($trans->encoder ? explode(' ', trim($trans->encoder->name))[0] . ' ' : '') . $trans->transaction_date->format('m/d/Y')) : '') }}</td>
                     </tr>
                     @empty
                     @endforelse
 
-                    <!-- Empty rows to fill the form (for print appearance) -->
+                    <!-- Empty rows to fill the form (for print appearance) OR for new manual additions -->
                     @for($i = $transactions->count(); $i < 20; $i++)
-                    <tr class="empty-row">
-                        <td>&nbsp;</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
+                    <tr class="tx-row empty-row">
+                        <td class="edit-cell date-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="edit-cell particulars-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell vl-earned-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell vl-used-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="bal-cell edit-cell vl-bal-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell vl-wop-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell sl-earned-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell sl-used-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="bal-cell edit-cell sl-bal-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="num-cell edit-cell sl-wop-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                        <td class="edit-cell action-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
                     </tr>
                     @endfor
                 </tbody>
@@ -189,46 +209,7 @@
     </div>
     @endif
 
-    <!-- Balance Edit Modal (hidden on print) -->
-    <div id="balanceModal" class="no-print" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
-        <div class="card animate-fade" style="width: 480px; max-width: 95%; background: white;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h4 style="font-weight: 700; margin: 0;"><i class="fas fa-edit" style="color: var(--primary); margin-right: 8px;"></i>Edit Leave Balance</h4>
-                <button type="button" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color: var(--secondary);" onclick="document.getElementById('balanceModal').style.display='none'">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <p style="color: var(--secondary); font-size: 0.85rem; margin-bottom: 20px;">Set the <strong>beginning balance</strong> for <strong>{{ $employee->full_name }}</strong> for Year <strong>{{ $year }}</strong>. The running balance will be recalculated automatically from transactions.</p>
-            <form action="{{ route('leave-cards.adjust', $employee) }}" method="POST">
-                @csrf
-                <input type="hidden" name="year" value="{{ $year }}">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label class="form-label">VL Beginning Balance</label>
-                        <input type="number" name="vl_beginning_balance" class="form-control" step="0.001" value="{{ $leaveCard->vl_beginning_balance ?? 0 }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">SL Beginning Balance</label>
-                        <input type="number" name="sl_beginning_balance" class="form-control" step="0.001" value="{{ $leaveCard->sl_beginning_balance ?? 0 }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Forced Leave</label>
-                        <input type="number" name="forced_leave_balance" class="form-control" step="0.001" value="{{ $leaveCard->forced_leave_balance ?? 5 }}">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Special Privilege Leave</label>
-                        <input type="number" name="special_leave_balance" class="form-control" step="0.001" value="{{ $leaveCard->special_leave_balance ?? 3 }}">
-                    </div>
-                </div>
-                <div style="display:flex; gap:10px; margin-top: 20px;">
-                    <button type="submit" class="btn btn-primary" style="flex:1; justify-content: center;">
-                        <i class="fas fa-save"></i> Save Balance
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('balanceModal').style.display='none'">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
+
 </div>
 
 @push('styles')
@@ -243,6 +224,7 @@
 
     .leave-card-table {
         width: 100%;
+        table-layout: fixed; /* Rigid dimensions to allow textual bleed over true borders */
         border-collapse: collapse;
         font-size: 0.78rem;
         font-family: 'Outfit', sans-serif;
@@ -263,6 +245,23 @@
         text-transform: uppercase;
         letter-spacing: 0.3px;
         color: #1e293b;
+    }
+
+    /* Seamless "Period -> Particulars" bleed (tumagos sa particulars) with actual border! */
+    .leave-card-table .date-col {
+        position: relative;
+        z-index: 10;
+        text-align: left;
+        padding-left: 10px;
+        white-space: nowrap; 
+        overflow: visible; /* Text bursts through the table wall */
+        outline: none;
+    }
+
+    .leave-card-table .particulars-col {
+        text-align: left;
+        padding-left: 5px;
+        white-space: nowrap;
     }
 
     .leave-card-table .group-header {
@@ -324,6 +323,35 @@
         background: transparent;
     }
 
+    .inline-edit-input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: transparent;
+        text-align: center;
+        font-family: inherit;
+        font-weight: inherit;
+        outline: none;
+        color: inherit;
+        padding: 6px; /* matching td padding */
+        min-width: 60px;
+    }
+    
+    .inline-edit-input:focus {
+        background: rgba(255, 255, 255, 0.5);
+        box-shadow: inset 0 0 0 2px var(--primary);
+    }
+    
+    /* hide arrows */
+    .inline-edit-input::-webkit-outer-spin-button,
+    .inline-edit-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .inline-edit-input[type=number] {
+        -moz-appearance: textfield;
+    }
+
     /* ═══════════════════════════════════════════════════════════
        PRINT STYLES
        ═══════════════════════════════════════════════════════════ */
@@ -371,7 +399,156 @@
         .leave-card-table tbody tr:hover {
             background: transparent !important;
         }
+    /* Auto-save visual indicator */
+    .save-indicator {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 9999;
+        pointer-events: none;
+    }
+
+    .edit-cell:focus {
+        outline: 2px solid var(--primary);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
     }
 </style>
+
+<div class="save-indicator" id="saveIndicator"><i class="fas fa-check-circle"></i> LEDGER SAVED</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Debounce timer for auto-save
+        let saveTimeout;
+        const indicator = document.getElementById('saveIndicator');
+
+        // Beginning Balance Auto-Save
+        document.querySelectorAll('.inline-edit-input').forEach(input => {
+            input.addEventListener('input', function() {
+                scheduleSave();
+            });
+        });
+
+        // Grid Auto-Save
+        document.querySelectorAll('.edit-cell').forEach(cell => {
+            // Prevent Enter from making new divs/lines and blur instead
+            cell.addEventListener('keydown', function(e) {
+                if(e.key === 'Enter') {
+                    e.preventDefault();
+                    cell.blur();
+                }
+            });
+
+            cell.addEventListener('input', function() {
+                scheduleSave();
+            });
+        });
+
+        function scheduleSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveGrid, 1200); // Wait 1.2s after they stop typing
+        }
+
+        function saveGrid() {
+            // Collect Beginning Balance (save via old route to recalculate balances optionally OR just rely on new logic)
+            // But we actually just use the adjust endpoint for beginning balances.
+            
+            // For the Grid: Collect all rows
+            const rows = document.querySelectorAll('.tx-row');
+            let transactions = [];
+
+            rows.forEach(row => {
+                let isEmpty = true;
+                const data = {
+                    id: row.getAttribute('data-id') || '',
+                    date_text: row.querySelector('.date-col')?.innerText.trim() || '',
+                    particulars: row.querySelector('.particulars-col')?.innerText.trim() || '',
+                    vl_earned: row.querySelector('.vl-earned-col')?.innerText.trim() || '',
+                    vl_used: row.querySelector('.vl-used-col')?.innerText.trim() || '',
+                    vl_balance: row.querySelector('.vl-bal-col')?.innerText.trim() || '',
+                    vl_wop: row.querySelector('.vl-wop-col')?.innerText.trim() || '',
+                    sl_earned: row.querySelector('.sl-earned-col')?.innerText.trim() || '',
+                    sl_used: row.querySelector('.sl-used-col')?.innerText.trim() || '',
+                    sl_balance: row.querySelector('.sl-bal-col')?.innerText.trim() || '',
+                    sl_wop: row.querySelector('.sl-wop-col')?.innerText.trim() || '',
+                    action_taken: row.querySelector('.action-col')?.innerText.trim() || '',
+                };
+
+                // Check if row actually has data typed into it
+                for(let key in data) {
+                    if(key !== 'id' && data[key] !== '') {
+                        isEmpty = false;
+                        break;
+                    }
+                }
+
+                if(!isEmpty) {
+                    transactions.push(data);
+                }
+            });
+
+            // Send to backend
+            fetch("{{ route('leave-cards.sync-transactions', $employee) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    year: '{{ $year }}',
+                    transactions: transactions
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    // Show saved indicator briefly
+                    indicator.style.opacity = '1';
+                    setTimeout(() => indicator.style.opacity = '0', 2000);
+                } else {
+                    console.error('Failed to sync ledger grid');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+            });
+        }
+    });
+
+    // We still keep the dedicated beginning balance logic for instantaneous updates there
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.inline-edit-input').forEach(input => {
+            input.addEventListener('change', function() {
+                let vl = document.getElementById('vlBeginningBalance').value;
+                let sl = document.getElementById('slBeginningBalance').value;
+                
+                fetch("{{ route('leave-cards.adjust', $employee) }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        year: '{{ $year }}',
+                        vl_beginning_balance: vl || 0,
+                        sl_beginning_balance: sl || 0
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {});
+            });
+        });
+    });
+</script>
 @endpush
 @endsection

@@ -46,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('leave-applications', LeaveApplicationController::class);
         Route::post('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class , 'approve'])->name('leave-applications.approve');
         Route::post('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class , 'reject'])->name('leave-applications.reject');
+        Route::get('/api/employee/{employee}/leave-balance', [LeaveApplicationController::class , 'getEmployeeBalance'])->name('api.employee.leave-balance');
 
         // ─── Leave Cards & Automation ─────────────────────────────────────────
         Route::get('/leave-cards', [LeaveCardController::class , 'index'])->name('leave-cards.index');
@@ -53,6 +54,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
             Route::post('/leave-cards/{employee}/adjust', [LeaveCardController::class , 'adjust'])->name('leave-cards.adjust');
+            Route::post('/leave-cards/{employee}/sync-transactions', [LeaveCardController::class , 'syncTransactions'])->name('leave-cards.sync-transactions');
             Route::post('/leave-cards/monthly-credit', [LeaveCardController::class , 'addMonthlyCredits'])->name('leave-cards.monthly-credits');
         }
         );
