@@ -28,7 +28,7 @@
                         <th>Employee Name</th>
                         <th style="text-align: center;">VL Balance</th>
                         <th style="text-align: center;">SL Balance</th>
-                        <th style="text-align: center;">Total Balance</th>
+
                         <th style="text-align: center;">Actions</th>
                     </tr>
                 </thead>
@@ -57,9 +57,7 @@
                                 {{ number_format($slBal, 3) }}
                             </span>
                         </td>
-                        <td style="text-align: center;">
-                            <strong style="font-size: 1.1rem; color: var(--primary);">{{ number_format($vlBal + $slBal, 3) }}</strong>
-                        </td>
+
                         <td style="text-align: center;">
                             <a href="{{ route('leave-cards.show', $employee) }}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-eye"></i> View Ledger
@@ -68,7 +66,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 40px; color: var(--secondary);">
+                        <td colspan="5" style="text-align: center; padding: 40px; color: var(--secondary);">
                             <i class="fas fa-inbox fa-3x" style="margin-bottom: 15px; opacity: 0.3;"></i>
                             <p style="font-weight: 600;">No employees found.</p>
                         </td>

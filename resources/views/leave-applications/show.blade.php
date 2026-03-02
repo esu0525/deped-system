@@ -91,6 +91,41 @@
 
         <!-- Actions & Timeline -->
         <div>
+            @if(isset($aiLog) && $leaveApplication->status === 'Pending')
+            <div class="card" style="margin-bottom: 20px; border: 1px solid {{ $aiLog->risk_level === 'High' ? '#ef4444' : ($aiLog->risk_level === 'Medium' ? '#f59e0b' : '#10b981') }}; background: {{ $aiLog->risk_level === 'High' ? '#fef2f2' : ($aiLog->risk_level === 'Medium' ? '#fffbeb' : '#f0fdf4') }};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h5 style="font-weight: 700; color: {{ $aiLog->risk_level === 'High' ? '#b91c1c' : ($aiLog->risk_level === 'Medium' ? '#b45309' : '#15803d') }}; margin-bottom: 0;">
+                        <i class="fas fa-microchip"></i> AI Insights
+                    </h5>
+                    <span class="badge" style="background: {{ $aiLog->risk_level === 'High' ? '#ef4444' : ($aiLog->risk_level === 'Medium' ? '#f59e0b' : '#10b981') }}; color: white;">
+                        {{ $aiLog->risk_level }} Risk
+                    </span>
+                </div>
+                
+                <div style="margin-bottom: 12px;">
+                    <small style="color: var(--secondary); font-weight: 600;">Risk Score:</small>
+                    <div style="height: 6px; background: #e2e8f0; border-radius: 3px; margin: 4px 0;">
+                        <div style="width: {{ $aiLog->risk_score }}%; height: 100%; border-radius: 3px; background: {{ $aiLog->risk_level === 'High' ? '#ef4444' : ($aiLog->risk_level === 'Medium' ? '#f59e0b' : '#10b981') }};"></div>
+                    </div>
+                </div>
+
+                @if(!empty($aiLog->suspicious_flags))
+                <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.8rem;">
+                    @foreach($aiLog->suspicious_flags as $flag)
+                    <li style="margin-bottom: 8px; display: flex; gap: 8px; align-items: flex-start; color: {{ $aiLog->risk_level === 'High' ? '#991b1b' : '#374151' }};">
+                        <i class="fas fa-triangle-exclamation" style="margin-top: 2px;"></i>
+                        <span>{{ $flag }}</span>
+                    </li>
+                    @endforeach
+                </ul>
+                @else
+                <p style="font-size: 0.82rem; color: #15803d; font-weight: 600; margin-bottom: 0;">
+                    <i class="fas fa-check-circle"></i> No suspicious patterns detected.
+                </p>
+                @endif
+            </div>
+            @endif
+
             @if($leaveApplication->status === 'Pending' && auth()->user()->canApproveLeave())
             <div class="card glass" style="margin-bottom: 20px;">
                 <h5 style="font-weight: 700; margin-bottom: 15px;"><i class="fas fa-gavel"></i> Actions</h5>

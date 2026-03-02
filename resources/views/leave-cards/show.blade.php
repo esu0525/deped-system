@@ -28,7 +28,7 @@
 
     @if($leaveCard)
     <!-- Official Leave Card Form -->
-    <div class="card leave-card-form" id="printable-card">
+    <div class="card leave-card-form front-page-card" id="printable-card">
         <!-- Form Header -->
         <div style="text-align: center; margin-bottom: 20px;">
             <p style="font-size: 0.95rem; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
@@ -118,6 +118,8 @@
                         
                         $isStrictlyVL = ($isUsed && $isVL);
                         $isStrictlySL = ($isUsed && $isSL);
+                        // Special leave types (SPL to AL + OTH) - not VL/FL/SL
+                        $isSpecialLeave = ($isUsed && !$isVL && !$isSL);
                     @endphp
                     <tr class="tx-row" data-id="{{ $trans->id }}">
                         <!-- Period -->
@@ -134,16 +136,16 @@
                         <td class="edit-cell particulars-col" style="font-size: 0.85rem; {{ $textColor }} font-weight: 600;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $rawParticulars }}</td>
 
                         <!-- VL columns -->
-                        <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_earned !== null ? (float)$trans->vl_earned : (($isVL && $isEarned) ? (float)$trans->days : ($isStrictlySL ? '' : '')) }}</td>
-                        <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_used !== null ? (float)$trans->vl_used : (($isVL && $isUsed) ? (float)$trans->days : ($isStrictlySL ? '' : '')) }}</td>
-                        <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isStrictlySL ? '-' : (float)$trans->vl_balance_after }}</td>
-                        <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->vl_wop !== null ? (float)$trans->vl_wop : '' }}</td>
+                        <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_earned !== null ? (float)$trans->vl_earned : (($isVL && $isEarned) ? (float)$trans->days : ($isStrictlySL ? '' : ''))) }}</td>
+                        <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_used !== null ? (float)$trans->vl_used : (($isVL && $isUsed) ? (float)$trans->days : ($isStrictlySL ? '' : ''))) }}</td>
+                        <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ ($isStrictlySL || $isSpecialLeave) ? '-' : (float)$trans->vl_balance_after }}</td>
+                        <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_wop !== null ? (float)$trans->vl_wop : '') }}</td>
 
                         <!-- SL columns -->
-                        <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_earned !== null ? (float)$trans->sl_earned : (($isSL && $isEarned) ? (float)$trans->days : ($isStrictlyVL ? '' : '')) }}</td>
-                        <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_used !== null ? (float)$trans->sl_used : (($isSL && $isUsed) ? (float)$trans->days : ($isStrictlyVL ? '' : '')) }}</td>
-                        <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isStrictlyVL ? '-' : (float)$trans->sl_balance_after }}</td>
-                        <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->sl_wop !== null ? (float)$trans->sl_wop : '' }}</td>
+                        <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_earned !== null ? (float)$trans->sl_earned : (($isSL && $isEarned) ? (float)$trans->days : ($isStrictlyVL ? '' : ''))) }}</td>
+                        <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_used !== null ? (float)$trans->sl_used : (($isSL && $isUsed) ? (float)$trans->days : ($isStrictlyVL ? '' : ''))) }}</td>
+                        <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ ($isStrictlyVL || $isSpecialLeave) ? '-' : (float)$trans->sl_balance_after }}</td>
+                        <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_wop !== null ? (float)$trans->sl_wop : '') }}</td>
 
                         <!-- Date & Action -->
                         <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.72rem; text-align: center;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->action_taken ?: ($isUsed ? (($trans->encoder ? explode(' ', trim($trans->encoder->name))[0] . ' ' : '') . $trans->transaction_date->format('m/d/Y')) : '') }}</td>
@@ -165,6 +167,58 @@
                         <td class="bal-cell edit-cell sl-bal-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
                         <td class="num-cell edit-cell sl-wop-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
                         <td class="edit-cell action-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
+                    </tr>
+                    @endfor
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         BACK PAGE — Continuation table (prints on reverse side)
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="card leave-card-form back-page-card" id="back-page">
+        <div style="text-align: center; margin-bottom: 8px;" class="no-print">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px;">
+                <i class="fas fa-rotate"></i> Back Page (Continuation)
+            </span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="leave-card-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="width: 100px;">PERIOD</th>
+                        <th rowspan="2" style="width: 160px;">PARTICULARS</th>
+                        <th colspan="4" class="group-header vl-header">Vacation Leave</th>
+                        <th colspan="4" class="group-header sl-header">Sick Leave</th>
+                        <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>Appl. for Leave</th>
+                    </tr>
+                    <tr>
+                        <th class="sub-header">EARNED</th>
+                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
+                        <th class="sub-header">BAL.</th>
+                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                        <th class="sub-header">EARNED</th>
+                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
+                        <th class="sub-header">BAL.</th>
+                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for($i = 0; $i < 25; $i++)
+                    <tr class="tx-row empty-row back-page-row">
+                        <td class="date-col"></td>
+                        <td class="particulars-col"></td>
+                        <td class="num-cell"></td>
+                        <td class="num-cell"></td>
+                        <td class="bal-cell"></td>
+                        <td class="num-cell"></td>
+                        <td class="num-cell"></td>
+                        <td class="num-cell"></td>
+                        <td class="bal-cell"></td>
+                        <td class="num-cell"></td>
+                        <td class="action-col"></td>
                     </tr>
                     @endfor
                 </tbody>
@@ -353,16 +407,30 @@
     }
 
     /* ═══════════════════════════════════════════════════════════
-       PRINT STYLES
+       PRINT STYLES — 1/2 Index Card (landscape 8"x5" half = ~8"x5")
        ═══════════════════════════════════════════════════════════ */
+    @page {
+        size: 8in 5in landscape;
+        margin: 4mm 5mm;
+    }
+
     @media print {
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
         body {
             background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 7pt !important;
         }
 
         .no-print,
         .sidebar,
-        .header {
+        .header,
+        .save-indicator {
             display: none !important;
         }
 
@@ -374,31 +442,115 @@
         .leave-card-form {
             box-shadow: none !important;
             border: none !important;
-            padding: 20px !important;
+            border-radius: 0 !important;
+            padding: 3mm 4mm !important;
+            margin: 0 !important;
+        }
+
+        /* Shrink header text */
+        .leave-card-form > div:first-child p {
+            font-size: 7pt !important;
+            margin: 0 !important;
+        }
+        .leave-card-form > div:first-child h3 {
+            font-size: 8pt !important;
+            margin: 2px 0 6px !important;
+        }
+
+        /* Employee info fields */
+        .leave-card-form > div:nth-child(2) {
+            gap: 4px 20px !important;
+            margin-bottom: 6px !important;
+            font-size: 7pt !important;
+        }
+
+        /* Table sizing for half index card */
+        .leave-card-table {
+            font-size: 6.5pt !important;
         }
 
         .leave-card-table th,
         .leave-card-table td {
-            border-color: #000 !important;
+            border: 1px solid #000 !important;
+            padding: 1px 2px !important;
+            line-height: 1.15 !important;
         }
 
         .leave-card-table thead th {
-            background: #f0f0f0 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            background: #e8e8e8 !important;
+            font-size: 5.5pt !important;
+            padding: 1px 1px !important;
+        }
+
+        .leave-card-table .group-header {
+            font-size: 6.5pt !important;
+            padding: 2px !important;
+        }
+
+        .leave-card-table .sub-header {
+            font-size: 5pt !important;
+            padding: 1px 1px !important;
         }
 
         .leave-card-table .vl-header,
         .leave-card-table .sl-header {
-            background: #e8e8e8 !important;
+            background: #e0e0e0 !important;
             color: #000 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+        }
+
+        .leave-card-table tbody td {
+            font-size: 6.5pt !important;
+            height: 14px !important;
+        }
+
+        .leave-card-table .date-col {
+            font-size: 6pt !important;
+            padding-left: 2px !important;
+        }
+
+        .leave-card-table .particulars-col {
+            font-size: 6pt !important;
+            padding-left: 2px !important;
+        }
+
+        .leave-card-table .bal-cell {
+            background: transparent !important;
         }
 
         .leave-card-table tbody tr:hover {
             background: transparent !important;
         }
+
+        .leave-card-table .beginning-row {
+            background: transparent !important;
+        }
+
+        /* Hide inline edit inputs and show value */
+        .inline-edit-input {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            font-size: 6.5pt !important;
+            height: auto !important;
+            min-width: 0 !important;
+        }
+
+        /* Hide empty rows on front page only */
+        .front-page-card .empty-row {
+            display: none !important;
+        }
+
+        /* Ensure back page starts on new sheet and rows are visible */
+        .back-page-card {
+            page-break-before: always !important;
+            margin-top: 0 !important;
+        }
+        
+        .back-page-row {
+            display: table-row !important;
+        }
+    }
+
     /* Auto-save visual indicator */
     .save-indicator {
         position: fixed;

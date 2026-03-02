@@ -121,9 +121,5 @@ Route::middleware(['auth'])->group(function () {
             }
             );
 
-            Route::middleware(['role:super_admin'])->get('/audit-trails', function () {
-            $logs = \App\Models\AuditTrail::with('user')->latest()->paginate(50);
-            return view('audit-trail.index', compact('logs'));
-        }
-        )->name('audit-trail.index');
-    });
+            Route::middleware(['role:super_admin'])->get('/audit-trails', [App\Http\Controllers\AuditTrailController::class , 'index'])->name('audit-trail.index');
+        });

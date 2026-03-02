@@ -43,16 +43,6 @@
 
         @if(auth()->user()->hasRole(['super_admin', 'hr_admin']))
         <li class="nav-item">
-            <a href="{{ route('ai.index') }}" class="nav-link {{ request()->routeIs('ai.*') ? 'active' : '' }}" data-tooltip="AI Detection">
-                <i class="fas fa-shield-halved"></i> <span class="nav-text">AI Detection</span>
-                @php $unreviewedCount = \App\Models\AiDetectionLog::where('is_reviewed', false)->where('risk_level', 'High')->count(); @endphp
-                @if($unreviewedCount > 0)
-                    <span class="nav-badge">{{ $unreviewedCount }}</span>
-                @endif
-            </a>
-        </li>
-
-        <li class="nav-item">
             <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" data-tooltip="Reports">
                 <i class="fas fa-chart-bar"></i> <span class="nav-text">Reports</span>
             </a>

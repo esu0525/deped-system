@@ -74,7 +74,7 @@ class ImportController extends Controller
 
         AuditTrail::log('IMPORT', 'Import', "Imported employees: {$import->getSuccessRows()} success, {$import->getFailedRows()} failed");
 
-        return redirect()->route('import.index')->with('success', "Import completed: {$import->getSuccessRows()} employees imported, {$import->getFailedRows()} failed.");
+        return redirect()->route('employees.index')->with('success', "Import completed: {$import->getSuccessRows()} employees imported, {$import->getFailedRows()} failed.");
     }
 
     public function importLeaveCards(Request $request)

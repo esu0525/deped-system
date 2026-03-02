@@ -184,23 +184,39 @@
 
             <!-- Leave Reminders -->
             <div class="card animate-fade" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; margin-top: 20px;">
-                <h5 style="color: var(--primary); font-weight: 700; margin-bottom: 20px;"><i class="fas fa-info-circle"></i> Leave Reminders</h5>
-                <ul style="list-style: none; font-size: 0.85rem; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                <h5 style="color: var(--primary); font-weight: 700; margin-bottom: 20px;"><i class="fas fa-info-circle"></i> Instructions & Requirements</h5>
+                <ul style="list-style: none; font-size: 0.82rem; padding: 0; margin: 0;">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>VL must be filed <strong>5 days in advance</strong>.</span>
+                        <span><strong>Vacation Leave:</strong> File 5 days in advance.</span>
                     </li>
-                    <li style="margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>SL must be filed <strong>upon return to work</strong>.</span>
+                        <span><strong>Sick Leave:</strong> File immediately upon return. Medical certificate is required for <strong>exceeding 5 days</strong>.</span>
                     </li>
-                    <li style="margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Medical certificate is required for <strong>SL &gt; 3 days</strong>.</span>
+                        <span><strong>SPL:</strong> 3 days per year. File at least <strong>1 week prior</strong> to availment.</span>
                     </li>
-                    <li style="display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Forced leave <strong>(5 days)</strong> must be consumed within the year.</span>
+                        <span><strong>Solo Parent:</strong> 7 days per year. File <strong>5 days in advance</strong>.</span>
+                    </li>
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                        <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
+                        <span><strong>Calamity Leave:</strong> Up to <strong>5 days</strong> per year.</span>
+                    </li>
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                        <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
+                        <span><strong>Maternity:</strong> 105 days. <strong>Paternity:</strong> 7 days.</span>
+                    </li>
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                        <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
+                        <span><strong>Forced Leave:</strong> 5 days (must be consumed within the year).</span>
+                    </li>
+                    <li style="display: flex; gap: 10px; align-items: flex-start; color: var(--secondary); font-style: italic;">
+                        <i class="fas fa-info-circle" style="color: var(--primary); margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Please refer to CSC Form 6 (revised 2020) for complete requirements.</span>
                     </li>
                 </ul>
             </div>

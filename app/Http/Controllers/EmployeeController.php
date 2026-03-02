@@ -24,10 +24,12 @@ class EmployeeController extends Controller
         $query = Employee::with(['department', 'user']);
 
         if ($request->search) {
-            $search = '%' . $request->search . '%';
-            $query->where('full_name', 'like', $search)
-                ->orWhere('employee_id', 'like', $search)
-                ->orWhere('position', 'like', $search);
+            $search = $request->search; // Get the raw search term
+            $query->where(function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('position', 'like', "%{$search}%");
+            });
         }
 
         if ($request->department) {
@@ -42,14 +44,51 @@ class EmployeeController extends Controller
             $query->where('employment_status', $request->employment_status);
         }
 
+        if ($request->input('export') === 'true') {
+            return $this->export($query->get());
+        }
+
         $employees = $query->orderBy('full_name')->paginate(15)->withQueryString();
+
+        if ($request->ajax()) {
+            return view('employees.partials.employee-table-rows', compact('employees'));
+        }
+
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         return view('employees.employee-list', compact('employees', 'departments'));
     }
 
-    public function create()
+    public function export($employees)
     {
+        $filename = "employees_export_" . date('Y-m-d') . ".csv";
+        $handle = fopen('php://output', 'w');
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        fputcsv($handle, ['Employee ID', 'Full Name', 'Department', 'Position', 'Status', 'Email']);
+
+        foreach ($employees as $employee) {
+            fputcsv($handle, [
+                $employee->employee_id,
+                $employee->full_name,
+                $employee->department->name ?? 'N/A',
+                $employee->position,
+                $employee->status,
+                $employee->email
+            ]);
+        }
+
+        fclose($handle);
+        exit;
+    }
+
+    public function create(Request $request)
+    {
+        if ($request->ajax()) {
+            return view('employees.partials.create-modal');
+        }
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $users = User::where('role', 'employee')->whereDoesntHave('employee')->get();
         return view('employees.create', compact('departments', 'users'));
@@ -106,23 +145,33 @@ class EmployeeController extends Controller
 
         AuditTrail::log('CREATE', 'Employee Management', "Created employee profile for {$employee->full_name} (ID: {$employee->employee_id})");
 
-        return redirect()->route('employees.show', $employee)->with('success', 'Employee profile created successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee profile created successfully.');
     }
 
-    public function show(Employee $employee)
+    public function show(Request $request, Employee $employee)
     {
         $employee->load(['department', 'user', 'leaveCards', 'leaveApplications.leaveType', 'latestAiLog']);
         $currentLeaveCard = $employee->currentLeaveCard;
+
+        if ($request->ajax()) {
+            return view('employees.partials.show-modal', compact('employee', 'currentLeaveCard'));
+        }
+
         return view('employees.show', compact('employee', 'currentLeaveCard'));
     }
 
-    public function edit(Employee $employee)
+    public function edit(Request $request, Employee $employee)
     {
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $users = User::where('role', 'employee')
             ->where(function ($q) use ($employee) {
             $q->whereDoesntHave('employee')->orWhereHas('employee', fn($q2) => $q2->where('id', $employee->id));
         })->get();
+
+        if ($request->ajax()) {
+            return view('employees.partials.edit-modal', compact('employee', 'departments', 'users'));
+        }
+
         return view('employees.edit', compact('employee', 'departments', 'users'));
     }
 
@@ -161,7 +210,7 @@ class EmployeeController extends Controller
 
         AuditTrail::log('UPDATE', 'Employee Management', "Updated employee profile for {$employee->full_name}", $old, $employee->toArray());
 
-        return redirect()->route('employees.show', $employee)->with('success', 'Employee profile updated successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee profile updated successfully.');
     }
 
     public function destroy(Employee $employee)

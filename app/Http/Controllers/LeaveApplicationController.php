@@ -17,11 +17,17 @@ class LeaveApplicationController extends Controller
 {
     protected LeaveCardService $leaveCardService;
     protected MailService $mailService;
+    protected \App\Services\AiDetectionService $aiService;
 
-    public function __construct(LeaveCardService $leaveCardService, MailService $mailService)
+    public function __construct(
+        LeaveCardService $leaveCardService,
+        MailService $mailService,
+        \App\Services\AiDetectionService $aiService
+        )
     {
         $this->leaveCardService = $leaveCardService;
         $this->mailService = $mailService;
+        $this->aiService = $aiService;
     }
 
     public function index(Request $request)
@@ -35,11 +41,14 @@ class LeaveApplicationController extends Controller
         }
 
         if ($request->search) {
-            $query->whereHas('employee', fn($q) => $q->where('full_name', 'like', "%{$request->search}%")
-            ->orWhere('employee_id', 'like', "%{$request->search}%"));
+            $search = $request->search;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%");
+            });
         }
 
-        if ($request->status) {
+        if ($request->status && $request->status !== 'All') {
             $query->where('status', $request->status);
         }
 
@@ -56,9 +65,27 @@ class LeaveApplicationController extends Controller
         }
 
         $applications = $query->latest()->paginate(15)->withQueryString();
-        $leaveTypes = LeaveType::where('is_active', true)->get();
 
-        return view('leave-applications.index', compact('applications', 'leaveTypes'));
+        if ($request->ajax()) {
+            return view('leave-applications.partials.table-rows', compact('applications'));
+        }
+
+        $leaveTypes = LeaveType::where('is_active', true)->orderBy('name')->get();
+
+        // Stats for summary cards
+        $statsQuery = LeaveApplication::query();
+        if ($user->isEmployee() && $user->employee) {
+            $statsQuery->where('employee_id', $user->employee->id);
+        }
+
+        $stats = [
+            'total' => (clone $statsQuery)->count(),
+            'pending' => (clone $statsQuery)->where('status', 'Pending')->count(),
+            'approved' => (clone $statsQuery)->where('status', 'Approved')->count(),
+            'rejected' => (clone $statsQuery)->where('status', 'Rejected')->count(),
+        ];
+
+        return view('leave-applications.index', compact('applications', 'leaveTypes', 'stats'));
     }
 
     public function create()
@@ -175,13 +202,22 @@ class LeaveApplicationController extends Controller
 
         AuditTrail::log('CREATE', 'Leave Application', "Filed leave application #{$application->application_no} for employee ID {$application->employee_id} ({$totalDays} days, " . count($entries) . " entries)");
 
-        return redirect()->route('leave-applications.show', $application)->with('success', 'Leave application submitted successfully.');
+        return redirect()->route('leave-applications.index')->with('success', 'Leave application submitted successfully.');
     }
 
-    public function show(LeaveApplication $leaveApplication)
+    public function show(Request $request, LeaveApplication $leaveApplication)
     {
-        $leaveApplication->load(['employee.department', 'leaveType', 'approver', 'encoder']);
-        return view('leave-applications.show', compact('leaveApplication'));
+        $leaveApplication->load(['employee.department', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
+
+        $aiLog = (auth()->user()->hasRole(['super_admin', 'hr_admin']))
+            ? $this->aiService->analyze($leaveApplication->employee)
+            : null;
+
+        if ($request->ajax()) {
+            return view('leave-applications.partials.show-modal', compact('leaveApplication', 'aiLog'));
+        }
+
+        return view('leave-applications.show', compact('leaveApplication', 'aiLog'));
     }
 
     public function edit(LeaveApplication $leaveApplication)

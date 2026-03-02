@@ -6,126 +6,224 @@
 <div class="animate-fade">
     <!-- Stats Cards -->
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px;">
-        <div class="card glass" style="text-align: center;">
+        <div class="card glass" style="text-align: center; border-bottom: 3px solid var(--primary);">
             <i class="fas fa-file-signature fa-2x" style="color: var(--primary); margin-bottom: 10px;"></i>
-            <h2 style="font-weight: 800; color: var(--primary);">{{ $applications->total() }}</h2>
+            <h2 style="font-weight: 800; color: var(--primary);">{{ $stats['total'] }}</h2>
             <small style="color: var(--secondary); font-weight: 600;">Total Applications</small>
         </div>
-        <div class="card glass" style="text-align: center;">
+        <div class="card glass" style="text-align: center; border-bottom: 3px solid var(--warning);">
             <i class="fas fa-clock fa-2x" style="color: var(--warning); margin-bottom: 10px;"></i>
-            <h2 style="font-weight: 800; color: var(--warning);">{{ $applications->where('status', 'Pending')->count() }}</h2>
+            <h2 style="font-weight: 800; color: var(--warning);">{{ $stats['pending'] }}</h2>
             <small style="color: var(--secondary); font-weight: 600;">Pending</small>
         </div>
-        <div class="card glass" style="text-align: center;">
+        <div class="card glass" style="text-align: center; border-bottom: 3px solid var(--success);">
             <i class="fas fa-check-circle fa-2x" style="color: var(--success); margin-bottom: 10px;"></i>
-            <h2 style="font-weight: 800; color: var(--success);">{{ $applications->where('status', 'Approved')->count() }}</h2>
+            <h2 style="font-weight: 800; color: var(--success);">{{ $stats['approved'] }}</h2>
             <small style="color: var(--secondary); font-weight: 600;">Approved</small>
         </div>
-        <div class="card glass" style="text-align: center;">
+        <div class="card glass" style="text-align: center; border-bottom: 3px solid var(--danger);">
             <i class="fas fa-times-circle fa-2x" style="color: var(--danger); margin-bottom: 10px;"></i>
-            <h2 style="font-weight: 800; color: var(--danger);">{{ $applications->where('status', 'Rejected')->count() }}</h2>
+            <h2 style="font-weight: 800; color: var(--danger);">{{ $stats['rejected'] }}</h2>
             <small style="color: var(--secondary); font-weight: 600;">Rejected</small>
         </div>
     </div>
 
-    <!-- Filters & Actions -->
-    <div class="card glass animate-fade" style="margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-            <form method="GET" action="{{ route('leave-applications.index') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                <input type="text" name="search" class="form-control" placeholder="Search employee..." value="{{ request('search') }}" style="width: 220px;">
-                <select name="status" class="form-control" style="width: 160px;" onchange="this.form.submit()">
-                    <option value="">All Status</option>
-                    <option value="Pending" {{ request('status') == 'Pending' ? 'selected' : '' }}>Pending</option>
-                    <option value="Approved" {{ request('status') == 'Approved' ? 'selected' : '' }}>Approved</option>
-                    <option value="Rejected" {{ request('status') == 'Rejected' ? 'selected' : '' }}>Rejected</option>
-                </select>
-                <select name="leave_type" class="form-control" style="width: 180px;" onchange="this.form.submit()">
-                    <option value="">All Leave Types</option>
-                    @foreach($leaveTypes as $lt)
-                        <option value="{{ $lt->id }}" {{ request('leave_type') == $lt->id ? 'selected' : '' }}>{{ $lt->name }}</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i> Filter</button>
-            </form>
-            <a href="{{ route('leave-applications.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> New Application
-            </a>
+    <!-- Tabs & Filters -->
+    <div class="card glass animate-fade" style="margin-bottom: 24px; padding: 10px 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div style="display: flex; gap: 25px;">
+                <button type="button" class="status-tab active" onclick="switchStatus('All', this)">All</button>
+                <button type="button" class="status-tab" onclick="switchStatus('Pending', this)">Pending</button>
+                <button type="button" class="status-tab" onclick="switchStatus('Approved', this)">Approved</button>
+                <button type="button" class="status-tab" onclick="switchStatus('Rejected', this)">Rejected</button>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <form id="filterForm" method="GET" action="{{ route('leave-applications.index') }}" style="display: flex; gap: 12px; align-items: center;">
+                    <input type="hidden" name="status" id="statusFilter" value="All">
+                    <div style="position: relative;">
+                        <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search employee..." value="{{ request('search') }}" style="width: 240px; padding-left: 35px;" oninput="debouncedFilter()">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); opacity: 0.5;"></i>
+                    </div>
+                    <select name="leave_type" class="form-control" style="width: 200px;" onchange="fetchTable()">
+                        <option value="">All Leave Types</option>
+                        @foreach($leaveTypes as $lt)
+                            <option value="{{ $lt->id }}">{{ $lt->name }}</option>
+                        @endforeach
+                    </select>
+                </form>
+                <a href="{{ route('leave-applications.create') }}" class="btn btn-primary" style="height: 42px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-plus-circle"></i> New Application
+                </a>
+            </div>
         </div>
     </div>
 
+    <style>
+        .status-tab {
+            background: none;
+            border: none;
+            padding: 10px 5px;
+            font-weight: 600;
+            color: var(--secondary);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .status-tab:hover { color: var(--primary); }
+        .status-tab.active { color: var(--primary); }
+        .status-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px;
+        }
+    </style>
+
     <!-- Applications Table -->
-    <div class="card glass animate-fade">
+    <div class="card glass animate-fade" style="position: relative;">
         <div style="overflow-x: auto;">
-            <table class="table">
+            <table class="table" style="width: 100%;">
                 <thead>
-                    <tr>
-                        <th>App No.</th>
-                        <th>Employee</th>
-                        <th>Leave Type</th>
-                        <th>Date</th>
-                        <th>Days</th>
-                        <th>Status</th>
-                        <th>Filed On</th>
-                        <th style="text-align: center;">Actions</th>
+                    <tr style="text-align: left; border-bottom: 2px solid #f1f5f9; color: var(--secondary);">
+                        <th style="padding: 15px; font-size: 0.75rem;">APP NO.</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">EMPLOYEE</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">LEAVE TYPE</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">DATE RANGE</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">DAYS</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">STATUS</th>
+                        <th style="padding: 15px; font-size: 0.75rem;">FILED ON</th>
+                        <th style="padding: 15px; font-size: 0.75rem; text-align: center;">ACTIONS</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse($applications as $app)
-                    <tr>
-                        <td><strong style="color: var(--primary);">{{ $app->application_no }}</strong></td>
-                        <td>
-                            <div>
-                                <strong>{{ $app->employee->full_name ?? 'N/A' }}</strong>
-                                <br><small style="color: var(--secondary);">{{ $app->employee->department->name ?? '' }}</small>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="badge badge-info">{{ $app->leaveType->name ?? 'N/A' }}</span>
-                        </td>
-                        <td>
-                            <small>{{ $app->date_from->format('M d') }} - {{ $app->date_to->format('M d, Y') }}</small>
-                        </td>
-                        <td><strong>{{ $app->num_days }}</strong></td>
-                        <td>{!! $app->status_badge !!}</td>
-                        <td><small>{{ $app->created_at->format('M d, Y') }}</small></td>
-                        <td style="text-align: center;">
-                            <div style="display: flex; gap: 8px; justify-content: center;">
-                                <a href="{{ route('leave-applications.show', $app) }}" class="btn btn-sm btn-secondary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                @if($app->status === 'Pending' && auth()->user()->canApproveLeave())
-                                <form action="{{ route('leave-applications.approve', $app) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    <button type="submit" class="btn btn-sm btn-success" title="Approve" onclick="return confirm('Approve this application?')">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                </form>
-                                <form action="{{ route('leave-applications.reject', $app) }}" method="POST" style="display:inline;">
-                                    @csrf
-                                    <input type="hidden" name="remarks" value="Rejected by admin">
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Reject" onclick="return confirm('Reject this application?')">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </form>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" style="text-align: center; padding: 40px; color: var(--secondary);">
-                            <i class="fas fa-inbox fa-3x" style="margin-bottom: 15px; opacity: 0.3;"></i>
-                            <p style="font-weight: 600;">No leave applications found.</p>
-                        </td>
-                    </tr>
-                    @endforelse
+                <tbody id="applicationTableBody">
+                    @include('leave-applications.partials.table-rows')
                 </tbody>
             </table>
         </div>
 
-        <div style="margin-top: 20px;">
+        <div id="paginationContainer" style="margin-top: 25px; background: #f8fafc; padding: 12px 20px; border-radius: 12px;">
             {{ $applications->links() }}
         </div>
     </div>
 </div>
+
+<!-- View Modal Container -->
+<div class="modal-overlay" id="viewModalOverlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h5 class="modal-title">Leave Application Details</h5>
+            <button type="button" class="modal-close" onclick="closeViewModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modalContent">
+            <!-- Content loaded via AJAX -->
+            <div class="modal-skeleton">
+                <div class="skeleton-bar" style="width: 40%"></div>
+                <div class="skeleton-bar"></div>
+                <div class="skeleton-bar" style="width: 80%"></div>
+                <div class="skeleton-bar" style="width: 90%; height: 100px; margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+    let filterTimer;
+    let fetchController = null;
+
+    function debouncedFilter() {
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(() => {
+            fetchTable();
+        }, 200);
+    }
+
+    function switchStatus(status, el) {
+        document.getElementById('statusFilter').value = status;
+        document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+        el.classList.add('active');
+        fetchTable();
+    }
+
+    function fetchTable(url = null) {
+        const form = document.getElementById('filterForm');
+        const tableBody = document.getElementById('applicationTableBody');
+        const paginationContainer = document.getElementById('paginationContainer');
+
+        if (fetchController) fetchController.abort();
+        fetchController = new AbortController();
+
+        if (!url) {
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            url = `${form.action}?${params.toString()}`;
+        }
+
+        tableBody.style.opacity = '0.7';
+
+        fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            signal: fetchController.signal
+        })
+        .then(res => res.text())
+        .then(html => {
+            const tempTable = document.createElement('table');
+            const tempTbody = document.createElement('tbody');
+            tempTable.appendChild(tempTbody);
+            tempTbody.innerHTML = html;
+            
+            const paginationRow = tempTbody.querySelector('#paginationLinksContainer');
+            if (paginationRow) {
+                paginationContainer.innerHTML = paginationRow.querySelector('td').innerHTML;
+                paginationRow.remove();
+            }
+            
+            tableBody.innerHTML = tempTbody.innerHTML;
+            tableBody.style.opacity = '1';
+            history.pushState(null, '', url);
+        })
+        .catch(err => {
+            if (err.name !== 'AbortError') console.error('Fetch Error:', err);
+        });
+    }
+
+    // Intercept pagination clicks
+    document.getElementById('paginationContainer').addEventListener('click', (e) => {
+        if (e.target.closest('a')) {
+            e.preventDefault();
+            fetchTable(e.target.closest('a').href);
+        }
+    });
+
+    function openViewModal(url) {
+        const overlay = document.getElementById('viewModalOverlay');
+        const content = document.getElementById('modalContent');
+        overlay.classList.add('active');
+        content.innerHTML = `
+            <div class="modal-skeleton">
+                <div class="skeleton-bar" style="width: 40%"></div>
+                <div class="skeleton-bar"></div>
+                <div class="skeleton-bar" style="width: 80%"></div>
+            </div>`;
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(res => res.text()).then(html => content.innerHTML = html);
+    }
+
+    function closeViewModal() {
+        document.getElementById('viewModalOverlay').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeViewModal();
+    });
+
+    document.getElementById('viewModalOverlay').addEventListener('click', (e) => {
+        if (e.target.id === 'viewModalOverlay') closeViewModal();
+    });
+</script>
+@endpush
 @endsection
