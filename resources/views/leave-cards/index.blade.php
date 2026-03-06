@@ -77,7 +77,7 @@
         </div>
 
         <div style="margin-top: 20px;">
-            {{ $employees->links() }}
+            {{ $employees->links('vendor.pagination.custom') }}
         </div>
     </div>
 </div>

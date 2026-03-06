@@ -12,14 +12,7 @@
                 <label class="form-label">Full Name <span style="color: var(--danger);">*</span></label>
                 <input type="text" name="full_name" class="form-control" value="{{ old('full_name', $employee->full_name) }}" required>
             </div>
-            <div class="form-group">
-                <label class="form-label">Gender</label>
-                <select name="gender" class="form-control">
-                    <option value="">Select Gender</option>
-                    <option value="Male" {{ old('gender', $employee->gender) == 'Male' ? 'selected' : '' }}>Male</option>
-                    <option value="Female" {{ old('gender', $employee->gender) == 'Female' ? 'selected' : '' }}>Female</option>
-                </select>
-            </div>
+
             <div class="form-group">
                 <label class="form-label">Position</label>
                 <input type="text" name="position" class="form-control" value="{{ old('position', $employee->position) }}">
@@ -45,13 +38,18 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" value="{{ old('email', $employee->email) }}">
+                <label class="form-label">Initial VL Balance (Days)</label>
+                <input type="number" step="any" name="vl_balance" class="form-control" value="{{ (float)($employee->currentLeaveCard?->vl_balance ?? 0) }}" placeholder="0">
             </div>
+            <div class="form-group">
+                <label class="form-label">Initial SL Balance (Days)</label>
+                <input type="number" step="any" name="sl_balance" class="form-control" value="{{ (float)($employee->currentLeaveCard?->sl_balance ?? 0) }}" placeholder="0">
+            </div>
+
         </div>
 
         <div style="display: flex; gap: 12px; margin-top: 30px; justify-content: flex-end;">
-            <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="closeEditModal(); openViewModal('{{ route('employees.show', $employee) }}')">Cancel</button>
             <button type="submit" class="btn btn-primary" style="padding-left: 30px; padding-right: 30px;"><i class="fas fa-save"></i> Save Changes</button>
         </div>
     </form>

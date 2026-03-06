@@ -18,18 +18,10 @@
         </div>
 
         <!-- Filters -->
-        <form id="filterForm" action="{{ route('employees.index') }}" method="GET" target="_self" style="display: grid; grid-template-columns: 1fr 1fr 1fr 150px; gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+        <form id="filterForm" action="{{ route('employees.index') }}" method="GET" target="_self" style="display: grid; grid-template-columns: 2fr 1fr 150px; gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
             <input type="hidden" name="export" id="exportFlag" value="">
             <div class="form-group" style="margin-bottom: 0;">
-                <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, ID, or position..." value="{{ request('search') }}" oninput="debouncedFilter()">
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-                <select name="department" class="form-control" onchange="fetchTable()">
-                    <option value="">All Schools</option>
-                    @foreach($departments as $dept)
-                        <option value="{{ $dept->id }}" {{ request('department') == $dept->id ? 'selected' : '' }}>{{ $dept->name }}</option>
-                    @endforeach
-                </select>
+                <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, ID, position, or school..." value="{{ request('search') }}" oninput="debouncedFilter()">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <select name="status" class="form-control" onchange="fetchTable()">
@@ -65,7 +57,7 @@
         </div>
 
         <div id="paginationContainer" style="margin-top: 25px;">
-            {{ $employees->links() }}
+            {{ $employees->links('vendor.pagination.custom') }}
         </div>
     </div>
 </div>
@@ -118,6 +110,9 @@
         </div>
     </div>
 </div>
+
+
+
 
 @push('scripts')
 <script>
@@ -218,6 +213,9 @@
 
     function openImportModal() { document.getElementById('importModalOverlay').classList.add('active'); }
     function closeImportModal() { document.getElementById('importModalOverlay').classList.remove('active'); }
+
+
+
 
     // Modal Close events
     window.addEventListener('click', (e) => {

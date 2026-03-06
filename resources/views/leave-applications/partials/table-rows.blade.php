@@ -53,5 +53,5 @@
 
 <!-- Pagination Links Update Identifier -->
 <tr id="paginationLinksContainer" style="display: none;">
-    <td>{{ $applications->links() }}</td>
+    <td>{{ $applications->links('vendor.pagination.custom') }}</td>
 </tr>

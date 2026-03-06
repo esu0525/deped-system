@@ -1,10 +1,10 @@
 @forelse($employees as $emp)
-<tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s;">
+<tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s; cursor: pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'" onclick="if(!event.target.closest('button') && !event.target.closest('a')) openViewModal('{{ route('employees.show', $emp) }}')">
     <td style="padding: 15px; font-weight: 700; color: var(--primary);">{{ $emp->employee_id }}</td>
     <td style="padding: 15px;">
         <div>
             <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $emp->full_name }}</p>
-            @if($emp->email) <small style="color: var(--secondary);">{{ $emp->email }}</small> @endif
+
         </div>
     </td>
     <td style="padding: 15px; font-size: 0.85rem;">{{ $emp->department?->name ?? 'N/A' }}</td>
@@ -19,12 +19,6 @@
             <button type="button" class="btn btn-sm btn-secondary" onclick="openViewModal('{{ route('employees.show', $emp) }}')" title="View Employee">
                 <i class="fas fa-eye"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="openEditModal('{{ route('employees.edit', $emp) }}')" title="Edit Employee">
-                <i class="fas fa-edit"></i>
-            </button>
-            <a href="{{ route('leave-cards.show', $emp) }}" class="btn btn-sm btn-secondary" title="View Leave Ledger" target="_self">
-                <i class="fas fa-address-card"></i>
-            </a>
         </div>
     </td>
 </tr>
@@ -39,5 +33,5 @@
 
 <!-- Pagination Link Update Identifier -->
 <tr id="paginationLinksContainer" style="display: none;">
-    <td>{{ $employees->links() }}</td>
+    <td>{{ $employees->links('vendor.pagination.custom') }}</td>
 </tr>

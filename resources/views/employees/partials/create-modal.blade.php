@@ -11,14 +11,7 @@
                 <label class="form-label">Full Name <span style="color: var(--danger);">*</span></label>
                 <input type="text" name="full_name" class="form-control" required>
             </div>
-            <div class="form-group">
-                <label class="form-label">Gender</label>
-                <select name="gender" class="form-control">
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                </select>
-            </div>
+
             <div class="form-group">
                 <label class="form-label">Position</label>
                 <input type="text" name="position" class="form-control">

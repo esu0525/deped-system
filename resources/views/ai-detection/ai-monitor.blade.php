@@ -120,7 +120,7 @@
         </div>
         
         <div style="margin-top: 25px;">
-            {{ $logs->links() }}
+            {{ $logs->links('vendor.pagination.custom') }}
         </div>
     </div>
 </div>

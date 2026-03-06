@@ -74,17 +74,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/export/leave-transactions', [ReportController::class , 'exportLeaveTransactions'])->name('export.leave-transactions');
             Route::get('/export/monthly-summary', [ReportController::class , 'exportMonthlyDeptSummary'])->name('export.monthly-summary');
         }
-        );
+        );        // ─── Import ───────────────────────────────────────────────────────────
+        Route::middleware(['role:super_admin,hr_admin'])->group(function () {
+             Route::post('/import/employees', [ImportController::class , 'importEmployees'])->name('import.employees');
+        });
 
-        // ─── Import ───────────────────────────────────────────────────────────
-        Route::group(['prefix' => 'import', 'as' => 'import.', 'middleware' => ['role:super_admin,hr_admin']], function () {
-            Route::get('/', [ImportController::class , 'index'])->name('index');
-            Route::get('/template/{type}', [ImportController::class , 'downloadTemplate'])->name('template');
-            Route::post('/employees', [ImportController::class , 'importEmployees'])->name('employees');
-            Route::post('/leave-cards', [ImportController::class , 'importLeaveCards'])->name('leave-cards');
-            Route::post('/transactions', [ImportController::class , 'importLeaveTransactions'])->name('transactions');
-        }
-        );
 
         // ─── AI Detection ─────────────────────────────────────────────────────
         Route::group(['prefix' => 'ai-detection', 'as' => 'ai.', 'middleware' => ['role:super_admin,hr_admin']], function () {

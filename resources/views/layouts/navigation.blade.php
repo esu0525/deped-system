@@ -48,11 +48,7 @@
             </a>
         </li>
 
-        <li class="nav-item">
-            <a href="{{ route('import.index') }}" class="nav-link {{ request()->routeIs('import.*') ? 'active' : '' }}" data-tooltip="Data Migration">
-                <i class="fas fa-cloud-arrow-up"></i> <span class="nav-text">Data Migration</span>
-            </a>
-        </li>
+
         @endif
 
         @if(auth()->user()->hasRole('super_admin'))

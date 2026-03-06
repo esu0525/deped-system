@@ -106,7 +106,7 @@
         </div>
 
         <div id="paginationContainer" style="margin-top: 25px; background: #f8fafc; padding: 12px 20px; border-radius: 12px;">
-            {{ $applications->links() }}
+            {{ $applications->links('vendor.pagination.custom') }}
         </div>
     </div>
 </div>
