@@ -14,6 +14,7 @@ class AuditTrailController extends Controller
     {
         $this->authorizeAdmin();
 
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = AuditTrail::with('user')->latest();
 
         if ($request->filled('search')) {

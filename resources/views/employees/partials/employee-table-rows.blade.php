@@ -4,7 +4,17 @@
     <td style="padding: 15px;">
         <div>
             <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $emp->full_name }}</p>
-
+            @if($emp->user)
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 0.68rem; color: #2563eb; margin-top: 2px;">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ $emp->user->email }}</span>
+                </div>
+            @else
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">
+                    <i class="far fa-user-circle"></i>
+                    <span>No Account</span>
+                </div>
+            @endif
         </div>
     </td>
     <td style="padding: 15px; font-size: 0.85rem;">{{ $emp->department?->name ?? 'N/A' }}</td>

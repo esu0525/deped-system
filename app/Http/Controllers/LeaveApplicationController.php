@@ -192,11 +192,12 @@ class LeaveApplicationController extends Controller
         foreach ($entries as $entry) {
             $application->details()->create([
                 'leave_type_id' => $entry['leave_type_id'],
-                'inclusive_dates' => $entry['inclusive_dates'],
+                'inclusive_dates' => $entry['inclusive_dates'] ?? '',
                 'other_type' => $entry['other_type'] ?? null,
                 'date_from' => $request->date_filed,
                 'date_to' => $request->date_filed,
                 'num_days' => $entry['num_days'],
+                'is_with_pay' => ($entry['is_with_pay'] ?? '1') === '1',
             ]);
         }
 

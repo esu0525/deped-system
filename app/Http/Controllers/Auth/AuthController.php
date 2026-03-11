@@ -67,7 +67,23 @@ class AuthController extends Controller
 
         RateLimiter::clear($key);
 
-        // Generate and send OTP
+        // Skip OTP for employees - login directly
+        if ($user->role === 'employee') {
+            $user->update([
+                'email_verified_at' => $user->email_verified_at ?? now(),
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+            ]);
+
+            Auth::login($user, $request->has('remember'));
+            $request->session()->regenerate();
+
+            AuditTrail::log('LOGIN', 'Authentication', "Employee {$user->name} logged in successfully");
+
+            return redirect()->intended(route('dashboard'));
+        }
+
+        // Generate and send OTP for administrative roles
         $otp = $user->generateOtp();
         $sent = $this->mailService->sendOtp($user, $otp);
 

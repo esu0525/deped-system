@@ -45,4 +45,17 @@
             <button type="submit" class="btn btn-primary" style="padding-left: 30px; padding-right: 30px;"><i class="fas fa-save"></i> Create Employee</button>
         </div>
     </form>
+
+    {{-- Auto-Account Info --}}
+    <div style="margin-top: 20px; padding: 16px 20px; background: #ecfdf5; border-radius: 10px; border: 1px solid #a7f3d0;">
+        <h5 style="font-weight: 700; font-size: 0.85rem; color: #065f46; margin: 0 0 6px;">
+            <i class="fas fa-magic" style="margin-right: 6px;"></i> Auto-Generated Login Account
+        </h5>
+        <p style="font-size: 0.78rem; color: #047857; margin: 0; line-height: 1.6;">
+            A login account will be <strong>automatically created</strong> when you add this employee.<br>
+            <strong>Email:</strong> <code style="background: #d1fae5; padding: 1px 6px; border-radius: 3px;">lastname.firstname@deped.gov.ph</code><br>
+            <strong>Password:</strong> <code style="background: #d1fae5; padding: 1px 6px; border-radius: 3px;">#[First2Letters]d3P3d</code>
+            <span style="color: #065f46;">(e.g. Conanan → <strong>#Cod3P3d</strong>)</span>
+        </p>
+    </div>
 </div>

@@ -21,7 +21,9 @@
                 </div>
                 <div>
                     <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Inclusive Dates</label>
-                    <p style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">{{ $leaveApplication->date_from->format('M d') }} - {{ $leaveApplication->date_to->format('M d, Y') }}</p>
+                    <p style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">
+                        {{ $leaveApplication->details->first()->inclusive_dates ?? ($leaveApplication->date_from->format('M d') . ' - ' . $leaveApplication->date_to->format('M d, Y')) }}
+                    </p>
                 </div>
                 <div>
                     <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Total Days</label>

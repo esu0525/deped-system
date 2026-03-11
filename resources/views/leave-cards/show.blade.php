@@ -27,48 +27,95 @@
     </div>
 
     @if($leaveCard)
-    <!-- Official Leave Card Form -->
-    <div class="card leave-card-form front-page-card" id="printable-card">
-        <!-- Form Header -->
-        <div style="text-align: center; margin-bottom: 20px;">
-            <p style="font-size: 0.95rem; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
-            <p style="font-size: 0.82rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
-            <h3 style="font-weight: 800; font-size: 1.1rem; text-decoration: underline; text-transform: uppercase; letter-spacing: 1px;">Leave Card Non-Teaching Personnel</h3>
-        </div>
+    @php
+        // Updated to match official form provided in images
+        $FRONT_DATA_ROWS = 10; // Total enterable rows on front (including balance)
+        $BACK_DATA_ROWS = 14;  // Total enterable rows on back
+        
+        $transactionsArray = $transactions->toArray();
+        $pages = [];
+        
+        // 1. CARD 1 FRONT (9 transactions + 1 Beginning Balance = 10 rows)
+        $pages[] = [
+            'type' => 'front',
+            'is_first' => true,
+            'items' => array_slice($transactionsArray, 0, $FRONT_DATA_ROWS - 1)
+        ];
+        
+        // 2. CARD 1 BACK (14 rows)
+        $remaining = array_slice($transactionsArray, $FRONT_DATA_ROWS - 1);
+        $pages[] = [
+            'type' => 'back',
+            'is_first' => false,
+            'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+        ];
+        $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+        
+        // 3. CONTINUATION CARDS (Back capacity used for both sides if continuing)
+        while (count($remaining) > 0) {
+            $pages[] = [
+                'type' => 'front',
+                'is_first' => false,
+                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+            ];
+            $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+            
+            $pages[] = [
+                'type' => 'back',
+                'is_first' => false,
+                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+            ];
+            $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+        }
+    @endphp
 
-        <!-- Employee Info Fields -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px 40px; margin-bottom: 24px; font-size: 0.88rem;">
-            <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid #1e293b; padding-bottom: 4px;">
-                <span style="font-weight: 700; white-space: nowrap;">Name:</span>
-                <span style="flex: 1;">{{ $employee->full_name }}</span>
+    @foreach($pages as $pageIndex => $page)
+    <!-- Card Side {{ $pageIndex + 1 }}: {{ strtoupper($page['type']) }} -->
+    <div class="card leave-card-form {{ $page['type'] === 'front' ? 'front-page-side' : 'back-page-side' }} print-page">
+        @if($page['type'] === 'front' && $page['is_first'])
+            <!-- Official Leave Card Header (Only on Card 1 Front) -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
+                <p style="font-size: 0.8rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
+                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">Leave Card Non-Teaching Personnel</h3>
             </div>
-            <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid #1e293b; padding-bottom: 4px;">
-                <span style="font-weight: 700; white-space: nowrap;">Designation:</span>
-                <span style="flex: 1;">{{ $employee->position ?? '—' }}</span>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid #1e293b; padding-bottom: 4px;">
-                <span style="font-weight: 700; white-space: nowrap;">Station:</span>
-                <span style="flex: 1;">{{ $employee->department->name ?? '—' }}</span>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1px solid #1e293b; padding-bottom: 4px;">
-                <span style="font-weight: 700; white-space: nowrap;">Status:</span>
-                <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
-            </div>
-        </div>
 
-        <!-- Official Ledger Table -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                    <span style="font-weight: 700; white-space: nowrap;">Name:</span>
+                    <span style="flex: 1;">{{ $employee->full_name }}</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                    <span style="font-weight: 700; white-space: nowrap;">Designation:</span>
+                    <span style="flex: 1;">{{ $employee->position ?? '—' }}</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                    <span style="font-weight: 700; white-space: nowrap;">Station:</span>
+                    <span style="flex: 1;">{{ $employee->department->name ?? '—' }}</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                    <span style="font-weight: 700; white-space: nowrap;">Status:</span>
+                    <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
+                </div>
+            </div>
+        @elseif($pageIndex > 0)
+             <div style="text-align: center; margin-bottom: 8px;" class="no-print">
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">
+                    <i class="fas fa-rotate"></i> Continuation - Card {{ ceil(($pageIndex + 1)/2) }} {{ $page['type'] === 'front' ? 'Front' : 'Back' }}
+                </span>
+            </div>
+        @endif
+
         <div style="overflow-x: auto;">
             <table class="leave-card-table">
                 <thead>
-                    <!-- First header row with merged cells -->
                     <tr>
                         <th rowspan="2" style="width: 100px;">PERIOD</th>
                         <th rowspan="2" style="width: 160px;">PARTICULARS</th>
                         <th colspan="4" class="group-header vl-header">Vacation Leave</th>
                         <th colspan="4" class="group-header sl-header">Sick Leave</th>
-                        <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>Appl. for Leave</th>
+                        <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>APPL. For Leave</th>
                     </tr>
-                    <!-- Second header row with sub-columns -->
                     <tr>
                         <th class="sub-header">EARNED</th>
                         <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
@@ -81,150 +128,87 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Beginning Balance Row -->
-                    <tr class="beginning-row">
-                        <td class="date-col" style="font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</td>
-                        <td class="particulars-col"></td>
-                        <td></td>
-                        <td></td>
-                        <td class="bal-cell" style="padding: 0;">
-                            @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
-                                <input type="number" id="vlBeginningBalance" value="{{ $leaveCard->vl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
-                            @else
-                                {{ number_format($leaveCard->vl_beginning_balance, 3) }}
-                            @endif
-                        </td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td class="bal-cell" style="padding: 0;">
-                            @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
-                                <input type="number" id="slBeginningBalance" value="{{ $leaveCard->sl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
-                            @else
-                                {{ number_format($leaveCard->sl_beginning_balance, 3) }}
-                            @endif
-                        </td>
-                        <td></td>
-                        <td></td>
-                    </tr>
+                    @if($page['type'] === 'front' && $page['is_first'])
+                        <tr class="beginning-row">
+                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</td>
+                            <td class="particulars-col"></td>
+                            <td></td><td></td>
+                            <td class="bal-cell" style="padding: 1.5px 2px;">
+                                <span class="no-print">
+                                    <input type="number" id="vlBeginningBalance" value="{{ $leaveCard->vl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
+                                </span>
+                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->vl_beginning_balance, 3) }}</span>
+                            </td>
+                            <td></td><td></td><td></td>
+                            <td class="bal-cell" style="padding: 1.5px 2px;">
+                                <span class="no-print">
+                                    <input type="number" id="slBeginningBalance" value="{{ $leaveCard->sl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
+                                </span>
+                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->sl_beginning_balance, 3) }}</span>
+                            </td>
+                            <td></td><td></td>
+                        </tr>
+                    @endif
 
-                    @forelse($transactions as $trans)
-                    @php
-                        $code = $trans->leaveType->code ?? '';
-                        $isVL = in_array($code, ['VL', 'FL']);
-                        $isSL = $code === 'SL';
-                        $isEarned = $trans->transaction_type === 'earned';
-                        $isUsed = $trans->transaction_type === 'used';
-                        
-                        $isStrictlyVL = ($isUsed && $isVL);
-                        $isStrictlySL = ($isUsed && $isSL);
-                        // Special leave types (SPL to AL + OTH) - not VL/FL/SL
-                        $isSpecialLeave = ($isUsed && !$isVL && !$isSL);
-                    @endphp
-                    <tr class="tx-row" data-id="{{ $trans->id }}">
-                        <!-- Period -->
+                    @foreach($page['items'] as $item)
                         @php
-                            // If it's an empty transaction row that exists but has no date
-                            $rawPeriod = $trans->period ?? ($trans->transaction_date ? $trans->transaction_date->format('m/d/Y') : '');
-                            $rawParticulars = $trans->remarks ?: ($isEarned ? '' : ($trans->leaveType->code ?? ''));
-                            
-                            $isLess = strpos(strtoupper($rawPeriod), 'LESS') !== false || $isUsed;
+                            $isLess = strpos(strtoupper($item['period'] ?? ''), 'LESS') !== false;
+                            $isWop = strpos(strtoupper($item['period'] ?? ''), '(WOP)') !== false;
                             $textColor = $isLess ? 'color: #dc2626;' : 'color: #000;';
+                            if ($isWop) $textColor = 'color: #7c2d12;'; // Brownish for WOP
                         @endphp
-                        <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $rawPeriod }}</td>
-                        <!-- Particulars -->
-                        <td class="edit-cell particulars-col" style="font-size: 0.85rem; {{ $textColor }} font-weight: 600;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $rawParticulars }}</td>
+                        <tr class="tx-row" data-id="{{ $item['id'] ?? '' }}">
+                            <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600;" contenteditable="true">{{ $item['period'] ?? '' }}</td>
+                            <td class="edit-cell particulars-col" style="font-size: 0.85rem; {{ $textColor }} font-weight: 600;" contenteditable="true">{{ $item['remarks'] ?? '' }}</td>
+                            <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}">{{ (float)($item['vl_earned'] ?? '') ?: '' }}</td>
+                            <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}">{{ (float)($item['vl_used'] ?? '') ?: '' }}</td>
+                            <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}">
+                                {{ $isWop ? '-' : (isset($item['vl_balance_after']) ? number_format($item['vl_balance_after'], 3) : '') }}
+                            </td>
+                            <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}">
+                                @if((float)($item['vl_wop'] ?? 0) > 0)
+                                    w/o {{ (float)$item['vl_wop'] }}
+                                @endif
+                            </td>
+                            <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}">{{ (float)($item['sl_earned'] ?? '') ?: '' }}</td>
+                            <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}">{{ (float)($item['sl_used'] ?? '') ?: '' }}</td>
+                            <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}">
+                                {{ $isWop ? '-' : (isset($item['sl_balance_after']) ? number_format($item['sl_balance_after'], 3) : '') }}
+                            </td>
+                            <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}">
+                                @if((float)($item['sl_wop'] ?? 0) > 0)
+                                    w/o {{ (float)$item['sl_wop'] }}
+                                @endif
+                            </td>
+                            <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
+                        </tr>
+                    @endforeach
 
-                        <!-- VL columns -->
-                        <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_earned !== null ? (float)$trans->vl_earned : (($isVL && $isEarned) ? (float)$trans->days : ($isStrictlySL ? '' : ''))) }}</td>
-                        <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_used !== null ? (float)$trans->vl_used : (($isVL && $isUsed) ? (float)$trans->days : ($isStrictlySL ? '' : ''))) }}</td>
-                        <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ ($isStrictlySL || $isSpecialLeave) ? '-' : (float)$trans->vl_balance_after }}</td>
-                        <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->vl_wop !== null ? (float)$trans->vl_wop : '') }}</td>
-
-                        <!-- SL columns -->
-                        <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_earned !== null ? (float)$trans->sl_earned : (($isSL && $isEarned) ? (float)$trans->days : ($isStrictlyVL ? '' : ''))) }}</td>
-                        <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_used !== null ? (float)$trans->sl_used : (($isSL && $isUsed) ? (float)$trans->days : ($isStrictlyVL ? '' : ''))) }}</td>
-                        <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ ($isStrictlyVL || $isSpecialLeave) ? '-' : (float)$trans->sl_balance_after }}</td>
-                        <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $isSpecialLeave ? '' : ($trans->sl_wop !== null ? (float)$trans->sl_wop : '') }}</td>
-
-                        <!-- Date & Action -->
-                        <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.72rem; text-align: center;" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}>{{ $trans->action_taken ?: ($isUsed ? (($trans->encoder ? explode(' ', trim($trans->encoder->name))[0] . ' ' : '') . $trans->transaction_date->format('m/d/Y')) : '') }}</td>
-                    </tr>
-                    @empty
-                    @endforelse
-
-                    <!-- Empty rows to fill the form (for print appearance) OR for new manual additions -->
-                    @for($i = $transactions->count(); $i < 20; $i++)
-                    <tr class="tx-row empty-row">
-                        <td class="edit-cell date-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="edit-cell particulars-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell vl-earned-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell vl-used-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="bal-cell edit-cell vl-bal-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell vl-wop-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell sl-earned-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell sl-used-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="bal-cell edit-cell sl-bal-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="num-cell edit-cell sl-wop-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                        <td class="edit-cell action-col" {{ auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']) ? 'contenteditable=true' : '' }}></td>
-                    </tr>
+                    {{-- Fill empty rows to maintain card height --}}
+                    @php
+                        $maxRows = ($page['type'] === 'front' && $page['is_first']) ? $FRONT_DATA_ROWS - 1 : $BACK_DATA_ROWS;
+                        $emptyRowsNeeded = $maxRows - count($page['items']);
+                    @endphp
+                    @for($i = 0; $i < $emptyRowsNeeded; $i++)
+                        <tr class="tx-row empty-row">
+                            <td class="edit-cell date-col" contenteditable="true"></td>
+                            <td class="edit-cell particulars-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="bal-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="bal-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="edit-cell action-col" contenteditable="true"></td>
+                        </tr>
                     @endfor
                 </tbody>
             </table>
         </div>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         BACK PAGE — Continuation table (prints on reverse side)
-         ═══════════════════════════════════════════════════════════ -->
-    <div class="card leave-card-form back-page-card" id="back-page">
-        <div style="text-align: center; margin-bottom: 8px;" class="no-print">
-            <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 1px;">
-                <i class="fas fa-rotate"></i> Back Page (Continuation)
-            </span>
-        </div>
-
-        <div style="overflow-x: auto;">
-            <table class="leave-card-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2" style="width: 100px;">PERIOD</th>
-                        <th rowspan="2" style="width: 160px;">PARTICULARS</th>
-                        <th colspan="4" class="group-header vl-header">Vacation Leave</th>
-                        <th colspan="4" class="group-header sl-header">Sick Leave</th>
-                        <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>Appl. for Leave</th>
-                    </tr>
-                    <tr>
-                        <th class="sub-header">EARNED</th>
-                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                        <th class="sub-header">BAL.</th>
-                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
-                        <th class="sub-header">EARNED</th>
-                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                        <th class="sub-header">BAL.</th>
-                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for($i = 0; $i < 25; $i++)
-                    <tr class="tx-row empty-row back-page-row">
-                        <td class="date-col"></td>
-                        <td class="particulars-col"></td>
-                        <td class="num-cell"></td>
-                        <td class="num-cell"></td>
-                        <td class="bal-cell"></td>
-                        <td class="num-cell"></td>
-                        <td class="num-cell"></td>
-                        <td class="num-cell"></td>
-                        <td class="bal-cell"></td>
-                        <td class="num-cell"></td>
-                        <td class="action-col"></td>
-                    </tr>
-                    @endfor
-                </tbody>
-            </table>
-        </div>
-    </div>
+    @endforeach
 
     @else
     <!-- No Leave Card for this year - Create one -->
@@ -410,8 +394,8 @@
        PRINT STYLES — 1/2 Index Card (landscape 8"x5" half = ~8"x5")
        ═══════════════════════════════════════════════════════════ */
     @page {
-        size: 8in 5in landscape;
-        margin: 4mm 5mm;
+        size: 8.5in 5.5in landscape;
+        margin: 5mm;
     }
 
     @media print {
@@ -424,7 +408,6 @@
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 7pt !important;
         }
 
         .no-print,
@@ -434,124 +417,96 @@
             display: none !important;
         }
 
-        .main-content {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        .leave-card-form {
+        .print-page {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 3mm 4mm !important;
+            padding: 2mm 3mm !important;
             margin: 0 !important;
+            page-break-after: always !important;
+            height: 5.4in !important;
+            width: 8.4in !important;
+            display: block !important;
         }
 
-        /* Shrink header text */
+        /* Readable header text */
         .leave-card-form > div:first-child p {
-            font-size: 7pt !important;
+            font-size: 8pt !important;
             margin: 0 !important;
         }
         .leave-card-form > div:first-child h3 {
-            font-size: 8pt !important;
-            margin: 2px 0 6px !important;
+            font-size: 9pt !important;
+            margin: 2px 0 8px !important;
         }
 
-        /* Employee info fields */
-        .leave-card-form > div:nth-child(2) {
-            gap: 4px 20px !important;
-            margin-bottom: 6px !important;
-            font-size: 7pt !important;
-        }
-
-        /* Table sizing for half index card */
+        /* Table sizing for physical card - Back to readable size */
         .leave-card-table {
-            font-size: 6.5pt !important;
+            font-size: 7.5pt !important;
+            table-layout: auto !important; /* Allow columns to breathe */
+            width: 100% !important;
         }
 
         .leave-card-table th,
         .leave-card-table td {
-            border: 1px solid #000 !important;
-            padding: 1px 2px !important;
-            line-height: 1.15 !important;
+            border: 1.2px solid #000 !important;
+            padding: 3px 4px !important;
+            line-height: 1.1 !important;
+        }
+        
+        /* Fixed row height to fill the card */
+        .leave-card-table tbody tr {
+            height: 30px !important;
         }
 
         .leave-card-table thead th {
-            background: #e8e8e8 !important;
-            font-size: 5.5pt !important;
-            padding: 1px 1px !important;
-        }
-
-        .leave-card-table .group-header {
+            background: #f0f0f0 !important;
             font-size: 6.5pt !important;
-            padding: 2px !important;
         }
 
         .leave-card-table .sub-header {
-            font-size: 5pt !important;
-            padding: 1px 1px !important;
-        }
-
-        .leave-card-table .vl-header,
-        .leave-card-table .sl-header {
-            background: #e0e0e0 !important;
-            color: #000 !important;
-        }
-
-        .leave-card-table tbody td {
-            font-size: 6.5pt !important;
-            height: 14px !important;
-        }
-
-        .leave-card-table .date-col {
-            font-size: 6pt !important;
-            padding-left: 2px !important;
-        }
-
-        .leave-card-table .particulars-col {
-            font-size: 6pt !important;
-            padding-left: 2px !important;
+            font-size: 5.5pt !important;
         }
 
         .leave-card-table .bal-cell {
-            background: transparent !important;
+            font-size: 7pt !important;
+            font-weight: 700 !important;
         }
 
-        .leave-card-table tbody tr:hover {
-            background: transparent !important;
+        .print-only {
+            display: block !important;
         }
-
-        .leave-card-table .beginning-row {
-            background: transparent !important;
-        }
-
-        /* Hide inline edit inputs and show value */
-        .inline-edit-input {
-            border: none !important;
-            background: transparent !important;
-            padding: 0 !important;
-            font-size: 6.5pt !important;
-            height: auto !important;
-            min-width: 0 !important;
-        }
-
-        /* Hide empty rows on front page only */
-        .front-page-card .empty-row {
+        
+        .no-print {
             display: none !important;
         }
 
-        /* Ensure back page starts on new sheet and rows are visible */
-        .back-page-card {
-            page-break-before: always !important;
-            margin-top: 0 !important;
-        }
-        
-        .back-page-row {
-            display: table-row !important;
+        .leave-card-table .date-col {
+            white-space: nowrap !important;
         }
     }
 
-    /* Auto-save visual indicator */
+    .print-only {
+        display: none;
+    }
+
+    /* Screen view separation */
+    .print-page {
+        margin-bottom: 40px;
+        position: relative;
+    }
+    
+    .back-page-side::before {
+        content: "BACK SIDE";
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: var(--secondary);
+        letter-spacing: 2px;
+    }
+
     .save-indicator {
         position: fixed;
         bottom: 20px;

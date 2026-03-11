@@ -92,7 +92,6 @@
                         <th style="padding: 15px; font-size: 0.75rem;">APP NO.</th>
                         <th style="padding: 15px; font-size: 0.75rem;">EMPLOYEE</th>
                         <th style="padding: 15px; font-size: 0.75rem;">LEAVE TYPE</th>
-                        <th style="padding: 15px; font-size: 0.75rem;">DATE RANGE</th>
                         <th style="padding: 15px; font-size: 0.75rem;">DAYS</th>
                         <th style="padding: 15px; font-size: 0.75rem;">STATUS</th>
                         <th style="padding: 15px; font-size: 0.75rem;">FILED ON</th>

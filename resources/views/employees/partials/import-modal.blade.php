@@ -1,4 +1,4 @@
-<div style="padding: 24px;">
+<div class="modal-body">
     <div style="text-align: center; margin-bottom: 25px;">
         <i class="fas fa-file-excel fa-4x" style="color: #166534; opacity: 0.2; margin-bottom: 15px;"></i>
         <h5 style="font-weight: 800; margin-bottom: 5px;">Import Employee Masterlist</h5>

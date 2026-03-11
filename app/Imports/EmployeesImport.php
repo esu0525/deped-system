@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\Employee;
 use App\Models\Department;
+use App\Services\AccountGeneratorService;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
@@ -71,32 +72,39 @@ class EmployeesImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
             try {
                 if (is_numeric($dateHired)) {
                     $parsedDate = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateHired);
-                } else {
+                }
+                else {
                     $parsedDate = \Carbon\Carbon::parse($dateHired);
                 }
-            } catch (\Exception $e) {
+            }
+            catch (\Exception $e) {
                 $parsedDate = null;
             }
         }
 
         $employee = Employee::updateOrCreate(
-            ['employee_id' => $employeeId],
-            [
-                'full_name' => trim($fullName),
-                'department_id' => $departmentId,
-                'position' => $position ? trim($position) : null,
-                'employment_status' => $status,
-                'date_hired' => $parsedDate,
-                'contact_number' => $contact,
-                'address' => $address,
-                'status' => 'Active',
-            ]
+        ['employee_id' => $employeeId],
+        [
+            'full_name' => trim($fullName),
+            'department_id' => $departmentId,
+            'position' => $position ? trim($position) : null,
+            'employment_status' => $status,
+            'date_hired' => $parsedDate,
+            'contact_number' => $contact,
+            'address' => $address,
+            'status' => 'Active',
+        ]
         );
 
         if ($employee) {
             $this->successRows++;
             // Auto create leave card if not exists
             app(\App\Services\LeaveCardService::class)->getOrCreateLeaveCard($employee);
+
+            // Auto-create user account if not exists
+            if (!$employee->user_id) {
+                AccountGeneratorService::createAccountForEmployee($employee);
+            }
         }
 
         return $employee;

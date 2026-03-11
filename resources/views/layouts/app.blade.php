@@ -53,12 +53,19 @@
                             <p style="font-weight: 700; font-size: 0.85rem; margin: 0; color: var(--dark);">{{ auth()->user()->name }}</p>
                             <span style="font-size: 0.7rem; color: var(--secondary); font-weight: 500;">{{ auth()->user()->role_display }}</span>
                         </div>
-                        <form action="{{ route('logout') }}" method="POST" style="margin-left: 8px;">
-                            @csrf
-                            <button type="submit" class="header-icon-btn" title="Logout" style="color: var(--danger);">
-                                <i class="fas fa-power-off"></i>
-                            </button>
-                        </form>
+                        <div style="display: flex; gap: 4px; margin-left: 8px;">
+                            @if(auth()->user()->isEmployee())
+                                <a href="{{ route('employee.profile') }}" class="header-icon-btn" title="My Profile" style="color: var(--primary);">
+                                    <i class="fas fa-user-circle"></i>
+                                </a>
+                            @endif
+                            <form action="{{ route('logout') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="header-icon-btn" title="Logout" style="color: var(--danger);">
+                                    <i class="fas fa-power-off"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </header>

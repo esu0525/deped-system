@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\User;
 use App\Models\AuditTrail;
 use App\Services\LeaveCardService;
+use App\Services\AccountGeneratorService;
 use Illuminate\Http\Request;
 use App\Exports\EmployeeExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -23,6 +24,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = Employee::with(['department', 'user']);
 
         if ($request->search) {
@@ -31,9 +33,10 @@ class EmployeeController extends Controller
                 $q->where('full_name', 'like', "%{$search}%")
                     ->orWhere('employee_id', 'like', "%{$search}%")
                     ->orWhere('position', 'like', "%{$search}%")
-                    ->orWhereHas('department', function($dq) use ($search) {
-                        $dq->where('name', 'like', "%{$search}%");
-                    });
+                    ->orWhereHas('department', function ($dq) use ($search) {
+                    $dq->where('name', 'like', "%{$search}%");
+                }
+                );
             });
         }
 
@@ -122,10 +125,16 @@ class EmployeeController extends Controller
             ]);
         }
 
+        // Auto-create user account for the employee
+        $accountResult = AccountGeneratorService::createAccountForEmployee($employee);
+        $generatedPassword = $accountResult['password'];
+        $generatedEmail = $accountResult['user']->email;
 
-        AuditTrail::log('CREATE', 'Employee Management', "Created employee profile for {$employee->full_name} (ID: {$employee->employee_id})");
+        AuditTrail::log('CREATE', 'Employee Management', "Created employee profile for {$employee->full_name} (ID: {$employee->employee_id}) with account {$generatedEmail}");
 
-        return redirect()->route('employees.index')->with('success', 'Employee profile created successfully.');
+        return redirect()->route('employees.index')->with('success',
+            "Employee profile created successfully. Auto-generated account — Email: {$generatedEmail} | Password: {$generatedPassword}"
+        );
     }
 
     public function show(Request $request, Employee $employee)
@@ -211,5 +220,28 @@ class EmployeeController extends Controller
         $employee->delete();
         AuditTrail::log('DELETE', 'Employee Management', "Deleted employee profile for {$name}");
         return redirect()->route('employees.index')->with('success', "Employee {$name} deleted successfully.");
+    }
+
+    /**
+     * Create a user account for an employee (auto-generate credentials).
+     */
+    public function createAccount(Request $request, Employee $employee)
+    {
+        if ($employee->user_id) {
+            return back()->with('error', 'This employee already has an account.');
+        }
+
+        $accountResult = AccountGeneratorService::createAccountForEmployee($employee);
+
+        AuditTrail::log(
+            'CREATE',
+            'Employee Management',
+            "Created user account for {$employee->full_name} ({$accountResult['user']->email})"
+        );
+
+        return redirect()->route('employees.index')
+            ->with('success',
+            "Login account created for {$employee->full_name} — Email: {$accountResult['user']->email} | Password: {$accountResult['password']}"
+        );
     }
 }

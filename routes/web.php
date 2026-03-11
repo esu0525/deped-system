@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeePortalController;
 use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveCardController;
 use App\Http\Controllers\AiDetectionController;
@@ -33,19 +34,32 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class , 'index'])->name('dashboard');
 
-    // ─── Employee Management (Admin/HR/Encoder) ───────────────────────────
-    Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
+    // ─── Employee Portal (Employee role only) ─────────────────────────────
+    Route::middleware(['role:employee'])->prefix('my')->group(function () {
+            Route::get('/dashboard', [EmployeePortalController::class , 'dashboard'])->name('employee.dashboard');
+            Route::get('/leave-card', [EmployeePortalController::class , 'leaveCard'])->name('employee.leave-card');
+            Route::get('/profile', [EmployeePortalController::class , 'profile'])->name('employee.profile');
+            Route::post('/profile/password', [EmployeePortalController::class , 'updatePassword'])->name('employee.profile.password');
+        }
+        );
+
+        // ─── Employee Management (Admin/HR/Encoder) ───────────────────────────
+        Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
             Route::resource('employees', EmployeeController::class);
+            Route::post('/employees/{employee}/create-account', [EmployeeController::class , 'createAccount'])->name('employees.create-account');
         }
         );
 
         // Employees can view their own profile
         Route::get('/profile', [EmployeeController::class , 'show'])->name('profile');
 
-        // ─── Leave Applications ───────────────────────────────────────────────
-        Route::resource('leave-applications', LeaveApplicationController::class);
-        Route::post('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class , 'approve'])->name('leave-applications.approve');
-        Route::post('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class , 'reject'])->name('leave-applications.reject');
+        // ─── Leave Applications (Admin/HR/Encoder) ──────────────────────────
+        Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
+            Route::resource('leave-applications', LeaveApplicationController::class);
+            Route::post('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class , 'approve'])->name('leave-applications.approve');
+            Route::post('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class , 'reject'])->name('leave-applications.reject');
+        }
+        );
         Route::get('/api/employee/{employee}/leave-balance', [LeaveApplicationController::class , 'getEmployeeBalance'])->name('api.employee.leave-balance');
 
         // ─── Leave Cards & Automation ─────────────────────────────────────────
@@ -74,10 +88,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/export/leave-transactions', [ReportController::class , 'exportLeaveTransactions'])->name('export.leave-transactions');
             Route::get('/export/monthly-summary', [ReportController::class , 'exportMonthlyDeptSummary'])->name('export.monthly-summary');
         }
-        );        // ─── Import ───────────────────────────────────────────────────────────
+        ); // ─── Import ───────────────────────────────────────────────────────────
         Route::middleware(['role:super_admin,hr_admin'])->group(function () {
-             Route::post('/import/employees', [ImportController::class , 'importEmployees'])->name('import.employees');
-        });
+            Route::post('/import/employees', [ImportController::class , 'importEmployees'])->name('import.employees');
+        }
+        );
 
 
         // ─── AI Detection ─────────────────────────────────────────────────────

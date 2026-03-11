@@ -23,15 +23,41 @@
 
             <div class="form-group">
                 <label class="form-label">New Password</label>
-                <input type="password" name="password" class="form-control" required>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" class="form-control" required style="padding-right: 40px;">
+                    <button type="button" onclick="toggleField('password', 'eye1')" style="position: absolute; right: 12px; top: 12px; background: none; border: none; color: #94a3b8; cursor: pointer;">
+                        <i id="eye1" class="fas fa-eye"></i>
+                    </button>
+                </div>
                 @error('password') <small style="color: var(--danger);">{{ $message }}</small> @enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Confirm Password</label>
-                <input type="password" name="password_confirmation" class="form-control" required>
+                <div style="position: relative;">
+                    <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required style="padding-right: 40px;">
+                    <button type="button" onclick="toggleField('password_confirmation', 'eye2')" style="position: absolute; right: 12px; top: 12px; background: none; border: none; color: #94a3b8; cursor: pointer;">
+                        <i id="eye2" class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Reset Password</button>
         </form>
+
+        <script>
+            function toggleField(fieldId, iconId) {
+                const field = document.getElementById(fieldId);
+                const icon = document.getElementById(iconId);
+                if (field.type === 'password') {
+                    field.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    field.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+        </script>
     </div>
 </body>
 </html>

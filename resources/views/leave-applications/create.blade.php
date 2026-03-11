@@ -72,7 +72,10 @@
                 </div>
                 @endif
 
-                <input type="hidden" name="date_filed" value="{{ old('date_filed', date('Y-m-d')) }}">
+                <div class="form-group">
+                    <label class="form-label">Date Filing <span style="color: var(--danger);">*</span></label>
+                    <input type="date" name="date_filed" id="date_filed" class="form-control" value="{{ old('date_filed') }}" required>
+                </div>
 
                 <!-- Inclusive Dates Section -->
                 <div class="form-group">
@@ -86,13 +89,12 @@
                     <div id="dateEntries">
                         <!-- Default first entry -->
                         <div class="date-entry" data-index="0">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
                                 <span class="entry-label">#1</span>
-                                <span style="flex: 1;"></span>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+                            <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.78rem;">Type of Leave</label>
+                                    <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
                                     <select name="entries[0][leave_type_id]" class="form-control entry-type" required>
                                         <option value="">— Select —</option>
                                         @foreach($leaveTypes as $type)
@@ -101,12 +103,19 @@
                                     </select>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.78rem;">Inclusive Dates</label>
-                                    <input type="text" name="entries[0][inclusive_dates]" class="form-control entry-dates" placeholder="e.g. May 1, 2, 5-6" required>
+                                    <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
+                                    <input type="text" name="entries[0][inclusive_dates]" class="form-control entry-dates-text" required>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.78rem;">No. of Days</label>
-                                    <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required style="width: 90px;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
+                                    <select name="entries[0][is_with_pay]" class="form-control entry-pay-status" required>
+                                        <option value="1" selected>WITH PAY</option>
+                                        <option value="0">WITHOUT PAY</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
+                                    <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                                 </div>
                             </div>
                             <div class="others-specify" style="display: none; margin-top: 8px;">
@@ -642,10 +651,12 @@
         document.querySelectorAll('.date-entry').forEach(entry => {
             const typeSelect = entry.querySelector('.entry-type');
             const daysInput = entry.querySelector('.entry-days');
+            const payStatusSelect = entry.querySelector('.entry-pay-status');
             const selected = typeSelect.options[typeSelect.selectedIndex];
             const days = parseFloat(daysInput.value) || 0;
+            const isWithPay = payStatusSelect && payStatusSelect.value === "1";
 
-            if (selected && selected.dataset) {
+            if (selected && selected.dataset && isWithPay) {
                 if (selected.dataset.code === 'VL' || selected.dataset.code === 'FL') vlDays += days;
                 else if (selected.dataset.code === 'SL') slDays += days;
             }
@@ -654,8 +665,8 @@
         const vlNewBalance = vlCurrentBalance - vlDays;
         const slNewBalance = slCurrentBalance - slDays;
 
-        document.getElementById('certVlEarned').textContent = vlTotalEarned;
-        document.getElementById('certSlEarned').textContent = slTotalEarned;
+        document.getElementById('certVlEarned').textContent = vlCurrentBalance;
+        document.getElementById('certSlEarned').textContent = slCurrentBalance;
         document.getElementById('certVlLess').textContent = vlDays;
         document.getElementById('certSlLess').textContent = slDays;
         document.getElementById('certVlBalance').textContent = vlNewBalance;
@@ -684,27 +695,33 @@
         entry.className = 'date-entry animate-fade';
         entry.dataset.index = i;
         entry.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
                 <span class="entry-label">#${i + 1}</span>
-                <span style="flex: 1;"></span>
-                <button type="button" class="remove-entry-btn" onclick="removeEntry(this)">
+                <button type="button" class="remove-entry-btn" onclick="removeEntry(this)" style="margin-left: auto;">
                     <i class="fas fa-trash-alt"></i> Remove
                 </button>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+            <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.78rem;">Type of Leave</label>
+                    <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
                     <select name="entries[${i}][leave_type_id]" class="form-control entry-type" required>
                         ${leaveTypeOptions}
                     </select>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.78rem;">Inclusive Dates</label>
-                    <input type="text" name="entries[${i}][inclusive_dates]" class="form-control entry-dates" placeholder="e.g. May 1, 2, 5-6" required>
+                    <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
+                    <input type="text" name="entries[${i}][inclusive_dates]" class="form-control entry-dates-text" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.78rem;">No. of Days</label>
-                    <input type="number" name="entries[${i}][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required style="width: 90px;">
+                    <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
+                    <select name="entries[${i}][is_with_pay]" class="form-control entry-pay-status" required>
+                        <option value="1" selected>WITH PAY</option>
+                        <option value="0">WITHOUT PAY</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
+                    <input type="number" name="entries[${i}][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                 </div>
             </div>
             <div class="others-specify" style="display: none; margin-top: 8px;">
@@ -737,8 +754,14 @@
     function bindEntryEvents(entry) {
         const typeSelect = entry.querySelector('.entry-type');
         const daysInput = entry.querySelector('.entry-days');
-        const datesInput = entry.querySelector('.entry-dates');
+        const datesTextInput = entry.querySelector('.entry-dates-text');
+        const payStatusSelect = entry.querySelector('.entry-pay-status');
         const othersDiv = entry.querySelector('.others-specify');
+
+        const updateAll = () => {
+            updatePreview();
+            updateCertification();
+        };
 
         typeSelect.addEventListener('change', () => {
             const selected = typeSelect.options[typeSelect.selectedIndex];
@@ -750,15 +773,17 @@
                 othersDiv.querySelector('input').required = false;
                 othersDiv.querySelector('input').value = '';
             }
-            updatePreview();
-            updateCertification();
+            updateAll();
         });
 
-        daysInput.addEventListener('input', () => {
-            updatePreview();
-            updateCertification();
-        });
-        datesInput.addEventListener('input', updatePreview);
+        daysInput.addEventListener('input', updateAll);
+        datesTextInput.addEventListener('input', updatePreview);
+        payStatusSelect.addEventListener('change', updateAll);
+    }
+
+    function recalculateAllStatus() {
+        // No longer needed as it's manual
+        updateCertification();
     }
 
     // ═══════════════════════════════════════════════════════
@@ -771,22 +796,29 @@
         let html = '';
 
         document.querySelectorAll('.date-entry').forEach((entry) => {
+            const index = entry.dataset.index;
             const typeSelect = entry.querySelector('.entry-type');
             const daysInput = entry.querySelector('.entry-days');
-            const datesInput = entry.querySelector('.entry-dates');
+            const datesTextInput = entry.querySelector('.entry-dates-text');
+            const payStatusSelect = entry.querySelector('.entry-pay-status');
 
             const selected = typeSelect.options[typeSelect.selectedIndex];
             const typeName = selected.value ? selected.text : 'Not Selected';
             const days = parseFloat(daysInput.value) || 0;
-            const datesText = datesInput.value || 'No dates';
+            const isWop = payStatusSelect && payStatusSelect.value === "0";
+            const dateText = datesTextInput.value || 'No dates';
+            
             totalDays += days;
 
             html += `<div class="entry-summary-row">
                 <div style="flex: 1; min-width: 0;">
-                    <strong style="font-size: 0.8rem;">${typeName}</strong>
-                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">${datesText}</div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <strong style="font-size: 0.8rem;">${typeName}</strong>
+                        ${isWop ? '<span style="color: #dc2626; font-size: 0.65rem; font-weight: 700;">(WOP)</span>' : ''}
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">${dateText}</div>
                 </div>
-                <span style="font-weight: 700; color: var(--primary); white-space: nowrap; margin-left: 12px;">${days} ${days === 1 ? 'day' : 'days'}</span>
+                <span style="font-weight: 700; color: ${isWop ? '#dc2626' : 'var(--primary)'}; white-space: nowrap; margin-left: 12px;">${days} ${days === 1 ? 'day' : 'days'}</span>
             </div>`;
         });
 

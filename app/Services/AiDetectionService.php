@@ -26,14 +26,25 @@ class AiDetectionService
 
         // Check 1: Double Entry / Overlapping Dates (High Priority)
         $overlappingCount = 0;
-        $allDetails = $applications->pluck('details')->flatten();
+        $allDetails = $applications->pluck('details')->flatten()->values();
         for ($i = 0; $i < count($allDetails); $i++) {
             for ($j = $i + 1; $j < count($allDetails); $j++) {
                 $d1 = $allDetails[$i];
                 $d2 = $allDetails[$j];
 
-                // Simplified overlap check (if they share any dates)
-                // Assuming inclusive_dates is parsed or we use date_from/to for basic check
+                // Skip if both rows belong to the same parent application
+                if ($d1->leave_application_id === $d2->leave_application_id)
+                    continue;
+
+                // Also skip if it's using the "placeholder" dates (date_from == filing_date)
+                $app1 = $d1->leaveApplication;
+                $app2 = $d2->leaveApplication;
+
+                if ($app1 && $d1->date_from->isSameDay($app1->date_filed))
+                    continue;
+                if ($app2 && $d2->date_from->isSameDay($app2->date_filed))
+                    continue;
+
                 if ($d1->date_from <= $d2->date_to && $d2->date_from <= $d1->date_to) {
                     $overlappingCount++;
                 }
@@ -41,15 +52,20 @@ class AiDetectionService
         }
 
         if ($overlappingCount > 0) {
-            $flags[] = "Detected {$overlappingCount} overlapping/duplicate date entries";
-            $score += 40; // High risk for double entries
+            $flags[] = "Detected {$overlappingCount} overlapping date-entries with separate records";
+            $score += 40;
         }
 
-        // Check 2: Filing Deadlines (Based on Instruction Image)
+        // Check 2: Filing Deadlines
         $deadlineViolations = 0;
         foreach ($applications as $app) {
             $dateFiled = Carbon::parse($app->date_filed);
             $dateFrom = Carbon::parse($app->date_from);
+
+            // Skip checks if the date_from is placeholder (equal to filing_date)
+            if ($dateFrom->isSameDay($dateFiled))
+                continue;
+
             $code = $app->leaveType->code ?? '';
             $daysDiff = $dateFiled->diffInDays($dateFrom, false);
 
@@ -72,24 +88,28 @@ class AiDetectionService
         // Check 3: Frequent Monday/Friday (potential long weekend abuse)
         $mondayFridayCount = $applications->filter(function ($app) {
             $from = Carbon::parse($app->date_from);
+            $dateFiled = Carbon::parse($app->date_filed);
+            // Skip placeholders
+            if ($from->isSameDay($dateFiled))
+                return false;
             return $from->isMonday() || $from->isFriday();
         })->count();
 
-        if ($mondayFridayCount >= 5) {
+        if ($mondayFridayCount >= 8) {
             $flags[] = 'Frequent Monday/Friday leaves (' . $mondayFridayCount . ' occurrences)';
             $score += min($mondayFridayCount * 3, 15);
         }
 
         // Check 4: Consecutive short leaves (splitting)
         $shortLeaves = $applications->filter(fn($app) => $app->num_days <= 1)->count();
-        if ($shortLeaves >= 8) {
+        if ($shortLeaves >= 12) {
             $flags[] = 'High frequency of single-day leaves (' . $shortLeaves . ' occurrences)';
             $score += min($shortLeaves * 2, 10);
         }
 
         // Check 5: Leave near holidays
         $nearHolidayCount = $this->checkNearHolidayLeaves($applications);
-        if ($nearHolidayCount >= 3) {
+        if ($nearHolidayCount >= 5) {
             $flags[] = 'Leaves frequently taken near holidays (' . $nearHolidayCount . ' occurrences)';
             $score += min($nearHolidayCount * 5, 15);
         }
@@ -132,14 +152,14 @@ class AiDetectionService
 
         // Determine risk level
         $riskLevel = match (true) {
-                $score >= 70 => 'High',
-                $score >= 40 => 'Medium',
+                $score >= 80 => 'High',
+                $score >= 50 => 'Medium',
                 default => 'Low',
             };
 
         // Generate reason summary
         $reason = empty($flags)
-            ? 'No suspicious patterns detected.'
+            ? 'No suspicious patterns detected. System considers this safe for approval.'
             : 'Detected: ' . implode('; ', $flags);
 
         return AiDetectionLog::create([

@@ -10,10 +10,7 @@
             {{ $app->leaveType->name }}
         </span>
     </td>
-    <td style="padding: 15px; font-size: 0.85rem;">
-        {{ $app->date_from->format('M d') }} - {{ $app->date_to->format('M d, Y') }}
-    </td>
-    <td style="padding: 15px; font-weight: 700;">{{ $app->total_days }}</td>
+    <td style="padding: 15px; font-weight: 700;">{{ $app->num_days }}</td>
     <td style="padding: 15px;">
         @php
             $statusColor = match($app->status) {
@@ -44,7 +41,7 @@
 </tr>
 @empty
 <tr>
-    <td colspan="8" style="padding: 40px; text-align: center; color: var(--secondary);">
+    <td colspan="7" style="padding: 40px; text-align: center; color: var(--secondary);">
         <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;"></i>
         <p style="font-weight: 600;">No leave applications found.</p>
     </td>

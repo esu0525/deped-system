@@ -94,43 +94,56 @@ class LeaveCardService
             if (!$type)
                 continue;
             $days = floatval($detail->num_days);
+            $isWop = !$detail->is_with_pay;
 
             $vlUsed = null;
             $slUsed = null;
+            $vlWop = null;
+            $slWop = null;
 
             if ($type->code === 'VL' || $type->code === 'FL') {
-                $runningVl -= $days;
-                $leaveCard->vl_used += $days;
-                if ($type->code === 'FL') {
-                    $leaveCard->forced_leave_balance -= $days;
+                if ($isWop) {
+                    $vlWop = $days;
                 }
-                $vlUsed = $days;
+                else {
+                    $runningVl -= $days;
+                    $leaveCard->vl_used += $days;
+                    if ($type->code === 'FL') {
+                        $leaveCard->forced_leave_balance -= $days;
+                    }
+                    $vlUsed = $days;
+                }
             }
             elseif ($type->code === 'SL') {
-                $runningSl -= $days;
-                $leaveCard->sl_used += $days;
-                $slUsed = $days;
+                if ($isWop) {
+                    $slWop = $days;
+                }
+                else {
+                    $runningSl -= $days;
+                    $leaveCard->sl_used += $days;
+                    $slUsed = $days;
+                }
             }
             else {
-                $leaveCard->special_leave_balance -= $days;
+                if (!$isWop) {
+                    $leaveCard->special_leave_balance -= $days;
+                }
             }
 
-            $periodDates = date('n/j/y', strtotime($detail->date_from ?? $application->date_from));
-            if ($detail->inclusive_dates) {
-                // if they typed '1/21/26', output 'LESS: 1/21/26'
-                $periodDates = $detail->inclusive_dates;
-            }
+            $periodDates = $detail->inclusive_dates ?? date('n/j/y', strtotime($detail->date_from ?? $application->date_from));
 
             LeaveTransaction::create([
                 'employee_id' => $employee->id,
                 'leave_card_id' => $leaveCard->id,
                 'leave_type_id' => $type->id,
                 'transaction_date' => now(),
-                'period' => "LESS: {$periodDates}",
+                'period' => "LESS: {$periodDates}" . ($isWop ? " (WOP)" : ""),
                 'transaction_type' => 'used',
                 'days' => $days,
                 'vl_used' => $vlUsed,
                 'sl_used' => $slUsed,
+                'vl_wop' => $vlWop,
+                'sl_wop' => $slWop,
                 'vl_balance_after' => $runningVl,
                 'sl_balance_after' => $runningSl,
                 'remarks' => $type->code,

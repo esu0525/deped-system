@@ -59,9 +59,28 @@
                         <label class="form-label">Password</label>
                         <div style="position: relative;">
                             <i class="fas fa-lock" style="position: absolute; left: 18px; top: 18px; color: #94a3b8;"></i>
-                            <input type="password" name="password" class="form-control" style="padding-left: 45px;" placeholder="••••••••" required>
+                            <input type="password" id="passwordInput" name="password" class="form-control" style="padding-left: 45px; padding-right: 45px;" placeholder="••••••••" required>
+                            <button type="button" onclick="togglePassword()" style="position: absolute; right: 18px; top: 18px; background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0;">
+                                <i id="toggleIcon" class="fas fa-eye"></i>
+                            </button>
                         </div>
                     </div>
+
+                    <script>
+                        function togglePassword() {
+                            const passwordInput = document.getElementById('passwordInput');
+                            const toggleIcon = document.getElementById('toggleIcon');
+                            if (passwordInput.type === 'password') {
+                                passwordInput.type = 'text';
+                                toggleIcon.classList.remove('fa-eye');
+                                toggleIcon.classList.add('fa-eye-slash');
+                            } else {
+                                passwordInput.type = 'password';
+                                toggleIcon.classList.remove('fa-eye-slash');
+                                toggleIcon.classList.add('fa-eye');
+                            }
+                        }
+                    </script>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
                         <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">

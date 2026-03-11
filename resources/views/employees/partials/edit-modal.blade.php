@@ -53,4 +53,68 @@
             <button type="submit" class="btn btn-primary" style="padding-left: 30px; padding-right: 30px;"><i class="fas fa-save"></i> Save Changes</button>
         </div>
     </form>
+
+    {{-- Employee Account Management --}}
+    <div style="margin-top: 24px; padding: 20px; background: #f0f9ff; border-radius: 10px; border: 1px solid #bae6fd;">
+        <h5 style="font-weight: 700; font-size: 0.9rem; color: #0369a1; margin: 0 0 12px;">
+            <i class="fas fa-user-shield" style="margin-right: 6px;"></i> Employee Login Account
+        </h5>
+
+        @if($employee->user)
+            {{-- Account exists --}}
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px; background: #ecfdf5; border-radius: 8px; border: 1px solid #a7f3d0;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #10b981; color: white; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div style="flex: 1;">
+                    <p style="font-weight: 700; font-size: 0.88rem; margin: 0; color: #065f46;">Account Active</p>
+                    <p style="font-size: 0.78rem; color: #047857; margin: 2px 0 0;">
+                        <i class="fas fa-envelope" style="margin-right: 4px;"></i> {{ $employee->user->email }}
+                        &bull; Role: {{ $employee->user->role_display }}
+                    </p>
+                </div>
+            </div>
+
+            {{-- Show default password reminder --}}
+            @php
+                $parsed = \App\Services\AccountGeneratorService::parseName($employee->full_name);
+                $first2 = mb_substr(ucfirst(strtolower($parsed['surname'])), 0, 2);
+                $defaultPw = '#' . $first2 . 'd3P3d';
+            @endphp
+            <div style="margin-top: 10px; padding: 10px 14px; background: #fffbeb; border-radius: 8px; border: 1px solid #fde68a; font-size: 0.78rem;">
+                <i class="fas fa-key" style="color: #d97706; margin-right: 6px;"></i>
+                <strong>Default Password:</strong>
+                <code style="background: #fef3c7; padding: 2px 8px; border-radius: 4px; font-weight: 700; color: #92400e;">{{ $defaultPw }}</code>
+                <span style="color: var(--secondary); margin-left: 4px;">(#{{ $first2 }} + d3P3d)</span>
+            </div>
+        @else
+            {{-- No account - Auto-generate one --}}
+            @php
+                $credentials = \App\Services\AccountGeneratorService::generateCredentials($employee->full_name);
+            @endphp
+            <p style="font-size: 0.78rem; color: var(--secondary); margin: 0 0 12px;">
+                This employee doesn't have a login account yet. Click below to auto-generate one.
+            </p>
+
+            <div style="padding: 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 14px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.82rem;">
+                    <div>
+                        <span style="font-weight: 600; color: var(--secondary);">Auto Email:</span><br>
+                        <code style="font-weight: 700; color: #1e40af;">{{ $credentials['email'] }}</code>
+                    </div>
+                    <div>
+                        <span style="font-weight: 600; color: var(--secondary);">Auto Password:</span><br>
+                        <code style="font-weight: 700; color: #92400e;">{{ $credentials['password'] }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <form action="{{ route('employees.create-account', $employee) }}" method="POST">
+                @csrf
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    <i class="fas fa-user-plus"></i> Create Account Automatically
+                </button>
+            </form>
+        @endif
+    </div>
 </div>
