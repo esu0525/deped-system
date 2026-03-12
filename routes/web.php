@@ -56,6 +56,7 @@ Route::middleware(['auth'])->group(function () {
         // ─── Leave Applications (Admin/HR/Encoder) ──────────────────────────
         Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
             Route::resource('leave-applications', LeaveApplicationController::class);
+            Route::post('/leave-applications/bulk-approve', [LeaveApplicationController::class, 'bulkApprove'])->name('leave-applications.bulk-approve');
             Route::post('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class , 'approve'])->name('leave-applications.approve');
             Route::post('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class , 'reject'])->name('leave-applications.reject');
         }

@@ -122,14 +122,14 @@ class LeaveCardController extends Controller
             ['vl_beginning_balance' => 0, 'sl_beginning_balance' => 0]
             );
 
-            // Add VL credit
             $vlType = LeaveType::where('code', 'VL')->first();
+            $monthEnd = now()->endOfMonth();
             if ($vlType) {
                 LeaveTransaction::create([
                     'employee_id' => $employee->id,
                     'leave_card_id' => $leaveCard->id,
                     'leave_type_id' => $vlType->id,
-                    'transaction_date' => now(),
+                    'transaction_date' => $monthEnd,
                     'transaction_type' => 'earned',
                     'days' => $monthlyVL,
                     'vl_balance_after' => $leaveCard->vl_balance + $monthlyVL,
@@ -146,7 +146,7 @@ class LeaveCardController extends Controller
                     'employee_id' => $employee->id,
                     'leave_card_id' => $leaveCard->id,
                     'leave_type_id' => $slType->id,
-                    'transaction_date' => now(),
+                    'transaction_date' => $monthEnd,
                     'transaction_type' => 'earned',
                     'days' => $monthlySL,
                     'vl_balance_after' => $leaveCard->vl_balance + $monthlyVL,
@@ -207,21 +207,44 @@ class LeaveCardController extends Controller
                 'transaction_date' => $parsedDate,
                 'period' => $data['date_text'] ?? null,
                 'remarks' => $data['particulars'] ?? null,
-                'vl_earned' => isset($data['vl_earned']) && $data['vl_earned'] !== '' ? floatval($data['vl_earned']) : null,
-                'vl_used' => isset($data['vl_used']) && $data['vl_used'] !== '' ? floatval($data['vl_used']) : null,
-                'vl_wop' => isset($data['vl_wop']) && $data['vl_wop'] !== '' ? floatval($data['vl_wop']) : null,
-                'sl_earned' => isset($data['sl_earned']) && $data['sl_earned'] !== '' ? floatval($data['sl_earned']) : null,
-                'sl_used' => isset($data['sl_used']) && $data['sl_used'] !== '' ? floatval($data['sl_used']) : null,
-                'sl_wop' => isset($data['sl_wop']) && $data['sl_wop'] !== '' ? floatval($data['sl_wop']) : null,
                 'action_taken' => $data['action_taken'] ?? null,
                 'encoded_by' => auth()->id(),
             ];
 
-            if (isset($data['vl_balance']) && !in_array(trim($data['vl_balance']), ['', '-'])) {
-                $updateData['vl_balance_after'] = floatval($data['vl_balance']);
+            // Use local vars for checks to handle empty/string cases correctly
+            $vlE = isset($data['vl_earned']) && $data['vl_earned'] !== '' ? floatval($data['vl_earned']) : 0;
+            $vlU = isset($data['vl_used']) && $data['vl_used'] !== '' ? floatval($data['vl_used']) : 0;
+            $vlW = isset($data['vl_wop']) && $data['vl_wop'] !== '' ? floatval($data['vl_wop']) : 0;
+            $slE = isset($data['sl_earned']) && $data['sl_earned'] !== '' ? floatval($data['sl_earned']) : 0;
+            $slU = isset($data['sl_used']) && $data['sl_used'] !== '' ? floatval($data['sl_used']) : 0;
+            $slW = isset($data['sl_wop']) && $data['sl_wop'] !== '' ? floatval($data['sl_wop']) : 0;
+
+            $updateData['vl_earned'] = $vlE ?: null;
+            $updateData['vl_used'] = $vlU ?: null;
+            $updateData['vl_wop'] = $vlW ?: null;
+            $updateData['sl_earned'] = $slE ?: null;
+            $updateData['sl_used'] = $slU ?: null;
+            $updateData['sl_wop'] = $slW ?: null;
+
+            // Handle balances: explicitly save NULL if empty, hyphen OR if the column is NOT active in this row
+            $vlBalStr = trim($data['vl_balance'] ?? '');
+            if (in_array($vlBalStr, ['', '-'])) {
+                $updateData['vl_balance_after'] = null;
+            } else if ($vlE == 0 && $vlU == 0 && $vlW == 0 && strpos(strtoupper($data['date_text'] ?? ''), 'BAL') === false) {
+                 // Auto-null if no VL activity on this row (and not a "Balance" row)
+                $updateData['vl_balance_after'] = null;
+            } else {
+                $updateData['vl_balance_after'] = floatval($vlBalStr);
             }
-            if (isset($data['sl_balance']) && !in_array(trim($data['sl_balance']), ['', '-'])) {
-                $updateData['sl_balance_after'] = floatval($data['sl_balance']);
+            
+            $slBalStr = trim($data['sl_balance'] ?? '');
+            if (in_array($slBalStr, ['', '-'])) {
+                $updateData['sl_balance_after'] = null;
+            } else if ($slE == 0 && $slU == 0 && $slW == 0 && strpos(strtoupper($data['date_text'] ?? ''), 'BAL') === false) {
+                // Auto-null if no SL activity on this row (and not a "Balance" row)
+                $updateData['sl_balance_after'] = null;
+            } else {
+                $updateData['sl_balance_after'] = floatval($slBalStr);
             }
 
             if (!empty($data['id'])) {
@@ -242,22 +265,8 @@ class LeaveCardController extends Controller
             ->whereNotIn('id', $existingIds)
             ->delete();
 
-        // Optional: Do NOT recalculate to preserve the manual balances
-        // If we want system calculations, we would iterate existingIds, but user wants manual override.
-        $totalVLEarned = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('vl_earned') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'VL')->where('transaction_type', 'earned')->sum('days');
-        $totalVLUsed = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('vl_used') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'VL')->where('transaction_type', 'used')->sum('days');
-
-        $totalSLEarned = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('sl_earned') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'SL')->where('transaction_type', 'earned')->sum('days');
-        $totalSLUsed = LeaveTransaction::where('leave_card_id', $leaveCard->id)->sum('sl_used') + LeaveTransaction::where('leave_card_id', $leaveCard->id)->where('leaveType.code', 'SL')->where('transaction_type', 'used')->sum('days');
-
-        $leaveCard->update([
-            'vl_earned' => $totalVLEarned,
-            'vl_used' => $totalVLUsed,
-            'vl_balance' => $leaveCard->vl_beginning_balance + $totalVLEarned - $totalVLUsed,
-            'sl_earned' => $totalSLEarned,
-            'sl_used' => $totalSLUsed,
-            'sl_balance' => $leaveCard->sl_beginning_balance + $totalSLEarned - $totalSLUsed,
-        ]);
+        // Recalculate using the refined model logic
+        $leaveCard->recalculate();
 
         AuditTrail::create([
             'user_id' => auth()->id(),

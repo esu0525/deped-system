@@ -13,12 +13,14 @@ class LeaveApplicationDetail extends Model
         'leave_application_id', 'leave_type_id',
         'inclusive_dates', 'other_type',
         'date_from', 'date_to', 'num_days',
+        'is_with_pay',
     ];
 
     protected $casts = [
         'date_from' => 'date',
         'date_to' => 'date',
         'num_days' => 'float',
+        'is_with_pay' => 'boolean',
     ];
 
     public function leaveApplication()

@@ -17,7 +17,7 @@ class LeaveTransaction extends Model
         'vl_balance_after', 'sl_balance_after', 'remarks', 'encoded_by',
         'vl_earned', 'vl_used', 'vl_wop',
         'sl_earned', 'sl_used', 'sl_wop',
-        'action_taken'
+        'action_taken', 'leave_application_id'
     ];
 
     protected $casts = [

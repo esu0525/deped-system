@@ -38,42 +38,64 @@
         // 1. CARD 1 FRONT (9 transactions + 1 Beginning Balance = 10 rows)
         $pages[] = [
             'type' => 'front',
-            'is_first' => true,
+            'show_header' => true,
+            'is_very_first' => true,
             'items' => array_slice($transactionsArray, 0, $FRONT_DATA_ROWS - 1)
         ];
         
-        // 2. CARD 1 BACK (14 rows)
+        // 2. CARD 1 BACK (13 transactions + 1 Balance Carried Over = 14 rows)
         $remaining = array_slice($transactionsArray, $FRONT_DATA_ROWS - 1);
         $pages[] = [
             'type' => 'back',
-            'is_first' => false,
-            'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+            'show_header' => false,
+            'is_very_first' => false,
+            'items' => array_slice($remaining, 0, $BACK_DATA_ROWS - 1)
         ];
-        $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+        $remaining = array_slice($remaining, $BACK_DATA_ROWS - 1);
         
-        // 3. CONTINUATION CARDS (Back capacity used for both sides if continuing)
+        // 3. CONTINUATION CARDS (Front gets header and FRONT_DATA_ROWS, Back gets BACK_DATA_ROWS)
         while (count($remaining) > 0) {
             $pages[] = [
                 'type' => 'front',
-                'is_first' => false,
-                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+                'show_header' => true,
+                'is_very_first' => false,
+                'items' => array_slice($remaining, 0, $FRONT_DATA_ROWS - 1)
             ];
-            $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+            $remaining = array_slice($remaining, $FRONT_DATA_ROWS - 1);
             
+            // ALWAYS force a back page so they are in pairs
             $pages[] = [
                 'type' => 'back',
-                'is_first' => false,
-                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS)
+                'show_header' => false,
+                'is_very_first' => false,
+                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS - 1)
             ];
-            $remaining = array_slice($remaining, $BACK_DATA_ROWS);
+            $remaining = array_slice($remaining, $BACK_DATA_ROWS - 1);
         }
     @endphp
 
-    @foreach($pages as $pageIndex => $page)
-    <!-- Card Side {{ $pageIndex + 1 }}: {{ strtoupper($page['type']) }} -->
-    <div class="card leave-card-form {{ $page['type'] === 'front' ? 'front-page-side' : 'back-page-side' }} print-page">
-        @if($page['type'] === 'front' && $page['is_first'])
-            <!-- Official Leave Card Header (Only on Card 1 Front) -->
+    @php
+        $cardPairs = array_chunk($pages, 2);
+    @endphp
+
+
+
+    @foreach($cardPairs as $pairIndex => $pair)
+    <div class="card-pair-group" id="cardPairGroup_{{ $pairIndex }}" style="{{ $pairIndex > 0 ? 'display: none;' : '' }}">
+        @foreach($pair as $pageIndexOffset => $page)
+        @php $pageIndex = ($pairIndex * 2) + $pageIndexOffset; @endphp
+        <!-- Card Side {{ $pageIndex + 1 }}: {{ strtoupper($page['type']) }} -->
+        <div class="card leave-card-form {{ $page['type'] === 'front' ? 'front-page-side' : 'back-page-side' }} print-page">
+        @if($pageIndex > 0)
+             <div style="text-align: center; margin-bottom: 8px;" class="no-print">
+                <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">
+                    <i class="fas fa-rotate"></i> Continuation - Card {{ ceil(($pageIndex + 1)/2) }} {{ $page['type'] === 'front' ? 'Front' : 'Back' }}
+                </span>
+            </div>
+        @endif
+
+        @if($page['show_header'])
+            <!-- Official Leave Card Header -->
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
                 <p style="font-size: 0.8rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
@@ -98,23 +120,30 @@
                     <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
                 </div>
             </div>
-        @elseif($pageIndex > 0)
-             <div style="text-align: center; margin-bottom: 8px;" class="no-print">
-                <span style="font-size: 0.8rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">
-                    <i class="fas fa-rotate"></i> Continuation - Card {{ ceil(($pageIndex + 1)/2) }} {{ $page['type'] === 'front' ? 'Front' : 'Back' }}
-                </span>
-            </div>
         @endif
 
         <div style="overflow-x: auto;">
             <table class="leave-card-table">
+                <colgroup>
+                    <col style="width: 13%;">
+                    <col style="width: 18%;">
+                    <col style="width: 6.5%;">
+                    <col style="width: 6%;">
+                    <col style="width: 8.5%;">
+                    <col style="width: 6%;">
+                    <col style="width: 6.5%;">
+                    <col style="width: 6%;">
+                    <col style="width: 8.5%;">
+                    <col style="width: 6%;">
+                    <col style="width: 15%;">
+                </colgroup>
                 <thead>
                     <tr>
-                        <th rowspan="2" style="width: 100px;">PERIOD</th>
-                        <th rowspan="2" style="width: 160px;">PARTICULARS</th>
+                        <th rowspan="2">PERIOD</th>
+                        <th rowspan="2">PARTICULARS</th>
                         <th colspan="4" class="group-header vl-header">Vacation Leave</th>
                         <th colspan="4" class="group-header sl-header">Sick Leave</th>
-                        <th rowspan="2" style="width: 100px;">Date & Action<br>Taken on<br>APPL. For Leave</th>
+                        <th rowspan="2">Date & Action<br>Taken on<br>APPL. For Leave</th>
                     </tr>
                     <tr>
                         <th class="sub-header">EARNED</th>
@@ -128,7 +157,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if($page['type'] === 'front' && $page['is_first'])
+                    @if($page['is_very_first'])
                         <tr class="beginning-row">
                             <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</td>
                             <td class="particulars-col"></td>
@@ -137,14 +166,67 @@
                                 <span class="no-print">
                                     <input type="number" id="vlBeginningBalance" value="{{ $leaveCard->vl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
                                 </span>
-                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->vl_beginning_balance, 3) }}</span>
+                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->vl_beginning_balance, 5) }}</span>
                             </td>
                             <td></td><td></td><td></td>
                             <td class="bal-cell" style="padding: 1.5px 2px;">
                                 <span class="no-print">
                                     <input type="number" id="slBeginningBalance" value="{{ $leaveCard->sl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
                                 </span>
-                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->sl_beginning_balance, 3) }}</span>
+                                <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->sl_beginning_balance, 5) }}</span>
+                            </td>
+                            <td></td><td></td>
+                        </tr>
+                    @else
+                        @php
+                            // Calculate cumulative item index to find previous balance
+                            $cumulativeIndex = 0;
+                            for ($prev = 0; $prev < $pageIndex; $prev++) {
+                                $cumulativeIndex += count($pages[$prev]['items']);
+                            }
+                            
+                            // Get the last item BEFORE current page items
+                            $lastTransIdx = $cumulativeIndex - 1;
+                            $lastTrans = ($lastTransIdx >= 0 && isset($transactionsArray[$lastTransIdx])) ? $transactionsArray[$lastTransIdx] : null;
+                            
+                            $carriedDate = '—';
+                            if ($lastTrans) {
+                                if (!empty($lastTrans['transaction_date'])) {
+                                    $carriedDate = \Carbon\Carbon::parse($lastTrans['transaction_date'])->format('m/d/y');
+                                } else {
+                                    $carriedDate = 'Cont.';
+                                }
+                            } else {
+                                $carriedDate = '12/31/'.($leaveCard->year - 1);
+                            }
+
+                            // Get running balances from the most recent transaction that had activity
+                            $carriedVl = $leaveCard->vl_beginning_balance;
+                            for ($i = $lastTransIdx; $i >= 0; $i--) {
+                                if (isset($transactionsArray[$i]['vl_balance_after'])) {
+                                    $carriedVl = $transactionsArray[$i]['vl_balance_after'];
+                                    break;
+                                }
+                            }
+                            
+                            $carriedSl = $leaveCard->sl_beginning_balance;
+                            for ($i = $lastTransIdx; $i >= 0; $i--) {
+                                if (isset($transactionsArray[$i]['sl_balance_after'])) {
+                                    $carriedSl = $transactionsArray[$i]['sl_balance_after'];
+                                    break;
+                                }
+                            }
+                        @endphp
+                        <tr class="beginning-row">
+                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1;">BAL. AS OF: {{ $carriedDate }}</td>
+                            <td class="particulars-col"></td>
+                            <td></td><td></td>
+                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700;">
+                                {{ number_format($carriedVl, 5) }}
+                            </td>
+                            <td></td><td></td><td></td>
+                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700;">
+                                {{ number_format($carriedSl, 5) }}
                             </td>
                             <td></td><td></td>
                         </tr>
@@ -152,32 +234,42 @@
 
                     @foreach($page['items'] as $item)
                         @php
-                            $isLess = strpos(strtoupper($item['period'] ?? ''), 'LESS') !== false;
-                            $isWop = strpos(strtoupper($item['period'] ?? ''), '(WOP)') !== false;
+                            $periodText = $item['period'] ?? '';
+                            $remarksText = $item['remarks'] ?? '';
+                            $isLess = strpos(strtoupper($periodText), 'LESS') !== false;
                             $textColor = $isLess ? 'color: #dc2626;' : 'color: #000;';
-                            if ($isWop) $textColor = 'color: #7c2d12;'; // Brownish for WOP
+                            // Shrink font size if string is long
+                            $periodFontSize = strlen($periodText) > 20 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
+                            $remarksFontSize = strlen($remarksText) > 15 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
                         @endphp
                         <tr class="tx-row" data-id="{{ $item['id'] ?? '' }}">
-                            <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600;" contenteditable="true">{{ $item['period'] ?? '' }}</td>
-                            <td class="edit-cell particulars-col" style="font-size: 0.85rem; {{ $textColor }} font-weight: 600;" contenteditable="true">{{ $item['remarks'] ?? '' }}</td>
+                            @if($isLess)
+                                <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600; overflow: visible; white-space: nowrap; text-align: left; padding-left: 10px;" contenteditable="true">
+                                    {{ $periodText }} &nbsp; {{ $remarksText }}
+                                </td>
+                                <td class="edit-cell particulars-col" contenteditable="true"></td>
+                            @else
+                                <td class="edit-cell date-col" style="{{ $textColor }} {{ $periodFontSize }} font-weight: 600;" contenteditable="true">{{ $periodText }}</td>
+                                <td class="edit-cell particulars-col" style="{{ $textColor }} {{ $remarksFontSize }} font-weight: 600;" contenteditable="true">{{ $remarksText }}</td>
+                            @endif
                             <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}">{{ (float)($item['vl_earned'] ?? '') ?: '' }}</td>
                             <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}">{{ (float)($item['vl_used'] ?? '') ?: '' }}</td>
                             <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}">
-                                {{ $isWop ? '-' : (isset($item['vl_balance_after']) ? number_format($item['vl_balance_after'], 3) : '') }}
+                                {{ ($item['vl_wop'] ?? 0) > 0 ? '-' : (isset($item['vl_balance_after']) ? number_format($item['vl_balance_after'], 5) : '-') }}
                             </td>
                             <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}">
                                 @if((float)($item['vl_wop'] ?? 0) > 0)
-                                    w/o {{ (float)$item['vl_wop'] }}
+                                    {{ (float)$item['vl_wop'] }}
                                 @endif
                             </td>
                             <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}">{{ (float)($item['sl_earned'] ?? '') ?: '' }}</td>
                             <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}">{{ (float)($item['sl_used'] ?? '') ?: '' }}</td>
                             <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}">
-                                {{ $isWop ? '-' : (isset($item['sl_balance_after']) ? number_format($item['sl_balance_after'], 3) : '') }}
+                                {{ ($item['sl_wop'] ?? 0) > 0 ? '-' : (isset($item['sl_balance_after']) ? number_format($item['sl_balance_after'], 5) : '-') }}
                             </td>
                             <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}">
                                 @if((float)($item['sl_wop'] ?? 0) > 0)
-                                    w/o {{ (float)$item['sl_wop'] }}
+                                    {{ (float)$item['sl_wop'] }}
                                 @endif
                             </td>
                             <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
@@ -186,7 +278,8 @@
 
                     {{-- Fill empty rows to maintain card height --}}
                     @php
-                        $maxRows = ($page['type'] === 'front' && $page['is_first']) ? $FRONT_DATA_ROWS - 1 : $BACK_DATA_ROWS;
+                        // Carried Bal row counts as 1 for all pages
+                        $maxRows = $page['show_header'] ? $FRONT_DATA_ROWS - 1 : $BACK_DATA_ROWS - 1;
                         $emptyRowsNeeded = $maxRows - count($page['items']);
                     @endphp
                     @for($i = 0; $i < $emptyRowsNeeded; $i++)
@@ -208,7 +301,25 @@
             </table>
         </div>
     </div>
+        @endforeach
+    </div>
     @endforeach
+
+    @if(count($cardPairs) > 1)
+    <div class="no-print" style="margin-top: 25px; margin-bottom: 25px; background: #f8fafc; padding: 15px 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">
+            SHOWING PAGE <span id="currentCardNum">1</span> OF {{ count($cardPairs) }}
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" id="prevCardBtn" class="btn-pagination disabled" onclick="prevCard()" disabled style="border: none;">
+                <i class="fas fa-chevron-left" style="font-size: 0.7rem;"></i> Previous
+            </button>
+            <button type="button" id="nextCardBtn" class="btn-pagination active" onclick="nextCard()" style="border: none;">
+                Next <i class="fas fa-chevron-right" style="font-size: 0.7rem;"></i>
+            </button>
+        </div>
+    </div>
+    @endif
 
     @else
     <!-- No Leave Card for this year - Create one -->
@@ -338,6 +449,27 @@
         font-weight: 600;
     }
 
+    .leave-card-table .date-col {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.65rem;
+        white-space: nowrap;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+    }
+
+    .leave-card-table .particulars-col {
+        font-size: 0.65rem;
+        white-space: nowrap;
+        text-align: left;
+        padding-left: 8px;
+    }
+
+    /* Standard row background */
+    .tx-row {
+        background: transparent;
+    }
+
     .leave-card-table .num-cell {
         font-family: 'Outfit', monospace;
         font-weight: 500;
@@ -391,14 +523,14 @@
     }
 
     /* ═══════════════════════════════════════════════════════════
-       PRINT STYLES — 1/2 Index Card (landscape 8"x5" half = ~8"x5")
+       PRINT STYLES — 1/2 Index Card (8"x5" / 20.32cm x 12.7cm)
        ═══════════════════════════════════════════════════════════ */
-    @page {
-        size: 8.5in 5.5in landscape;
-        margin: 5mm;
-    }
-
     @media print {
+        @page {
+            size: 8in 5in landscape;
+            margin: 0.2in; /* Added slight margin */
+        }
+
         * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -408,6 +540,8 @@
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
+            width: 8in !important;
+            height: 5in !important;
         }
 
         .no-print,
@@ -417,61 +551,59 @@
             display: none !important;
         }
 
+        /* Each side (Front and Back) is its own separate 8x5 page */
         .print-page {
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 2mm 3mm !important;
+            padding: 5mm !important; /* Move margin inside the visible page */
             margin: 0 !important;
             page-break-after: always !important;
-            height: 5.4in !important;
-            width: 8.4in !important;
+            page-break-inside: avoid !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 5in !important;
+            box-sizing: border-box !important;
             display: block !important;
+            overflow: hidden !important;
         }
 
-        /* Readable header text */
+        /* Keep header text exactly identical to screen size natively */
+        /* Table rules natively govern the rest of the layout */
         .leave-card-form > div:first-child p {
-            font-size: 8pt !important;
             margin: 0 !important;
         }
         .leave-card-form > div:first-child h3 {
-            font-size: 9pt !important;
             margin: 2px 0 8px !important;
         }
 
-        /* Table sizing for physical card - Back to readable size */
-        .leave-card-table {
-            font-size: 7.5pt !important;
-            table-layout: auto !important; /* Allow columns to breathe */
-            width: 100% !important;
-        }
-
+        /* Force table borders to remain black and 1px for precision */
         .leave-card-table th,
         .leave-card-table td {
-            border: 1.2px solid #000 !important;
-            padding: 3px 4px !important;
-            line-height: 1.1 !important;
+            border: 1px solid #000 !important;
+            padding: 2px 4px !important; /* Tighter padding for print */
+            height: auto !important;
         }
-        
-        /* Fixed row height to fill the card */
-        .leave-card-table tbody tr {
-            height: 30px !important;
+
+        .leave-card-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+        }
+
+        .leave-card-table tbody td {
+            font-size: 0.7rem !important;
+            height: 20px !important; /* Forced smaller height for print */
         }
 
         .leave-card-table thead th {
-            background: #f0f0f0 !important;
-            font-size: 6.5pt !important;
+             padding: 4px 2px !important;
+             font-size: 0.65rem !important;
         }
 
-        .leave-card-table .sub-header {
-            font-size: 5.5pt !important;
+        .tx-row.empty-row td {
+            height: 18px !important;
         }
-
-        .leave-card-table .bal-cell {
-            font-size: 7pt !important;
-            font-weight: 700 !important;
-        }
-
+        
         .print-only {
             display: block !important;
         }
@@ -532,6 +664,54 @@
 <div class="save-indicator" id="saveIndicator"><i class="fas fa-check-circle"></i> LEDGER SAVED</div>
 
 <script>
+    let currentCardPair = 0;
+    const totalCardPairs = {{ isset($cardPairs) ? count($cardPairs) : 0 }};
+
+    function showCardPair(index) {
+        document.querySelectorAll('.card-pair-group').forEach((el, idx) => {
+            el.style.display = (idx === index) ? 'block' : 'none';
+        });
+        
+        const currentNumEl = document.getElementById('currentCardNum');
+        if(currentNumEl) currentNumEl.textContent = index + 1;
+        
+        const prevBtn = document.getElementById('prevCardBtn');
+        const nextBtn = document.getElementById('nextCardBtn');
+        
+        if(prevBtn) {
+            prevBtn.disabled = (index === 0);
+            if (index === 0) prevBtn.classList.add('disabled');
+            else prevBtn.classList.remove('disabled');
+        }
+        
+        if(nextBtn) {
+            nextBtn.disabled = (index === totalCardPairs - 1);
+            if (index === totalCardPairs - 1) {
+                nextBtn.classList.remove('active');
+                nextBtn.classList.add('disabled');
+            } else {
+                nextBtn.classList.add('active');
+                nextBtn.classList.remove('disabled');
+            }
+        }
+    }
+
+    function prevCard() {
+        if (currentCardPair > 0) {
+            currentCardPair--;
+            showCardPair(currentCardPair);
+            document.querySelector('.card-pair-group').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function nextCard() {
+        if (currentCardPair < totalCardPairs - 1) {
+            currentCardPair++;
+            showCardPair(currentCardPair);
+            document.querySelector('.card-pair-group').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Debounce timer for auto-save
         let saveTimeout;

@@ -1,5 +1,10 @@
 @forelse($applications as $app)
 <tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s;">
+    <td style="padding: 15px; text-align: center;">
+        @if($app->status === 'Pending')
+            <input type="checkbox" class="app-checkbox" value="{{ $app->id }}" onchange="updateBulkApproveBtn()">
+        @endif
+    </td>
     <td style="padding: 15px; font-weight: 700; color: var(--primary);">{{ $app->application_no }}</td>
     <td style="padding: 15px;">
         <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $app->employee->full_name }}</p>
@@ -41,7 +46,7 @@
 </tr>
 @empty
 <tr>
-    <td colspan="7" style="padding: 40px; text-align: center; color: var(--secondary);">
+    <td colspan="8" style="padding: 40px; text-align: center; color: var(--secondary);">
         <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;"></i>
         <p style="font-weight: 600;">No leave applications found.</p>
     </td>

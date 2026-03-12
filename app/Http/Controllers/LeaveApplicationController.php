@@ -48,8 +48,10 @@ class LeaveApplicationController extends Controller
             });
         }
 
-        if ($request->status && $request->status !== 'All') {
+        if ($request->has('status') && $request->status !== 'All') {
             $query->where('status', $request->status);
+        } elseif (!$request->has('status')) {
+            $query->where('status', 'Pending');
         }
 
         if ($request->leave_type) {
@@ -146,9 +148,8 @@ class LeaveApplicationController extends Controller
     {
         $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'date_filed' => 'required|date',
             'entries' => 'required|array|min:1',
-            'entries.*.leave_type_id' => 'required|exists:leave_types,id',
+            'entries.*.leave_type_name' => 'required|string|max:255',
             'entries.*.inclusive_dates' => 'required|string|max:255',
             'entries.*.num_days' => 'required|numeric|min:0.5',
             'reason' => 'nullable|string|max:1000',
@@ -158,20 +159,43 @@ class LeaveApplicationController extends Controller
         $entries = $request->input('entries');
         $totalDays = 0;
 
-        foreach ($entries as $entry) {
+        // Process entries and find/create leave types
+        $processedEntries = [];
+        foreach ($entries as $index => $entry) {
+            $name = trim($entry['leave_type_name']);
+            $leaveType = LeaveType::where('name', $name)->first();
+            
+            if (!$leaveType) {
+                // Create new leave type if not exists
+                $code = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 4));
+                // Ensure code is unique-ish
+                if (LeaveType::where('code', $code)->exists()) {
+                    $code .= rand(1, 9);
+                }
+                
+                $leaveType = LeaveType::create([
+                    'name' => $name,
+                    'code' => $code,
+                    'is_active' => true,
+                    'is_earnable' => false,
+                ]);
+            }
+            
+            $entry['leave_type_id'] = $leaveType->id;
+            $processedEntries[$index] = $entry;
             $totalDays += floatval($entry['num_days']);
         }
-
+ 
         // Use the first entry's leave type as the main type
-        $firstEntry = $entries[array_key_first($entries)];
+        $firstEntry = $processedEntries[array_key_first($processedEntries)];
 
         $application = LeaveApplication::create([
             'employee_id' => $request->employee_id,
             'leave_type_id' => $firstEntry['leave_type_id'],
             'other_leave_type' => $firstEntry['other_type'] ?? null,
-            'date_filed' => $request->date_filed,
-            'date_from' => $request->date_filed,
-            'date_to' => $request->date_filed,
+            'date_filed' => now(),
+            'date_from' => now(),
+            'date_to' => now(),
             'num_days' => $totalDays,
             'reason' => $request->reason,
             // 6.B Details of Leave
@@ -189,13 +213,13 @@ class LeaveApplicationController extends Controller
         ]);
 
         // Save each entry as a detail record
-        foreach ($entries as $entry) {
+        foreach ($processedEntries as $entry) {
             $application->details()->create([
                 'leave_type_id' => $entry['leave_type_id'],
                 'inclusive_dates' => $entry['inclusive_dates'] ?? '',
                 'other_type' => $entry['other_type'] ?? null,
-                'date_from' => $request->date_filed,
-                'date_to' => $request->date_filed,
+                'date_from' => now(),
+                'date_to' => now(),
                 'num_days' => $entry['num_days'],
                 'is_with_pay' => ($entry['is_with_pay'] ?? '1') === '1',
             ]);
@@ -371,6 +395,94 @@ class LeaveApplicationController extends Controller
         AuditTrail::log('REJECT', 'Leave Application', "Rejected leave application #{$leaveApplication->application_no}: {$request->remarks}");
 
         return back()->with('success', 'Leave application rejected.');
+    }
+
+    public function bulkApprove(Request $request)
+    {
+        if (!auth()->user()->canApproveLeave()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'application_ids' => 'required|array',
+            'application_ids.*' => 'exists:leave_applications,id'
+        ]);
+
+        $applications = LeaveApplication::whereIn('id', $request->application_ids)
+            ->where('status', 'Pending')
+            ->get();
+
+        $successCount = 0;
+        $failedCount = 0;
+
+        foreach ($applications as $leaveApplication) {
+            try {
+                // Duplicate standard approve logic to maintain proper certification records
+                $employee = $leaveApplication->employee;
+                $leaveCardBefore = $this->leaveCardService->getOrCreateLeaveCard($employee);
+
+                $vlCurrentBalance = floatval($leaveCardBefore->vl_balance);
+                $slCurrentBalance = floatval($leaveCardBefore->sl_balance);
+
+                if ($this->leaveCardService->deductLeaveCredits($leaveApplication)) {
+                    $leaveCardAfter = $leaveCardBefore->fresh();
+
+                    $vlDays = 0;
+                    $slDays = 0;
+                    foreach ($leaveApplication->details as $detail) {
+                        $type = $detail->leaveType;
+                        if ($type->code === 'VL' || $type->code === 'FL')
+                            $vlDays += floatval($detail->num_days);
+                        elseif ($type->code === 'SL')
+                            $slDays += floatval($detail->num_days);
+                    }
+
+                    $leaveApplication->update([
+                        'status' => 'Approved',
+                        'approved_by' => auth()->id(),
+                        'approved_at' => now(),
+                        'remarks' => 'Bulk Approved',
+                        'cert_vl_total_earned' => $vlCurrentBalance,
+                        'cert_vl_less_this' => $vlDays,
+                        'cert_vl_balance' => floatval($leaveCardAfter->vl_balance),
+                        'cert_sl_total_earned' => $slCurrentBalance,
+                        'cert_sl_less_this' => $slDays,
+                        'cert_sl_balance' => floatval($leaveCardAfter->sl_balance),
+                    ]);
+
+                    if ($employee->email) {
+                        $this->mailService->sendLeaveNotification(
+                            $employee->email,
+                            $employee->full_name,
+                            'Approved',
+                            $leaveApplication->leaveType->name,
+                            $leaveApplication->date_from->format('M d, Y'),
+                            $leaveApplication->date_to->format('M d, Y'),
+                            'Bulk Approved'
+                        );
+                    }
+                    
+                    AuditTrail::log('APPROVE', 'Leave Application', "Bulk approved leave application #{$leaveApplication->application_no}");
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                }
+            } catch (\Exception $e) {
+                // Log exception if needed
+                $failedCount++;
+            }
+        }
+
+        $message = "Successfully approved {$successCount} applications.";
+        if ($failedCount > 0) {
+            $message .= " Failed to approve {$failedCount} applications (insufficient balance or errors).";
+        }
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return redirect()->route('leave-applications.index', ['status' => 'Pending'])->with('success', $message);
     }
 
     public function destroy(LeaveApplication $leaveApplication)

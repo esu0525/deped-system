@@ -32,14 +32,15 @@
     <div class="card glass animate-fade" style="margin-bottom: 24px; padding: 10px 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
             <div style="display: flex; gap: 25px;">
-                <button type="button" class="status-tab active" onclick="switchStatus('All', this)">All</button>
-                <button type="button" class="status-tab" onclick="switchStatus('Pending', this)">Pending</button>
-                <button type="button" class="status-tab" onclick="switchStatus('Approved', this)">Approved</button>
-                <button type="button" class="status-tab" onclick="switchStatus('Rejected', this)">Rejected</button>
+                @php $currentStatus = request('status', 'Pending'); @endphp
+                <button type="button" class="status-tab {{ $currentStatus === 'All' ? 'active' : '' }}" onclick="switchStatus('All', this)">All</button>
+                <button type="button" class="status-tab {{ $currentStatus === 'Pending' ? 'active' : '' }}" onclick="switchStatus('Pending', this)">Pending</button>
+                <button type="button" class="status-tab {{ $currentStatus === 'Approved' ? 'active' : '' }}" onclick="switchStatus('Approved', this)">Approved</button>
+                <button type="button" class="status-tab {{ $currentStatus === 'Rejected' ? 'active' : '' }}" onclick="switchStatus('Rejected', this)">Rejected</button>
             </div>
             <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                 <form id="filterForm" method="GET" action="{{ route('leave-applications.index') }}" style="display: flex; gap: 12px; align-items: center;">
-                    <input type="hidden" name="status" id="statusFilter" value="All">
+                    <input type="hidden" name="status" id="statusFilter" value="{{ request('status', 'Pending') }}">
                     <div style="position: relative;">
                         <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search employee..." value="{{ request('search') }}" style="width: 240px; padding-left: 35px;" oninput="debouncedFilter()">
                         <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); opacity: 0.5;"></i>
@@ -51,6 +52,11 @@
                         @endforeach
                     </select>
                 </form>
+                @if(auth()->user()->canApproveLeave())
+                    <button type="button" id="bulkApproveBtn" class="btn btn-success" style="height: 42px; display: none; align-items: center; gap: 8px;" onclick="submitBulkApprove()">
+                        <i class="fas fa-check-double"></i> Bulk Approve
+                    </button>
+                @endif
                 <a href="{{ route('leave-applications.create') }}" class="btn btn-primary" style="height: 42px; display: flex; align-items: center; gap: 8px;">
                     <i class="fas fa-plus-circle"></i> New Application
                 </a>
@@ -89,6 +95,9 @@
             <table class="table" style="width: 100%;">
                 <thead>
                     <tr style="text-align: left; border-bottom: 2px solid #f1f5f9; color: var(--secondary);">
+                        <th style="padding: 15px; width: 40px; text-align: center;">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                        </th>
                         <th style="padding: 15px; font-size: 0.75rem;">APP NO.</th>
                         <th style="padding: 15px; font-size: 0.75rem;">EMPLOYEE</th>
                         <th style="padding: 15px; font-size: 0.75rem;">LEAVE TYPE</th>
@@ -146,6 +155,64 @@
         document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
         el.classList.add('active');
         fetchTable();
+    }
+    
+    function toggleSelectAll() {
+        const isChecked = document.getElementById('selectAllCheckbox').checked;
+        document.querySelectorAll('.app-checkbox').forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateBulkApproveBtn();
+    }
+
+    function updateBulkApproveBtn() {
+        const anyChecked = document.querySelectorAll('.app-checkbox:checked').length > 0;
+        const btn = document.getElementById('bulkApproveBtn');
+        if (btn) {
+            btn.style.display = anyChecked ? 'flex' : 'none';
+        }
+    }
+
+    function submitBulkApprove() {
+        const btn = document.getElementById('bulkApproveBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
+        btn.disabled = true;
+
+        const ids = Array.from(document.querySelectorAll('.app-checkbox:checked')).map(cb => cb.value);
+        if (ids.length === 0) return;
+
+        fetch("{{ route('leave-applications.bulk-approve') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ application_ids: ids })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                // Show success message and reload table
+                alert(data.message);
+                fetchTable();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                document.getElementById('selectAllCheckbox').checked = false;
+                updateBulkApproveBtn();
+            } else {
+                alert('Error processing bulk approval.');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('An error occurred.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
     }
 
     function fetchTable(url = null) {

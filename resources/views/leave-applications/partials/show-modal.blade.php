@@ -39,6 +39,7 @@
                             <tr>
                                 <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Leave Type</th>
                                 <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Inclusive Dates</th>
+                                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Pay Status</th>
                                 <th style="padding: 8px 12px; text-align: center; border-bottom: 1px solid #e2e8f0;">Days</th>
                             </tr>
                         </thead>
@@ -47,6 +48,11 @@
                             <tr>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">{{ $detail->leaveType->name ?? ($detail->other_type ?: 'N/A') }}</td>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">{{ $detail->inclusive_dates }}</td>
+                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
+                                    <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
+                                        {{ $detail->is_with_pay ? 'WITH PAY' : 'WITHOUT PAY' }}
+                                    </span>
+                                </td>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700;">{{ $detail->num_days }}</td>
                             </tr>
                             @endforeach

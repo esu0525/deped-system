@@ -84,77 +84,82 @@ class LeaveCardService
         // Get approver info for action taken
         $approverName = auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name;
 
-        // Use local running balances for progressive saving per transaction
+        // Use local running balances
         $runningVl = floatval($leaveCard->vl_balance);
         $runningSl = floatval($leaveCard->sl_balance);
 
-        // Now perform the ACTUAL deduction and record transactions
+        $totalVlUsed = null;
+        $totalSlUsed = null;
+        $totalVlWop = null;
+        $totalSlWop = null;
+        $periodStrings = [];
+        $remarksParts = [];
+
         foreach ($application->details as $detail) {
             $type = $detail->leaveType;
-            if (!$type)
-                continue;
+            if (!$type) continue;
             $days = floatval($detail->num_days);
             $isWop = !$detail->is_with_pay;
 
-            $vlUsed = null;
-            $slUsed = null;
-            $vlWop = null;
-            $slWop = null;
-
             if ($type->code === 'VL' || $type->code === 'FL') {
                 if ($isWop) {
-                    $vlWop = $days;
-                }
-                else {
+                    $totalVlWop = ($totalVlWop ?? 0) + $days;
+                } else {
                     $runningVl -= $days;
                     $leaveCard->vl_used += $days;
                     if ($type->code === 'FL') {
                         $leaveCard->forced_leave_balance -= $days;
                     }
-                    $vlUsed = $days;
+                    $totalVlUsed = ($totalVlUsed ?? 0) + $days;
                 }
-            }
-            elseif ($type->code === 'SL') {
+            } elseif ($type->code === 'SL') {
                 if ($isWop) {
-                    $slWop = $days;
-                }
-                else {
+                    $totalSlWop = ($totalSlWop ?? 0) + $days;
+                } else {
                     $runningSl -= $days;
                     $leaveCard->sl_used += $days;
-                    $slUsed = $days;
+                    $totalSlUsed = ($totalSlUsed ?? 0) + $days;
                 }
-            }
-            else {
+            } else {
                 if (!$isWop) {
                     $leaveCard->special_leave_balance -= $days;
                 }
             }
 
-            $periodDates = $detail->inclusive_dates ?? date('n/j/y', strtotime($detail->date_from ?? $application->date_from));
-
-            LeaveTransaction::create([
-                'employee_id' => $employee->id,
-                'leave_card_id' => $leaveCard->id,
-                'leave_type_id' => $type->id,
-                'transaction_date' => now(),
-                'period' => "LESS: {$periodDates}" . ($isWop ? " (WOP)" : ""),
-                'transaction_type' => 'used',
-                'days' => $days,
-                'vl_used' => $vlUsed,
-                'sl_used' => $slUsed,
-                'vl_wop' => $vlWop,
-                'sl_wop' => $slWop,
-                'vl_balance_after' => $runningVl,
-                'sl_balance_after' => $runningSl,
-                'remarks' => $type->code,
-                'action_taken' => explode(' ', trim($approverName))[0] . ' ' . now()->format('m/d/Y'),
-                'encoded_by' => auth()->id(),
-            ]);
+            $per = $detail->inclusive_dates ?? date('n/j/y', strtotime($detail->date_from ?? $application->date_from));
+            $periodStrings[] = $per;
+            $standardCodes = ['VL', 'SL', 'FL', 'SPL', 'ML', 'PL', 'SoP', 'STL', 'VAWC', 'RL', 'SLW', 'SEC'];
+            $remarksParts[] = in_array($type->code, $standardCodes) ? $type->code : $type->name;
         }
 
+        // Combine period
+        $uniquePeriods = array_unique($periodStrings);
+        $combinedPeriod = count($uniquePeriods) > 1 ? implode(' - ', $uniquePeriods) : ($uniquePeriods[0] ?? '');
+        $combinedRemarks = implode('/', array_unique($remarksParts));
+
+        LeaveTransaction::create([
+            'employee_id' => $employee->id,
+            'leave_card_id' => $leaveCard->id,
+            'leave_application_id' => $application->id,
+            'leave_type_id' => $application->details->first()->leave_type_id,
+            'transaction_date' => $application->date_from ?? now(),
+            'period' => "LESS: {$combinedPeriod}",
+            'transaction_type' => 'used',
+            'days' => $application->num_days,
+            'vl_used' => $totalVlUsed,
+            'sl_used' => $totalSlUsed,
+            'vl_wop' => $totalVlWop,
+            'sl_wop' => $totalSlWop,
+            'vl_balance_after' => ($totalVlUsed !== null) ? $runningVl : null,
+            'sl_balance_after' => ($totalSlUsed !== null) ? $runningSl : null,
+            'remarks' => $combinedRemarks,
+            'action_taken' => explode(' ', trim($approverName))[0] . ' ' . now()->format('m/d/Y'),
+            'encoded_by' => auth()->id(),
+        ]);
+
         // Update final balances
-        $leaveCard->vl_balance = $leaveCard->vl_beginning_balance + $leaveCard->vl_earned - $leaveCard->vl_used;
-        $leaveCard->sl_balance = $leaveCard->sl_beginning_balance + $leaveCard->sl_earned - $leaveCard->sl_used;
+        $leaveCard->vl_balance = $runningVl;
+        $leaveCard->sl_balance = $runningSl;
         $leaveCard->save();
 
         return true;
@@ -171,28 +176,20 @@ class LeaveCardService
 
         foreach ($application->details as $detail) {
             $type = $detail->leaveType;
-            if (!$type)
-                continue;
+            if (!$type) continue;
             $days = floatval($detail->num_days);
 
-            if ($type->code === 'VL' || $type->code === 'FL') {
-                $leaveCard->vl_used -= $days;
+            if ($detail->is_with_pay) {
+                if ($type->code === 'VL' || $type->code === 'FL') {
+                    $leaveCard->vl_used -= $days;
+                } elseif ($type->code === 'SL') {
+                    $leaveCard->sl_used -= $days;
+                }
             }
-            elseif ($type->code === 'SL') {
-                $leaveCard->sl_used -= $days;
-            }
-
-            LeaveTransaction::create([
-                'employee_id' => $employee->id,
-                'leave_card_id' => $leaveCard->id,
-                'leave_type_id' => $type->id,
-                'transaction_date' => now(),
-                'transaction_type' => 'restored',
-                'days' => $days,
-                'remarks' => "Restored: Leave App #{$application->application_no} ({$type->code})",
-                'encoded_by' => auth()->id(),
-            ]);
         }
+
+        // Delete associated transaction
+        LeaveTransaction::where('leave_application_id', $application->id)->delete();
 
         $leaveCard->vl_balance = $leaveCard->vl_beginning_balance + $leaveCard->vl_earned - $leaveCard->vl_used;
         $leaveCard->sl_balance = $leaveCard->sl_beginning_balance + $leaveCard->sl_earned - $leaveCard->sl_used;

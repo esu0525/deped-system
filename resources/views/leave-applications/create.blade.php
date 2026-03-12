@@ -72,10 +72,7 @@
                 </div>
                 @endif
 
-                <div class="form-group">
-                    <label class="form-label">Date Filing <span style="color: var(--danger);">*</span></label>
-                    <input type="date" name="date_filed" id="date_filed" class="form-control" value="{{ old('date_filed') }}" required>
-                </div>
+
 
                 <!-- Inclusive Dates Section -->
                 <div class="form-group">
@@ -95,12 +92,12 @@
                             <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
-                                    <select name="entries[0][leave_type_id]" class="form-control entry-type" required>
-                                        <option value="">— Select —</option>
-                                        @foreach($leaveTypes as $type)
-                                            <option value="{{ $type->id }}" data-code="{{ $type->code }}">{{ $type->name }} ({{ $type->code }})</option>
+                                    <input type="text" name="entries[0][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
+                                    <datalist id="leaveTypesList">
+                                        @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
+                                            <option value="{{ $type->name }}" data-code="{{ $type->code }}">
                                         @endforeach
-                                    </select>
+                                    </datalist>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
@@ -119,7 +116,7 @@
                                 </div>
                             </div>
                             <div class="others-specify" style="display: none; margin-top: 8px;">
-                                <input type="text" name="entries[0][other_type]" class="form-control" placeholder="Specify other leave type..." style="font-size: 0.85rem;">
+                                <input type="hidden" name="entries[0][other_type]" value="">
                             </div>
                         </div>
                     </div>
@@ -485,11 +482,9 @@
     // Employee balance data
     let employeeBalance = null;
 
-    // Leave type options HTML
-    const leaveTypeOptions = `<option value="">— Select —</option>` +
-        @json($leaveTypes->map(fn($t) => ['id' => $t->id, 'code' => $t->code, 'name' => $t->name]))
-        .map(t => `<option value="${t.id}" data-code="${t.code}">${t.name} (${t.code})</option>`)
-        .join('');
+    // Leave type options for datalist
+    const leaveTypeData = {!! json_encode($leaveTypes->where('code', '!=', 'OTH')->values()->map(fn($t) => ['id' => $t->id, 'code' => $t->code, 'name' => $t->name])->toArray()) !!};
+    const leaveTypeOptions = leaveTypeData.map(t => `<option value="${t.name}" data-code="${t.code}">`).join('');
 
     // ═══════════════════════════════════════════════════════
     // Employee Search & Selection
@@ -649,16 +644,20 @@
         let slDays = 0;
 
         document.querySelectorAll('.date-entry').forEach(entry => {
-            const typeSelect = entry.querySelector('.entry-type');
+            const typeInput = entry.querySelector('.entry-type');
             const daysInput = entry.querySelector('.entry-days');
             const payStatusSelect = entry.querySelector('.entry-pay-status');
-            const selected = typeSelect.options[typeSelect.selectedIndex];
+            
+            const typeName = (typeInput.value || '').trim();
+            const matchingType = leaveTypeData.find(t => t.name === typeName);
+            const typeCode = matchingType ? matchingType.code : null;
+            
             const days = parseFloat(daysInput.value) || 0;
             const isWithPay = payStatusSelect && payStatusSelect.value === "1";
-
-            if (selected && selected.dataset && isWithPay) {
-                if (selected.dataset.code === 'VL' || selected.dataset.code === 'FL') vlDays += days;
-                else if (selected.dataset.code === 'SL') slDays += days;
+ 
+            if (typeName && isWithPay) {
+                if (typeCode === 'VL' || typeCode === 'FL') vlDays += days;
+                else if (typeCode === 'SL') slDays += days;
             }
         });
 
@@ -704,9 +703,7 @@
             <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
-                    <select name="entries[${i}][leave_type_id]" class="form-control entry-type" required>
-                        ${leaveTypeOptions}
-                    </select>
+                    <input type="text" name="entries[${i}][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
@@ -763,16 +760,7 @@
             updateCertification();
         };
 
-        typeSelect.addEventListener('change', () => {
-            const selected = typeSelect.options[typeSelect.selectedIndex];
-            if (selected.dataset.code === 'OTH') {
-                othersDiv.style.display = 'block';
-                othersDiv.querySelector('input').required = true;
-            } else {
-                othersDiv.style.display = 'none';
-                othersDiv.querySelector('input').required = false;
-                othersDiv.querySelector('input').value = '';
-            }
+        typeSelect.addEventListener('input', () => {
             updateAll();
         });
 
@@ -797,13 +785,12 @@
 
         document.querySelectorAll('.date-entry').forEach((entry) => {
             const index = entry.dataset.index;
-            const typeSelect = entry.querySelector('.entry-type');
+            const typeInput = entry.querySelector('.entry-type');
             const daysInput = entry.querySelector('.entry-days');
             const datesTextInput = entry.querySelector('.entry-dates-text');
             const payStatusSelect = entry.querySelector('.entry-pay-status');
 
-            const selected = typeSelect.options[typeSelect.selectedIndex];
-            const typeName = selected.value ? selected.text : 'Not Selected';
+            const typeName = typeInput.value.trim() || 'Not Selected';
             const days = parseFloat(daysInput.value) || 0;
             const isWop = payStatusSelect && payStatusSelect.value === "0";
             const dateText = datesTextInput.value || 'No dates';
