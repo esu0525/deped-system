@@ -21,7 +21,7 @@
         <form id="filterForm" action="{{ route('employees.index') }}" method="GET" target="_self" style="display: grid; grid-template-columns: 2fr 1fr 150px; gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
             <input type="hidden" name="export" id="exportFlag" value="">
             <div class="form-group" style="margin-bottom: 0;">
-                <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, ID, position, or school..." value="{{ request('search') }}" oninput="debouncedFilter()">
+                <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, school, or position..." value="{{ request('search') }}" oninput="debouncedFilter()">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
                 <select name="status" class="form-control" onchange="fetchTable()">
@@ -42,7 +42,6 @@
             <table class="table" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="text-align: left; border-bottom: 2px solid #f1f5f9; color: var(--secondary);">
-                        <th style="padding: 15px; font-size: 0.75rem;">REFERENCE ID</th>
                         <th style="padding: 15px; font-size: 0.75rem;">NAME</th>
                         <th style="padding: 15px; font-size: 0.75rem;">SCHOOL</th>
                         <th style="padding: 15px; font-size: 0.75rem;">POSITION</th>

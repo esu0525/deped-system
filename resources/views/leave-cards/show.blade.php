@@ -29,8 +29,8 @@
     @if($leaveCard)
     @php
         // Updated to match official form provided in images
-        $FRONT_DATA_ROWS = 10; // Total enterable rows on front (including balance)
-        $BACK_DATA_ROWS = 14;  // Total enterable rows on back
+        $FRONT_DATA_ROWS = 14; // Total enterable rows on front (including balance)
+        $BACK_DATA_ROWS = 21;  // Total enterable rows on back
         
         $transactionsArray = $transactions->toArray();
         $pages = [];
@@ -527,8 +527,7 @@
        ═══════════════════════════════════════════════════════════ */
     @media print {
         @page {
-            size: 8in 5in landscape;
-            margin: 0.2in; /* Added slight margin */
+            margin: 0;
         }
 
         * {
@@ -540,8 +539,6 @@
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            width: 8in !important;
-            height: 5in !important;
         }
 
         .no-print,
@@ -556,16 +553,13 @@
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 5mm !important; /* Move margin inside the visible page */
+            padding: 5mm 0 0 !important;
             margin: 0 !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
             width: 100% !important;
-            height: 100% !important;
-            max-height: 5in !important;
             box-sizing: border-box !important;
             display: block !important;
-            overflow: hidden !important;
         }
 
         /* Keep header text exactly identical to screen size natively */
@@ -591,8 +585,8 @@
         }
 
         .leave-card-table tbody td {
-            font-size: 0.7rem !important;
-            height: 20px !important; /* Forced smaller height for print */
+            font-size: 0.72rem !important;
+            height: 17px !important; /* Made tighter to fit all rows */
         }
 
         .leave-card-table thead th {
@@ -601,7 +595,7 @@
         }
 
         .tx-row.empty-row td {
-            height: 18px !important;
+            height: 16px !important;
         }
         
         .print-only {
@@ -627,17 +621,6 @@
         position: relative;
     }
     
-    .back-page-side::before {
-        content: "BACK SIDE";
-        position: absolute;
-        top: -25px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 0.7rem;
-        font-weight: 800;
-        color: var(--secondary);
-        letter-spacing: 2px;
-    }
 
     .save-indicator {
         position: fixed;

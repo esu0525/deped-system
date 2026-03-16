@@ -1,6 +1,5 @@
 @forelse($employees as $emp)
 <tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s; cursor: pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'" onclick="if(!event.target.closest('button') && !event.target.closest('a')) openViewModal('{{ route('employees.show', $emp) }}')">
-    <td style="padding: 15px; font-weight: 700; color: var(--primary);">{{ $emp->employee_id }}</td>
     <td style="padding: 15px;">
         <div>
             <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $emp->full_name }}</p>
@@ -34,7 +33,7 @@
 </tr>
 @empty
 <tr>
-    <td colspan="6" style="padding: 40px; text-align: center; color: var(--secondary);">
+    <td colspan="5" style="padding: 40px; text-align: center; color: var(--secondary);">
         <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;"></i>
         <p style="font-weight: 600;">No employees found matching your search.</p>
     </td>

@@ -30,15 +30,10 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Employee ID',
             'Full Name',
-            'Gender',
             'Position',
             'Department',
             'Employment Status',
-            'Date Hired',
-            'Email',
-            'Contact Number',
             'Status',
         ];
     }
@@ -46,15 +41,10 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping
     public function map($employee): array
     {
         return [
-            $employee->employee_id,
             $employee->full_name,
-            $employee->gender,
             $employee->position,
             $employee->department?->name ?? 'N/A',
             $employee->employment_status,
-            $employee->date_hired?->format('Y-m-d'),
-            $employee->email,
-            $employee->contact_number,
             $employee->status,
         ];
     }
