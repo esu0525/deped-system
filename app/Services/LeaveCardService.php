@@ -56,13 +56,26 @@ class LeaveCardService
     /**
      * Deduct leave credits when application is approved
      */
-    public function deductLeaveCredits(LeaveApplication $application): bool
+    public function deductLeaveCredits(LeaveApplication $application, ?string $remarks = null): bool
     {
         $employee = $application->employee;
         $leaveCard = $this->getOrCreateLeaveCard($employee);
 
         // Load details with leave types
         $application->load('details.leaveType');
+
+        // Check if this is a "50% Monetization" application
+        $isMonetization = false;
+        foreach ($application->details as $detail) {
+            if (stripos($detail->leaveType->name, '50% Monetization') !== false) {
+                $isMonetization = true;
+                break;
+            }
+        }
+
+        if ($isMonetization) {
+            return $this->processMonetization($application, $leaveCard, $remarks);
+        }
 
         // Check if there are sufficient credits for ALL entries first
         foreach ($application->details as $detail) {
@@ -82,7 +95,8 @@ class LeaveCardService
         }
 
         // Get approver info for action taken
-        $approverName = auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name;
+        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
+        $approverSign = explode(' ', trim($approverName))[0];
 
         // Use local running balances
         $runningVl = floatval($leaveCard->vl_balance);
@@ -92,6 +106,8 @@ class LeaveCardService
         $totalSlUsed = null;
         $totalVlWop = null;
         $totalSlWop = null;
+        $vlWopReasons = [];
+        $slWopReasons = [];
         $periodStrings = [];
         $remarksParts = [];
 
@@ -104,6 +120,7 @@ class LeaveCardService
             if ($type->code === 'VL' || $type->code === 'FL') {
                 if ($isWop) {
                     $totalVlWop = ($totalVlWop ?? 0) + $days;
+                    if ($detail->lwop_reason) $vlWopReasons[] = $detail->lwop_reason;
                 } else {
                     $runningVl -= $days;
                     $leaveCard->vl_used += $days;
@@ -115,6 +132,7 @@ class LeaveCardService
             } elseif ($type->code === 'SL') {
                 if ($isWop) {
                     $totalSlWop = ($totalSlWop ?? 0) + $days;
+                    if ($detail->lwop_reason) $slWopReasons[] = $detail->lwop_reason;
                 } else {
                     $runningSl -= $days;
                     $leaveCard->sl_used += $days;
@@ -136,6 +154,10 @@ class LeaveCardService
         $uniquePeriods = array_unique($periodStrings);
         $combinedPeriod = count($uniquePeriods) > 1 ? implode(' - ', $uniquePeriods) : ($uniquePeriods[0] ?? '');
         $combinedRemarks = implode('/', array_unique($remarksParts));
+        
+        // Combine Reasons
+        $combinedVlWopReason = implode(', ', array_unique($vlWopReasons));
+        $combinedSlWopReason = implode(', ', array_unique($slWopReasons));
 
         LeaveTransaction::create([
             'employee_id' => $employee->id,
@@ -149,11 +171,13 @@ class LeaveCardService
             'vl_used' => $totalVlUsed,
             'sl_used' => $totalSlUsed,
             'vl_wop' => $totalVlWop,
+            'vl_wop_reason' => $combinedVlWopReason ?: null,
             'sl_wop' => $totalSlWop,
+            'sl_wop_reason' => $combinedSlWopReason ?: null,
             'vl_balance_after' => ($totalVlUsed !== null) ? $runningVl : null,
             'sl_balance_after' => ($totalSlUsed !== null) ? $runningSl : null,
             'remarks' => $combinedRemarks,
-            'action_taken' => explode(' ', trim($approverName))[0] . ' ' . now()->format('m/d/Y'),
+            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
             'encoded_by' => auth()->id(),
         ]);
 
@@ -161,6 +185,53 @@ class LeaveCardService
         $leaveCard->vl_balance = $runningVl;
         $leaveCard->sl_balance = $runningSl;
         $leaveCard->save();
+
+        return true;
+    }
+
+    /**
+     * Special handling for 50% Monetization
+     */
+    protected function processMonetization(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
+    {
+        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
+        $approverSign = explode(' ', trim($approverName))[0];
+
+        $vlCurrent = floatval($leaveCard->vl_balance);
+        $slCurrent = floatval($leaveCard->sl_balance);
+
+        $vlHalf = $vlCurrent / 2;
+        $slHalf = $slCurrent / 2;
+        $totalHalves = $vlHalf + $slHalf;
+
+        // Perform deduction
+        $leaveCard->vl_used += $vlHalf;
+        $leaveCard->sl_used += $slHalf;
+        $leaveCard->vl_balance = $vlCurrent - $vlHalf;
+        $leaveCard->sl_balance = $slCurrent - $slHalf;
+        $leaveCard->save();
+
+        $year = $application->date_from ? $application->date_from->year : now()->year;
+        $monetizationPeriod = "LESS: 50% Monetization {$year}";
+
+        LeaveTransaction::create([
+            'employee_id' => $leaveCard->employee_id,
+            'leave_card_id' => $leaveCard->id,
+            'leave_application_id' => $application->id,
+            'leave_type_id' => $application->leave_type_id,
+            'transaction_date' => $application->date_from ?? now(),
+            'period' => $monetizationPeriod,
+            'transaction_type' => 'used',
+            'days' => $totalHalves,
+            'vl_used' => $vlHalf,
+            'sl_used' => $slHalf,
+            'vl_balance_after' => $leaveCard->vl_balance,
+            'sl_balance_after' => $leaveCard->sl_balance,
+            'sl_wop' => $totalHalves, // As requested: total goes to column beside action
+            'remarks' => 'MONETIZATION',
+            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+            'encoded_by' => auth()->id(),
+        ]);
 
         return true;
     }

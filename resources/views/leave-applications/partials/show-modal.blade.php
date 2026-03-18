@@ -52,6 +52,11 @@
                                     <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
                                         {{ $detail->is_with_pay ? 'WITH PAY' : 'WITHOUT PAY' }}
                                     </span>
+                                    @if(!$detail->is_with_pay && $detail->lwop_reason)
+                                        <div style="font-size: 0.65rem; color: #dc2626; margin-top: 4px; font-weight: 600;">
+                                            Reason: {{ $detail->lwop_reason }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700;">{{ $detail->num_days }}</td>
                             </tr>

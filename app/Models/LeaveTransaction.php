@@ -15,8 +15,8 @@ class LeaveTransaction extends Model
         'period',
         'transaction_type', 'days',
         'vl_balance_after', 'sl_balance_after', 'remarks', 'encoded_by',
-        'vl_earned', 'vl_used', 'vl_wop',
-        'sl_earned', 'sl_used', 'sl_wop',
+        'vl_earned', 'vl_used', 'vl_wop', 'vl_wop_reason',
+        'sl_earned', 'sl_used', 'sl_wop', 'sl_wop_reason',
         'action_taken', 'leave_application_id'
     ];
 

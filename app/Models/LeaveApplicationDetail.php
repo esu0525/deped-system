@@ -13,7 +13,7 @@ class LeaveApplicationDetail extends Model
         'leave_application_id', 'leave_type_id',
         'inclusive_dates', 'other_type',
         'date_from', 'date_to', 'num_days',
-        'is_with_pay',
+        'is_with_pay', 'lwop_reason',
     ];
 
     protected $casts = [

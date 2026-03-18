@@ -93,11 +93,12 @@
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
                                     <input type="text" name="entries[0][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
-                                    <datalist id="leaveTypesList">
-                                        @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
-                                            <option value="{{ $type->name }}" data-code="{{ $type->code }}">
-                                        @endforeach
-                                    </datalist>
+                                        <datalist id="leaveTypesList">
+                                            @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
+                                                <option value="{{ $type->name }}" data-code="{{ $type->code }}">
+                                            @endforeach
+                                            <option value="50% Monetization">
+                                        </datalist>
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
@@ -114,6 +115,10 @@
                                     <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
                                     <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                                 </div>
+                            </div>
+                            <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                                <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                                <input type="text" name="entries[0][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc." style="border-color: #fecaca;">
                             </div>
                             <div class="others-specify" style="display: none; margin-top: 8px;">
                                 <input type="hidden" name="entries[0][other_type]" value="">
@@ -639,27 +644,40 @@
         const vlCurrentBalance = parseFloat(employeeBalance.vl_balance);
         const slCurrentBalance = parseFloat(employeeBalance.sl_balance);
 
-        // Calculate VL/SL days from entries
+        // Check if ANY entry is a 50% Monetization
+        let isMonetization = false;
+        document.querySelectorAll('.date-entry').forEach(entry => {
+            const typeInput = entry.querySelector('.entry-type');
+            if ((typeInput.value || '').trim().toLowerCase().includes('50% monetization')) {
+                isMonetization = true;
+            }
+        });
+
         let vlDays = 0;
         let slDays = 0;
 
-        document.querySelectorAll('.date-entry').forEach(entry => {
-            const typeInput = entry.querySelector('.entry-type');
-            const daysInput = entry.querySelector('.entry-days');
-            const payStatusSelect = entry.querySelector('.entry-pay-status');
-            
-            const typeName = (typeInput.value || '').trim();
-            const matchingType = leaveTypeData.find(t => t.name === typeName);
-            const typeCode = matchingType ? matchingType.code : null;
-            
-            const days = parseFloat(daysInput.value) || 0;
-            const isWithPay = payStatusSelect && payStatusSelect.value === "1";
- 
-            if (typeName && isWithPay) {
-                if (typeCode === 'VL' || typeCode === 'FL') vlDays += days;
-                else if (typeCode === 'SL') slDays += days;
-            }
-        });
+        if (isMonetization) {
+            vlDays = vlCurrentBalance / 2;
+            slDays = slCurrentBalance / 2;
+        } else {
+            document.querySelectorAll('.date-entry').forEach(entry => {
+                const typeInput = entry.querySelector('.entry-type');
+                const daysInput = entry.querySelector('.entry-days');
+                const payStatusSelect = entry.querySelector('.entry-pay-status');
+                
+                const typeName = (typeInput.value || '').trim();
+                const matchingType = leaveTypeData.find(t => t.name === typeName);
+                const typeCode = matchingType ? matchingType.code : null;
+                
+                const days = parseFloat(daysInput.value) || 0;
+                const isWithPay = payStatusSelect && payStatusSelect.value === "1";
+    
+                if (typeName && isWithPay) {
+                    if (typeCode === 'VL' || typeCode === 'FL') vlDays += days;
+                    else if (typeCode === 'SL') slDays += days;
+                }
+            });
+        }
 
         const vlNewBalance = vlCurrentBalance - vlDays;
         const slNewBalance = slCurrentBalance - slDays;
@@ -721,6 +739,10 @@
                     <input type="number" name="entries[${i}][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                 </div>
             </div>
+            <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                <input type="text" name="entries[${i}][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc." style="border-color: #fecaca;">
+            </div>
             <div class="others-specify" style="display: none; margin-top: 8px;">
                 <input type="text" name="entries[${i}][other_type]" class="form-control" placeholder="Specify other leave type..." style="font-size: 0.85rem;">
             </div>
@@ -754,19 +776,52 @@
         const datesTextInput = entry.querySelector('.entry-dates-text');
         const payStatusSelect = entry.querySelector('.entry-pay-status');
         const othersDiv = entry.querySelector('.others-specify');
+        const lwopReasonWrapper = entry.querySelector('.lwop-reason-wrapper');
+        const reasonInput = entry.querySelector('.entry-lwop-reason');
 
         const updateAll = () => {
+            const typeValue = (typeSelect.value || '').trim().toLowerCase();
+            const isMonetization = typeValue.includes('50% monetization');
+
+            if (isMonetization) {
+                // Disable/Hide fields for monetization
+                if (datesTextInput.value === '') {
+                    datesTextInput.value = new Date().getFullYear().toString();
+                }
+                payStatusSelect.disabled = true;
+                payStatusSelect.value = "1";
+                daysInput.disabled = true;
+                daysInput.value = "0";
+                daysInput.placeholder = "HALF Bal";
+                if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
+            } else {
+                payStatusSelect.disabled = false;
+                daysInput.disabled = false;
+                daysInput.placeholder = "0";
+            }
+
             updatePreview();
             updateCertification();
         };
 
-        typeSelect.addEventListener('input', () => {
+        typeSelect.addEventListener('input', updateAll);
+        daysInput.addEventListener('input', updateAll);
+        datesTextInput.addEventListener('input', updatePreview);
+        if (reasonInput) reasonInput.addEventListener('input', updatePreview);
+        
+        payStatusSelect.addEventListener('change', () => {
+            if (lwopReasonWrapper) {
+                lwopReasonWrapper.style.display = payStatusSelect.value === "0" ? 'block' : 'none';
+                if (payStatusSelect.value !== "0") {
+                    const reasonInput = lwopReasonWrapper.querySelector('input');
+                    if (reasonInput) reasonInput.value = '';
+                }
+            }
             updateAll();
         });
 
-        daysInput.addEventListener('input', updateAll);
-        datesTextInput.addEventListener('input', updatePreview);
-        payStatusSelect.addEventListener('change', updateAll);
+        // Initialize state
+        updateAll();
     }
 
     function recalculateAllStatus() {
@@ -786,26 +841,34 @@
         document.querySelectorAll('.date-entry').forEach((entry) => {
             const index = entry.dataset.index;
             const typeInput = entry.querySelector('.entry-type');
+            const typeName = (typeInput.value || '').trim();
+            const isMonetization = typeName.toLowerCase().includes('50% monetization');
+            
             const daysInput = entry.querySelector('.entry-days');
             const datesTextInput = entry.querySelector('.entry-dates-text');
             const payStatusSelect = entry.querySelector('.entry-pay-status');
+            const reasonInput = entry.querySelector('.entry-lwop-reason');
 
-            const typeName = typeInput.value.trim() || 'Not Selected';
             const days = parseFloat(daysInput.value) || 0;
             const isWop = payStatusSelect && payStatusSelect.value === "0";
             const dateText = datesTextInput.value || 'No dates';
+            const lwopReason = reasonInput ? reasonInput.value.trim() : '';
             
             totalDays += days;
+
+            let dayDisplay = isMonetization ? 'HALF Bal' : `${days} ${days === 1 ? 'day' : 'days'}`;
 
             html += `<div class="entry-summary-row">
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <strong style="font-size: 0.8rem;">${typeName}</strong>
+                        <strong style="font-size: 0.8rem;">${typeName || 'Not Selected'}</strong>
                         ${isWop ? '<span style="color: #dc2626; font-size: 0.65rem; font-weight: 700;">(WOP)</span>' : ''}
                     </div>
-                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">${dateText}</div>
+                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">
+                        ${dateText}${isWop && lwopReason ? ' <span style="color: #dc2626;">· Reason: ' + lwopReason + '</span>' : ''}
+                    </div>
                 </div>
-                <span style="font-weight: 700; color: ${isWop ? '#dc2626' : 'var(--primary)'}; white-space: nowrap; margin-left: 12px;">${days} ${days === 1 ? 'day' : 'days'}</span>
+                <span style="font-weight: 700; color: ${isWop ? '#dc2626' : 'var(--primary)'}; white-space: nowrap; margin-left: 12px;">${dayDisplay}</span>
             </div>`;
         });
 

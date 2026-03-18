@@ -28,53 +28,74 @@
 
     @if($leaveCard)
     @php
-        // Updated to match official form provided in images
-        $FRONT_DATA_ROWS = 14; // Total enterable rows on front (including balance)
-        $BACK_DATA_ROWS = 21;  // Total enterable rows on back
+        // Official 8x5 card slots
+        $FRONT_DATA_ROWS = 14; 
+        $BACK_DATA_ROWS = 20;  
         
         $transactionsArray = $transactions->toArray();
         $pages = [];
+        $tempRemaining = $transactionsArray;
         
-        // 1. CARD 1 FRONT (9 transactions + 1 Beginning Balance = 10 rows)
-        $pages[] = [
-            'type' => 'front',
-            'show_header' => true,
-            'is_very_first' => true,
-            'items' => array_slice($transactionsArray, 0, $FRONT_DATA_ROWS - 1)
-        ];
-        
-        // 2. CARD 1 BACK (13 transactions + 1 Balance Carried Over = 14 rows)
-        $remaining = array_slice($transactionsArray, $FRONT_DATA_ROWS - 1);
-        $pages[] = [
-            'type' => 'back',
-            'show_header' => false,
-            'is_very_first' => false,
-            'items' => array_slice($remaining, 0, $BACK_DATA_ROWS - 1)
-        ];
-        $remaining = array_slice($remaining, $BACK_DATA_ROWS - 1);
-        
-        // 3. CONTINUATION CARDS (Front gets header and FRONT_DATA_ROWS, Back gets BACK_DATA_ROWS)
-        while (count($remaining) > 0) {
-            $pages[] = [
-                'type' => 'front',
-                'show_header' => true,
-                'is_very_first' => false,
-                'items' => array_slice($remaining, 0, $FRONT_DATA_ROWS - 1)
-            ];
-            $remaining = array_slice($remaining, $FRONT_DATA_ROWS - 1);
+        while (count($tempRemaining) > 0) {
+            $pageCount = count($pages);
+            $isFront = ($pageCount % 2 === 0);
+            $maxRows = $isFront ? $FRONT_DATA_ROWS : $BACK_DATA_ROWS;
+            $maxSlots = $maxRows - 1; // 1 for the balance/carried row
             
-            // ALWAYS force a back page so they are in pairs
+            $itemsForPage = [];
+            $slotsUsed = 0;
+            
+            while (count($tempRemaining) > 0) {
+                $it = $tempRemaining[0];
+                $s = 1; // Base 1 slot
+                $p = $it['period'] ?? '';
+                $r = $it['remarks'] ?? '';
+                $isL = strpos(strtoupper($p), 'LESS') !== false;
+                
+                // Estimate slots for PERIOD + PARTICULARS (~40 chars bleed threshold)
+                if ($isL) {
+                    $s = max($s, ceil(strlen($p . ' ' . $r) / 40));
+                } else {
+                    $s = max($s, ceil(strlen($p) / 18));
+                    $s = max($s, ceil(strlen($r) / 20));
+                }
+                
+                // Estimate slots for WOP Reasons (Tight 10px line-height allows ~20 chars per slot)
+                $vReason = trim($it['vl_wop_reason'] ?? '');
+                if ($vReason) $s = max($s, ceil((10 + strlen($vReason)) / 20));
+                $sReason = trim($it['sl_wop_reason'] ?? '');
+                if ($sReason) $s = max($s, ceil((10 + strlen($sReason)) / 20));
+
+                // If adding this item exceeds max slots, move to next page
+                if ($slotsUsed + $s > $maxSlots && !empty($itemsForPage)) {
+                    break;
+                }
+                
+                $itemsForPage[] = array_shift($tempRemaining);
+                $slotsUsed += $s;
+                if ($slotsUsed >= $maxSlots) break;
+            }
+            
+            $pages[] = [
+                'type' => $isFront ? 'front' : 'back',
+                'show_header' => ($pageCount === 0 || $isFront),
+                'is_very_first' => ($pageCount === 0),
+                'items' => $itemsForPage,
+                'slots_used' => $slotsUsed
+            ];
+        }
+        
+        // Ensure final back page for pairs
+        if (count($pages) % 2 !== 0) {
             $pages[] = [
                 'type' => 'back',
                 'show_header' => false,
                 'is_very_first' => false,
-                'items' => array_slice($remaining, 0, $BACK_DATA_ROWS - 1)
+                'items' => [],
+                'slots_used' => 0
             ];
-            $remaining = array_slice($remaining, $BACK_DATA_ROWS - 1);
         }
-    @endphp
-
-    @php
+        
         $cardPairs = array_chunk($pages, 2);
     @endphp
 
@@ -126,15 +147,15 @@
             <table class="leave-card-table">
                 <colgroup>
                     <col style="width: 13%;">
-                    <col style="width: 18%;">
+                    <col style="width: 16%;">
                     <col style="width: 6.5%;">
                     <col style="width: 6%;">
                     <col style="width: 8.5%;">
-                    <col style="width: 6%;">
+                    <col style="width: 7%;">
                     <col style="width: 6.5%;">
                     <col style="width: 6%;">
                     <col style="width: 8.5%;">
-                    <col style="width: 6%;">
+                    <col style="width: 7%;">
                     <col style="width: 15%;">
                 </colgroup>
                 <thead>
@@ -158,18 +179,19 @@
                 </thead>
                 <tbody>
                     @if($page['is_very_first'])
-                        <tr class="beginning-row">
-                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</td>
-                            <td class="particulars-col"></td>
+                        <tr class="beginning-row tx-row-print" style="height: 19px;">
+                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0;">
+                                <div class="bleed-content" style="padding: 2px 4px 1px 10px; white-space: nowrap !important; word-break: normal !important; overflow: visible !important;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
+                            </td>
                             <td></td><td></td>
-                            <td class="bal-cell" style="padding: 1.5px 2px;">
+                            <td class="bal-cell" style="padding: 1.5px 2px; vertical-align: middle;">
                                 <span class="no-print">
                                     <input type="number" id="vlBeginningBalance" value="{{ $leaveCard->vl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
                                 </span>
                                 <span class="print-only" style="font-weight: 700;">{{ number_format($leaveCard->vl_beginning_balance, 5) }}</span>
                             </td>
                             <td></td><td></td><td></td>
-                            <td class="bal-cell" style="padding: 1.5px 2px;">
+                            <td class="bal-cell" style="padding: 1.5px 2px; vertical-align: middle;">
                                 <span class="no-print">
                                     <input type="number" id="slBeginningBalance" value="{{ $leaveCard->sl_beginning_balance + 0 }}" step="any" class="inline-edit-input">
                                 </span>
@@ -217,15 +239,16 @@
                                 }
                             }
                         @endphp
-                        <tr class="beginning-row">
-                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1;">BAL. AS OF: {{ $carriedDate }}</td>
-                            <td class="particulars-col"></td>
+                        <tr class="beginning-row tx-row-print" style="height: 19px;">
+                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0;">
+                                <div class="bleed-content" style="padding: 2px 4px 1px 10px; white-space: nowrap !important; word-break: normal !important; overflow: visible !important;">BAL. AS OF: {{ $carriedDate }}</div>
+                            </td>
                             <td></td><td></td>
-                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700;">
+                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700; vertical-align: middle;">
                                 {{ number_format($carriedVl, 5) }}
                             </td>
                             <td></td><td></td><td></td>
-                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700;">
+                            <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700; vertical-align: middle;">
                                 {{ number_format($carriedSl, 5) }}
                             </td>
                             <td></td><td></td>
@@ -241,25 +264,41 @@
                             // Shrink font size if string is long
                             $periodFontSize = strlen($periodText) > 20 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
                             $remarksFontSize = strlen($remarksText) > 15 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
+                            
+                            $vwR = $item['vl_wop_reason'] ?? '';
+                            $swR = $item['sl_wop_reason'] ?? '';
+                            $itSlots = 1;
+                            if ($isLess) {
+                                $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 40));
+                            } else {
+                                $itSlots = max($itSlots, ceil(strlen($periodText) / 18));
+                                $itSlots = max($itSlots, ceil(strlen($remarksText) / 20));
+                            }
+                            if ($vwR) $itSlots = max($itSlots, ceil((10 + strlen($vwR)) / 20));
+                            if ($swR) $itSlots = max($itSlots, ceil((10 + strlen($swR)) / 20));
+                            
+                            // Each slot is exactly 19px to match a full row size
+                            $rowHeight = 19 * $itSlots;
                         @endphp
-                        <tr class="tx-row" data-id="{{ $item['id'] ?? '' }}">
+                        <tr class="tx-row tx-row-print" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px;">
                             @if($isLess)
-                                <td class="edit-cell date-col" style="{{ $textColor }} font-weight: 600; overflow: visible; white-space: nowrap; text-align: left; padding-left: 10px;" contenteditable="true">
-                                    {{ $periodText }} &nbsp; {{ $remarksText }}
+                                <td colspan="2" class="edit-cell date-col bleed-cell" style="{{ $textColor }} font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
+                                    <div class="bleed-content" style="padding: 2px 4px 1px 10px; line-height: 19px; min-height: 19px;">
+                                        {{ $periodText }} &nbsp; <span style="font-size: 0.9em; font-weight: 500;">{{ $remarksText }}</span>
+                                    </div>
                                 </td>
-                                <td class="edit-cell particulars-col" contenteditable="true"></td>
                             @else
-                                <td class="edit-cell date-col" style="{{ $textColor }} {{ $periodFontSize }} font-weight: 600;" contenteditable="true">{{ $periodText }}</td>
-                                <td class="edit-cell particulars-col" style="{{ $textColor }} {{ $remarksFontSize }} font-weight: 600;" contenteditable="true">{{ $remarksText }}</td>
+                                <td class="edit-cell date-col" style="{{ $textColor }} {{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $periodText }}</td>
+                                <td class="edit-cell particulars-col" style="{{ $textColor }} {{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $remarksText }}</td>
                             @endif
                             <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}">{{ (float)($item['vl_earned'] ?? '') ?: '' }}</td>
                             <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}">{{ (float)($item['vl_used'] ?? '') ?: '' }}</td>
                             <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}">
                                 {{ ($item['vl_wop'] ?? 0) > 0 ? '-' : (isset($item['vl_balance_after']) ? number_format($item['vl_balance_after'], 5) : '-') }}
                             </td>
-                            <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }}">
+                            <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }} white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
                                 @if((float)($item['vl_wop'] ?? 0) > 0)
-                                    {{ (float)$item['vl_wop'] }}
+                                    {{ (float)$item['vl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: #b91c1c; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['vl_wop_reason'] ?? '' }}</span>
                                 @endif
                             </td>
                             <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}">{{ (float)($item['sl_earned'] ?? '') ?: '' }}</td>
@@ -267,9 +306,9 @@
                             <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}">
                                 {{ ($item['sl_wop'] ?? 0) > 0 ? '-' : (isset($item['sl_balance_after']) ? number_format($item['sl_balance_after'], 5) : '-') }}
                             </td>
-                            <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }}">
+                            <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }} white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
                                 @if((float)($item['sl_wop'] ?? 0) > 0)
-                                    {{ (float)$item['sl_wop'] }}
+                                    {{ (float)$item['sl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: #b91c1c; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['sl_wop_reason'] ?? '' }}</span>
                                 @endif
                             </td>
                             <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
@@ -278,22 +317,23 @@
 
                     {{-- Fill empty rows to maintain card height --}}
                     @php
-                        // Carried Bal row counts as 1 for all pages
+                        // Empty slots needed is max - slots used
                         $maxRows = $page['show_header'] ? $FRONT_DATA_ROWS - 1 : $BACK_DATA_ROWS - 1;
-                        $emptyRowsNeeded = $maxRows - count($page['items']);
+                        $emptyRowsNeeded = $maxRows - $page['slots_used'];
+                        if ($emptyRowsNeeded < 0) $emptyRowsNeeded = 0;
                     @endphp
                     @for($i = 0; $i < $emptyRowsNeeded; $i++)
-                        <tr class="tx-row empty-row">
+                        <tr class="tx-row empty-row tx-row-print" style="height: 19px;">
                             <td class="edit-cell date-col" contenteditable="true"></td>
                             <td class="edit-cell particulars-col" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
-                            <td class="bal-cell edit-cell" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
-                            <td class="bal-cell edit-cell" contenteditable="true"></td>
-                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell vl-earned-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell vl-used-col" contenteditable="true"></td>
+                            <td class="bal-cell edit-cell vl-bal-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell vl-wop-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell sl-earned-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell sl-used-col" contenteditable="true"></td>
+                            <td class="bal-cell edit-cell sl-bal-col" contenteditable="true"></td>
+                            <td class="num-cell edit-cell sl-wop-col" contenteditable="true"></td>
                             <td class="edit-cell action-col" contenteditable="true"></td>
                         </tr>
                     @endfor
@@ -402,15 +442,36 @@
         z-index: 10;
         text-align: left;
         padding-left: 10px;
-        white-space: nowrap; 
-        overflow: visible; /* Text bursts through the table wall */
+        white-space: normal; 
+        word-wrap: break-word;
         outline: none;
+    }
+
+    .bleed-cell::after {
+        content: '';
+        position: absolute;
+        left: 44.82%; /* Precision: 13 / (13 + 16) */
+        top: 0;
+        bottom: 0;
+        width: 1.5px;
+        background: #334155;
+        z-index: 1;
+    }
+
+    .bleed-content {
+        position: relative;
+        z-index: 10;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-all;
+        overflow-wrap: anywhere;
     }
 
     .leave-card-table .particulars-col {
         text-align: left;
         padding-left: 5px;
-        white-space: nowrap;
+        white-space: normal;
+        word-wrap: break-word;
     }
 
     .leave-card-table .group-header {
@@ -450,9 +511,11 @@
     }
 
     .leave-card-table .date-col {
-        font-family: 'Courier New', Courier, monospace;
+        font-family: 'Outfit', sans-serif;
         font-size: 0.65rem;
-        white-space: nowrap;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-all;
         text-align: left;
         padding-left: 10px;
         position: relative;
@@ -460,7 +523,9 @@
 
     .leave-card-table .particulars-col {
         font-size: 0.65rem;
-        white-space: nowrap;
+        white-space: normal;
+        word-wrap: break-word;
+        word-break: break-all;
         text-align: left;
         padding-left: 8px;
     }
@@ -562,21 +627,48 @@
             display: block !important;
         }
 
-        /* Keep header text exactly identical to screen size natively */
-        /* Table rules natively govern the rest of the layout */
-        .leave-card-form > div:first-child p {
+        /* Tighten top info section for Front Page */
+        .leave-card-form > div:first-child p:first-child {
+            font-size: 0.75rem !important;
+            margin: 0 !important;
+        }
+        .leave-card-form > div:first-child p:nth-child(2) {
+            font-size: 0.65rem !important;
             margin: 0 !important;
         }
         .leave-card-form > div:first-child h3 {
-            margin: 2px 0 8px !important;
+            font-size: 0.85rem !important;
+            margin: 4px 0 10px !important;
+        }
+
+        /* Tighten the 2-column Name/Status section */
+        .leave-card-form div[style*="display: grid"] {
+            margin-bottom: 8px !important;
+            gap: 2px 20px !important;
+            font-size: 0.75rem !important;
+        }
+        
+        .leave-card-form div[style*="border-bottom"] {
+            padding-bottom: 1px !important;
         }
 
         /* Force table borders to remain black and 1px for precision */
         .leave-card-table th,
         .leave-card-table td {
             border: 1px solid #000 !important;
-            padding: 2px 4px !important; /* Tighter padding for print */
-            height: auto !important;
+            padding: 0 4px !important;
+            box-sizing: border-box !important;
+        }
+
+        .leave-card-table thead th {
+            height: 19px !important;
+            font-size: 0.6rem !important;
+            line-height: 1 !important;
+            padding: 0 2px !important;
+        }
+
+        .leave-card-table thead th br {
+            line-height: 8px !important;
         }
 
         .leave-card-table {
@@ -584,18 +676,35 @@
             border-collapse: collapse !important;
         }
 
+        .leave-card-table thead {
+            display: table-header-group !important;
+        }
+
+        .leave-card-table thead tr {
+            height: 19px !important;
+        }
+
         .leave-card-table tbody td {
-            font-size: 0.72rem !important;
-            height: 17px !important; /* Made tighter to fit all rows */
+            font-size: 0.7rem !important;
+            padding: 0 4px !important;
+            vertical-align: middle !important;
+            overflow: hidden !important;
+            line-height: 19px !important;
+            height: 19px !important;
+            border: 1px solid #000 !important;
+            box-sizing: border-box !important;
         }
 
-        .leave-card-table thead th {
-             padding: 4px 2px !important;
-             font-size: 0.65rem !important;
+        .tx-row-print {
+            height: 19px; /* This is the minimal slot height for data rows */
         }
 
-        .tx-row.empty-row td {
-            height: 16px !important;
+        .beginning-row.tx-row-print {
+            height: 19px !important;
+        }
+
+        .empty-row.tx-row-print {
+            height: 19px !important;
         }
         
         .print-only {
@@ -606,8 +715,18 @@
             display: none !important;
         }
 
-        .leave-card-table .date-col {
-            white-space: nowrap !important;
+        .leave-card-table .date-col,
+        .leave-card-table .particulars-col,
+        .bleed-content {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        .bleed-cell::after {
+            background: #000 !important;
+            width: 1px !important;
         }
     }
 

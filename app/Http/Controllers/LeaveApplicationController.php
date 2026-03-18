@@ -151,7 +151,7 @@ class LeaveApplicationController extends Controller
             'entries' => 'required|array|min:1',
             'entries.*.leave_type_name' => 'required|string|max:255',
             'entries.*.inclusive_dates' => 'required|string|max:255',
-            'entries.*.num_days' => 'required|numeric|min:0.5',
+            'entries.*.num_days' => 'required|numeric|min:0',
             'reason' => 'nullable|string|max:1000',
             'commutation' => 'nullable|string',
         ]);
@@ -222,6 +222,7 @@ class LeaveApplicationController extends Controller
                 'date_to' => now(),
                 'num_days' => $entry['num_days'],
                 'is_with_pay' => ($entry['is_with_pay'] ?? '1') === '1',
+                'lwop_reason' => $entry['lwop_reason'] ?? null,
             ]);
         }
 
@@ -309,7 +310,7 @@ class LeaveApplicationController extends Controller
         $slCurrentBalance = floatval($leaveCardBefore->sl_balance);
 
         // Deduct credits
-        $deducted = $this->leaveCardService->deductLeaveCredits($leaveApplication);
+        $deducted = $this->leaveCardService->deductLeaveCredits($leaveApplication, $request->remarks);
 
         if (!$deducted) {
             return back()->with('error', 'Insufficient leave credits. Cannot approve this application.');
@@ -321,12 +322,27 @@ class LeaveApplicationController extends Controller
         // Calculate VL/SL days for this application from actual details
         $vlDays = 0;
         $slDays = 0;
+        $isMonetization = false;
+
         foreach ($leaveApplication->details as $detail) {
             $type = $detail->leaveType;
-            if ($type->code === 'VL' || $type->code === 'FL')
-                $vlDays += floatval($detail->num_days);
-            elseif ($type->code === 'SL')
-                $slDays += floatval($detail->num_days);
+            if (stripos($type->name, '50% Monetization') !== false) {
+                $isMonetization = true;
+                break;
+            }
+        }
+
+        if ($isMonetization) {
+            $vlDays = $vlCurrentBalance / 2;
+            $slDays = $slCurrentBalance / 2;
+        } else {
+            foreach ($leaveApplication->details as $detail) {
+                $type = $detail->leaveType;
+                if ($type->code === 'VL' || $type->code === 'FL')
+                    $vlDays += floatval($detail->num_days);
+                elseif ($type->code === 'SL')
+                    $slDays += floatval($detail->num_days);
+            }
         }
 
         $leaveApplication->update([

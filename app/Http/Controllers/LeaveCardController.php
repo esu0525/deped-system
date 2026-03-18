@@ -212,19 +212,30 @@ class LeaveCardController extends Controller
             ];
 
             // Use local vars for checks to handle empty/string cases correctly
+            $vlWText = trim($data['vl_wop'] ?? '');
+            $slWText = trim($data['sl_wop'] ?? '');
+
+            // Try to extract number and reason (e.g., "1 CREDITS EXHAUSTED")
+            preg_match('/^([\d.]+)\s*(.*)$/', $vlWText, $vlMatches);
             $vlE = isset($data['vl_earned']) && $data['vl_earned'] !== '' ? floatval($data['vl_earned']) : 0;
             $vlU = isset($data['vl_used']) && $data['vl_used'] !== '' ? floatval($data['vl_used']) : 0;
-            $vlW = isset($data['vl_wop']) && $data['vl_wop'] !== '' ? floatval($data['vl_wop']) : 0;
+            $vlW = isset($vlMatches[1]) ? floatval($vlMatches[1]) : 0;
+            $vlWR = isset($vlMatches[2]) ? trim($vlMatches[2]) : (isset($data['vl_wop_reason']) ? $data['vl_wop_reason'] : null);
+
+            preg_match('/^([\d.]+)\s*(.*)$/', $slWText, $slMatches);
             $slE = isset($data['sl_earned']) && $data['sl_earned'] !== '' ? floatval($data['sl_earned']) : 0;
             $slU = isset($data['sl_used']) && $data['sl_used'] !== '' ? floatval($data['sl_used']) : 0;
-            $slW = isset($data['sl_wop']) && $data['sl_wop'] !== '' ? floatval($data['sl_wop']) : 0;
+            $slW = isset($slMatches[1]) ? floatval($slMatches[1]) : 0;
+            $slWR = isset($slMatches[2]) ? trim($slMatches[2]) : (isset($data['sl_wop_reason']) ? $data['sl_wop_reason'] : null);
 
             $updateData['vl_earned'] = $vlE ?: null;
             $updateData['vl_used'] = $vlU ?: null;
             $updateData['vl_wop'] = $vlW ?: null;
+            $updateData['vl_wop_reason'] = $vlWR ?: null;
             $updateData['sl_earned'] = $slE ?: null;
             $updateData['sl_used'] = $slU ?: null;
             $updateData['sl_wop'] = $slW ?: null;
+            $updateData['sl_wop_reason'] = $slWR ?: null;
 
             // Handle balances: explicitly save NULL if empty, hyphen OR if the column is NOT active in this row
             $vlBalStr = trim($data['vl_balance'] ?? '');
