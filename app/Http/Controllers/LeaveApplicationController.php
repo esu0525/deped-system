@@ -144,13 +144,21 @@ class LeaveApplicationController extends Controller
         ]);
     }
 
+    /**
+     * API: Get employee active CTO balances.
+     */
+    public function getEmployeeCtoBalances(Employee $employee)
+    {
+        return response()->json($employee->ctoBalances());
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'employee_id' => 'required|exists:employees,id',
             'entries' => 'required|array|min:1',
             'entries.*.leave_type_name' => 'required|string|max:255',
-            'entries.*.inclusive_dates' => 'required|string|max:255',
+            'entries.*.inclusive_dates' => 'nullable|string|max:255',
             'entries.*.num_days' => 'required|numeric|min:0',
             'reason' => 'nullable|string|max:1000',
             'commutation' => 'nullable|string',
@@ -218,9 +226,11 @@ class LeaveApplicationController extends Controller
                 'leave_type_id' => $entry['leave_type_id'],
                 'inclusive_dates' => $entry['inclusive_dates'] ?? '',
                 'other_type' => $entry['other_type'] ?? null,
+                'cto_title' => $entry['cto_title'] ?? null,
                 'date_from' => now(),
                 'date_to' => now(),
                 'num_days' => $entry['num_days'],
+                'cto_earned_days' => $entry['cto_earned_days'] ?? null,
                 'is_with_pay' => ($entry['is_with_pay'] ?? '1') === '1',
                 'lwop_reason' => $entry['lwop_reason'] ?? null,
             ]);

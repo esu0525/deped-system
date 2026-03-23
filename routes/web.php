@@ -10,6 +10,8 @@ use App\Http\Controllers\LeaveCardController;
 use App\Http\Controllers\AiDetectionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\AuditTrailController;
 
 // ─── Authentication ───────────────────────────────────────────────────────
 Route::get('/', function () {
@@ -62,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
         }
         );
         Route::get('/api/employee/{employee}/leave-balance', [LeaveApplicationController::class , 'getEmployeeBalance'])->name('api.employee.leave-balance');
+        Route::get('/api/employee/{employee}/cto-balances', [LeaveApplicationController::class , 'getEmployeeCtoBalances'])->name('api.employee.cto-balances');
 
         // ─── Leave Cards & Automation ─────────────────────────────────────────
         Route::get('/leave-cards', [LeaveCardController::class , 'index'])->name('leave-cards.index');
@@ -107,6 +110,11 @@ Route::middleware(['auth'])->group(function () {
         );
 
         Route::middleware(['role:super_admin'])->group(function () {
+            Route::get('/users', [UserController::class, 'index'])->name('users.index');
+            Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+            Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+            Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
             Route::get('/settings', function () {
                     $settings = \App\Models\SystemSetting::all()->keyBy('key');
                     return view('settings.index', compact('settings'));

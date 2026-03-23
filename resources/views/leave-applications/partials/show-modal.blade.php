@@ -1,4 +1,7 @@
 <div class="modal-body animate-fade">
+    @php 
+        $hasCto = $leaveApplication->details->contains(fn($d) => stripos($d->leaveType->name ?? '', 'CTO') !== false);
+    @endphp
     <div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px;">
         <!-- Left Column: Details -->
         <div>
@@ -20,9 +23,14 @@
                     <p style="font-size: 0.85rem; margin-top: 2px;">{{ $leaveApplication->employee->department->name ?? 'N/A' }} · {{ $leaveApplication->employee->position ?? 'N/A' }}</p>
                 </div>
                 <div>
-                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Inclusive Dates</label>
+                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">{{ $hasCto ? 'Title' : 'Inclusive Dates' }}</label>
                     <p style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">
-                        {{ $leaveApplication->details->first()->inclusive_dates ?? ($leaveApplication->date_from->format('M d') . ' - ' . $leaveApplication->date_to->format('M d, Y')) }}
+                        @if($hasCto)
+                            @php $ctoDetail = $leaveApplication->details->firstWhere(fn($d) => stripos($d->leaveType->name ?? '', 'CTO') !== false); @endphp
+                            {{ $ctoDetail->cto_title ?? 'Untitled' }}
+                        @else
+                            {{ $leaveApplication->details->first()->inclusive_dates ?? ($leaveApplication->date_from->format('M d') . ' - ' . $leaveApplication->date_to->format('M d, Y')) }}
+                        @endif
                     </p>
                 </div>
                 <div>
@@ -38,27 +46,31 @@
                         <thead style="background: #f1f5f9;">
                             <tr>
                                 <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Leave Type</th>
-                                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Inclusive Dates</th>
-                                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Pay Status</th>
-                                <th style="padding: 8px 12px; text-align: center; border-bottom: 1px solid #e2e8f0;">Days</th>
+                                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">{{ $hasCto ? 'CTO Title / Period' : 'Inclusive Dates' }}</th>
+                                @if(!$hasCto)
+                                    <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Pay Status</th>
+                                @else
+                                    <th style="padding: 8px 12px; text-align: center; border-bottom: 1px solid #e2e8f0;">Earned</th>
+                                @endif
+                                <th style="padding: 8px 12px; text-align: center; border-bottom: 1px solid #e2e8f0;">{{ $hasCto ? 'Used' : 'Days' }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($leaveApplication->details as $detail)
+                            @php $isCtoRow = stripos($detail->leaveType->name ?? '', 'CTO') !== false; @endphp
                             <tr>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">{{ $detail->leaveType->name ?? ($detail->other_type ?: 'N/A') }}</td>
-                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">{{ $detail->inclusive_dates }}</td>
-                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
-                                    <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
-                                        {{ $detail->is_with_pay ? 'WITH PAY' : 'WITHOUT PAY' }}
-                                    </span>
-                                    @if(!$detail->is_with_pay && $detail->lwop_reason)
-                                        <div style="font-size: 0.65rem; color: #dc2626; margin-top: 4px; font-weight: 600;">
-                                            Reason: {{ $detail->lwop_reason }}
-                                        </div>
-                                    @endif
-                                </td>
-                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700;">{{ $detail->num_days }}</td>
+                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">{{ $isCtoRow ? ($detail->cto_title ?: ($detail->inclusive_dates ?: '—')) : $detail->inclusive_dates }}</td>
+                                @if(!$hasCto)
+                                    <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
+                                        <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
+                                            {{ $detail->is_with_pay ? 'WITH PAY' : 'WITHOUT PAY' }}
+                                        </span>
+                                    </td>
+                                @else
+                                    <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700; color: #059669;">{{ (float)($detail->cto_earned_days ?? 0) > 0 ? rtrim(rtrim(number_format($detail->cto_earned_days, 6), '0'), '.') : '—' }}</td>
+                                @endif
+                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700; color: {{ $isCtoRow ? '#dc2626' : 'inherit' }};">{{ rtrim(rtrim(number_format($detail->num_days, 6), '0'), '.') }}</td>
                             </tr>
                             @endforeach
                         </tbody>

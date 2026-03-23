@@ -64,17 +64,24 @@ class LeaveCardService
         // Load details with leave types
         $application->load('details.leaveType');
 
-        // Check if this is a "50% Monetization" application
-        $isMonetization = false;
+        // Check if this is a monetization application
+        $monetType = null;
         foreach ($application->details as $detail) {
-            if (stripos($detail->leaveType->name, '50% Monetization') !== false) {
-                $isMonetization = true;
+            if ($detail->leaveType && stripos($detail->leaveType->name, '50% Monetization') !== false) {
+                $monetType = '50%';
+                break;
+            } else if ($detail->leaveType && stripos($detail->leaveType->name, 'CTO') !== false) {
+                $monetType = 'CTO';
                 break;
             }
         }
 
-        if ($isMonetization) {
+        if ($monetType === '50%') {
             return $this->processMonetization($application, $leaveCard, $remarks);
+        } else if ($monetType === '10-30') {
+            return $this->processMonetization10to30($application, $leaveCard, $remarks);
+        } else if ($monetType === 'CTO') {
+            return $this->processCto($application, $leaveCard, $remarks);
         }
 
         // Check if there are sufficient credits for ALL entries first
@@ -228,10 +235,118 @@ class LeaveCardService
             'vl_balance_after' => $leaveCard->vl_balance,
             'sl_balance_after' => $leaveCard->sl_balance,
             'sl_wop' => $totalHalves, // As requested: total goes to column beside action
-            'remarks' => 'MONETIZATION',
+            'remarks' => '',
             'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
             'encoded_by' => auth()->id(),
         ]);
+
+        return true;
+    }
+
+    /**
+     * Process logic for "10-30 Days Monetization" (Subtract from VL only, SL shows hyphen)
+     */
+    protected function processMonetization10to30(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
+    {
+        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
+        $approverSign = explode(' ', trim($approverName))[0];
+
+        $totalDays = 0;
+        foreach ($application->details as $detail) {
+            $totalDays += floatval($detail->num_days);
+        }
+
+        if ($totalDays <= 0) return false;
+
+        $vlCurrent = $leaveCard->vl_balance;
+        
+        // Deduct only from VL
+        $leaveCard->vl_balance = $vlCurrent - $totalDays;
+        // SL balance remains unchanged but we'll set it to null in the transaction to show hyphen
+        $leaveCard->save();
+
+        $year = $application->date_from ? $application->date_from->year : now()->year;
+        $monetizationPeriod = "LESS: 10-30 Days Monetization {$year}";
+
+        LeaveTransaction::create([
+            'employee_id' => $leaveCard->employee_id,
+            'leave_card_id' => $leaveCard->id,
+            'leave_application_id' => $application->id,
+            'leave_type_id' => $application->leave_type_id,
+            'transaction_date' => $application->date_from ?? now(),
+            'period' => $monetizationPeriod,
+            'transaction_type' => 'used',
+            'days' => $totalDays,
+            'vl_used' => $totalDays,
+            'sl_used' => null,
+            'vl_balance_after' => $leaveCard->vl_balance,
+            'sl_balance_after' => null, // This ensures hyphen in SL column
+            'sl_wop' => null, // No total for 10-30 days as requested
+            'remarks' => '',
+            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+            'encoded_by' => auth()->id(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Process logic for "CTO" (Add then Less)
+     */
+    protected function processCto(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
+    {
+        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
+        $approverSign = explode(' ', trim($approverName))[0];
+
+        foreach ($application->details as $detail) {
+            $title = trim(($detail->cto_title ?? '') . ' ' . ($detail->inclusive_dates ?? '')) ?: 'Untitled';
+            $earned = floatval($detail->cto_earned_days);
+            $used = floatval($detail->num_days);
+
+            // 1. ADD row (only if new credits are being added)
+            if ($earned > 0) {
+                $leaveCard->cto_balance += $earned;
+                $leaveCard->save();
+
+                LeaveTransaction::create([
+                    'employee_id' => $leaveCard->employee_id,
+                    'leave_card_id' => $leaveCard->id,
+                    'leave_application_id' => $application->id,
+                    'leave_type_id' => $detail->leave_type_id,
+                    'transaction_date' => $application->date_from ?? now(),
+                    'period' => "ADD: CTO: {$title}",
+                    'cto_title' => $detail->cto_title ?? 'Untitled',
+                    'transaction_type' => 'earned',
+                    'days' => $earned,
+                    'cto_earned' => $earned,
+                    'cto_balance_after' => $leaveCard->cto_balance,
+                    'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+                    'encoded_by' => auth()->id(),
+                ]);
+            }
+
+            // 2. LESS row
+            if ($used > 0) {
+                $leaveCard->cto_balance -= $used;
+                $leaveCard->save();
+
+                LeaveTransaction::create([
+                    'employee_id' => $leaveCard->employee_id,
+                    'leave_card_id' => $leaveCard->id,
+                    'leave_application_id' => $application->id,
+                    'leave_type_id' => $detail->leave_type_id,
+                    'transaction_date' => $application->date_from ?? now(),
+                    'period' => "LESS: CTO: {$title}",
+                    'cto_title' => $detail->cto_title ?? 'Untitled',
+                    'transaction_type' => 'used',
+                    'days' => $used,
+                    'cto_used' => $used,
+                    'cto_balance_after' => $leaveCard->cto_balance,
+                    'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+                    'encoded_by' => auth()->id(),
+                ]);
+            }
+        }
 
         return true;
     }

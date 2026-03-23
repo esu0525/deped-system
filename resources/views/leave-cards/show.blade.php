@@ -5,12 +5,29 @@
 @section('content')
 <div class="animate-fade">
     <!-- Actions Bar (hidden on print) -->
-    <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 16px;">
-            <a href="{{ route('leave-cards.index') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to List
+    <div class="header-container no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="{{ route('leave-cards.index') }}" class="btn btn-secondary" style="padding: 10px 20px;">
+                <i class="fas fa-arrow-left"></i> Back to Ledger
             </a>
-            <form action="{{ route('leave-cards.show', $employee) }}" method="GET" style="display: flex; gap: 8px; align-items: center;">
+        <div class="tab-pill-container no-print" style="display: flex; background: #f1f5f9; padding: 5px; border-radius: 12px; gap: 5px; margin-left: 20px;">
+            <a href="{{ route('leave-cards.show', [$employee->id, 'year' => $year, 'tab' => 'form6']) }}" 
+               class="tab-pill-item" 
+               style="padding: 10px 20px; text-decoration: none; color: {{ $tab !== 'cto' ? '#1e293b' : '#64748b' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab !== 'cto' ? 'background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-file-lines"></i> FORM 6 (VL/SL)
+            </a>
+            <a href="{{ route('leave-cards.show', [$employee->id, 'year' => $year, 'tab' => 'cto']) }}" 
+               class="tab-pill-item" 
+               style="padding: 10px 20px; text-decoration: none; color: {{ $tab === 'cto' ? '#1e293b' : '#64748b' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab === 'cto' ? 'background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-certificate"></i> CTO CARD
+            </a>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <form action="{{ route('leave-cards.show', $employee->id) }}" method="GET" id="yearForm" style="display: flex; align-items: center; gap: 10px;">
+            <input type="hidden" name="tab" value="{{ $tab }}">
+            <label for="yearSelect" style="font-weight: 700; color: #475569; font-size: 0.85rem;">Select Year:</label>
                 <select name="year" onchange="this.form.submit()" class="form-control" style="width: 130px;">
                     @foreach($years as $y)
                         <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>Year {{ $y }}</option>
@@ -33,10 +50,33 @@
         $BACK_DATA_ROWS = 20;  
         
         $transactionsArray = $transactions->toArray();
+        
+        // Filter transactions based on tab
+        if ($tab === 'cto') {
+            $transactionsArray = array_values(array_filter($transactionsArray, function($t) {
+                return (isset($t['period']) && stripos($t['period'], 'CTO') !== false) || 
+                       (isset($t['transaction_type']) && $t['transaction_type'] === 'earned' && stripos($t['period'], 'CTO') !== false);
+            }));
+        } else {
+            $transactionsArray = array_values(array_filter($transactionsArray, function($t) {
+                return stripos($t['period'] ?? '', 'CTO') === false;
+            }));
+        }
+
         $pages = [];
         $tempRemaining = $transactionsArray;
         
-        while (count($tempRemaining) > 0) {
+        // Ensure at least one page is rendered even if there are no transactions
+        if (empty($tempRemaining)) {
+            $pages[] = [
+                'type' => 'front',
+                'show_header' => true,
+                'is_very_first' => true,
+                'items' => [],
+                'slots_used' => 0
+            ];
+        } else {
+            while (count($tempRemaining) > 0) {
             $pageCount = count($pages);
             $isFront = ($pageCount % 2 === 0);
             $maxRows = $isFront ? $FRONT_DATA_ROWS : $BACK_DATA_ROWS;
@@ -50,10 +90,13 @@
                 $s = 1; // Base 1 slot
                 $p = $it['period'] ?? '';
                 $r = $it['remarks'] ?? '';
+                $isC = stripos($p, 'CTO') !== false;
                 $isL = strpos(strtoupper($p), 'LESS') !== false;
                 
-                // Estimate slots for PERIOD + PARTICULARS (~40 chars bleed threshold)
-                if ($isL) {
+                // Estimate slots. CTO spans 7 cols, so it can handle ~100 chars per line
+                if ($isC) {
+                    $s = max($s, ceil(strlen($p) / 100));
+                } else if ($isL) {
                     $s = max($s, ceil(strlen($p . ' ' . $r) / 40));
                 } else {
                     $s = max($s, ceil(strlen($p) / 18));
@@ -83,6 +126,7 @@
                 'items' => $itemsForPage,
                 'slots_used' => $slotsUsed
             ];
+        }
         }
         
         // Ensure final back page for pairs
@@ -120,7 +164,7 @@
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
                 <p style="font-size: 0.8rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
-                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">Leave Card Non-Teaching Personnel</h3>
+                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">{{ $tab === 'cto' ? 'Compensatory Time Off (CTO) Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem;">
@@ -162,24 +206,35 @@
                     <tr>
                         <th rowspan="2">PERIOD</th>
                         <th rowspan="2">PARTICULARS</th>
-                        <th colspan="4" class="group-header vl-header">Vacation Leave</th>
-                        <th colspan="4" class="group-header sl-header">Sick Leave</th>
+                        @if($tab === 'cto')
+                            <th colspan="8" class="group-header cto-header" style="background: #f0fdf4; color: #166534;">Compensatory Time Off (CTO)</th>
+                        @else
+                            <th colspan="4" class="group-header vl-header">Vacation Leave</th>
+                            <th colspan="4" class="group-header sl-header">Sick Leave</th>
+                        @endif
                         <th rowspan="2">Date & Action<br>Taken on<br>APPL. For Leave</th>
                     </tr>
                     <tr>
-                        <th class="sub-header">EARNED</th>
-                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                        <th class="sub-header">BAL.</th>
-                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
-                        <th class="sub-header">EARNED</th>
-                        <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                        <th class="sub-header">BAL.</th>
-                        <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                        @if($tab === 'cto')
+                            <th colspan="5" class="sub-header">TITLE</th>
+                            <th class="sub-header">EARNED</th>
+                            <th class="sub-header">USED</th>
+                            <th class="sub-header">BAL.</th>
+                        @else
+                            <th class="sub-header">EARNED</th>
+                            <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
+                            <th class="sub-header">BAL.</th>
+                            <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                            <th class="sub-header">EARNED</th>
+                            <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
+                            <th class="sub-header">BAL.</th>
+                            <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
-                    @if($page['is_very_first'])
-                        <tr class="beginning-row tx-row-print" style="height: 19px;">
+                    @if($page['is_very_first'] && $tab !== 'cto')
+                        <tr style="height: 19px; background: #fffbeb;">
                             <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0;">
                                 <div class="bleed-content" style="padding: 2px 4px 1px 10px; white-space: nowrap !important; word-break: normal !important; overflow: visible !important;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
                             </td>
@@ -199,7 +254,7 @@
                             </td>
                             <td></td><td></td>
                         </tr>
-                    @else
+                    @elseif(!$page['is_very_first'] && $tab !== 'cto')
                         @php
                             // Calculate cumulative item index to find previous balance
                             $cumulativeIndex = 0;
@@ -239,9 +294,9 @@
                                 }
                             }
                         @endphp
-                        <tr class="beginning-row tx-row-print" style="height: 19px;">
-                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0;">
-                                <div class="bleed-content" style="padding: 2px 4px 1px 10px; white-space: nowrap !important; word-break: normal !important; overflow: visible !important;">BAL. AS OF: {{ $carriedDate }}</div>
+                        <tr class="carried-row tx-row-print" style="height: 19px; background: #fafafa;">
+                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; vertical-align: top; position: relative; padding: 0;">
+                                <div class="bleed-content" style="padding: 2px 4px 1px 10px;">{{ $carriedDate }} {{ $pageIndex > 0 ? 'CARRIED OVER' : '' }}</div>
                             </td>
                             <td></td><td></td>
                             <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700; vertical-align: middle;">
@@ -260,58 +315,92 @@
                             $periodText = $item['period'] ?? '';
                             $remarksText = $item['remarks'] ?? '';
                             $isLess = strpos(strtoupper($periodText), 'LESS') !== false;
-                            $textColor = $isLess ? 'color: #dc2626;' : 'color: #000;';
+                            // Suppress remarks for Monetization rows
+                            if (stripos($periodText, 'Monetization') !== false) {
+                                $remarksText = '';
+                            }
+                            $textColorValue = !empty($item['text_color']) ? $item['text_color'] : ($isLess ? '#dc2626' : '#000000');
+                            $textColor = 'color: ' . $textColorValue . ';';
                             // Shrink font size if string is long
                             $periodFontSize = strlen($periodText) > 20 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
                             $remarksFontSize = strlen($remarksText) > 15 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
                             
                             $vwR = $item['vl_wop_reason'] ?? '';
                             $swR = $item['sl_wop_reason'] ?? '';
-                            $itSlots = 1;
-                            if ($isLess) {
-                                $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 40));
-                            } else {
-                                $itSlots = max($itSlots, ceil(strlen($periodText) / 18));
-                                $itSlots = max($itSlots, ceil(strlen($remarksText) / 20));
-                            }
-                            if ($vwR) $itSlots = max($itSlots, ceil((10 + strlen($vwR)) / 20));
-                            if ($swR) $itSlots = max($itSlots, ceil((10 + strlen($swR)) / 20));
-                            
-                            // Each slot is exactly 19px to match a full row size
-                            $rowHeight = 19 * $itSlots;
+                                $isCtoRow = stripos($periodText, 'CTO') !== false;
+                                $itSlots = 1;
+                                if ($isCtoRow) {
+                                    $itSlots = max($itSlots, ceil(strlen($periodText) / 100));
+                                } else if ($isLess) {
+                                    $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 40));
+                                } else {
+                                    $itSlots = max($itSlots, ceil(strlen($periodText) / 18));
+                                    $itSlots = max($itSlots, ceil(strlen($remarksText) / 20));
+                                }
+                                if ($vwR) $itSlots = max($itSlots, ceil((10 + strlen($vwR)) / 20));
+                                if ($swR) $itSlots = max($itSlots, ceil((10 + strlen($swR)) / 20));
+                                
+                                // Each slot is exactly 19px to match a full row size
+                                $rowHeight = 19 * $itSlots;
                         @endphp
-                        <tr class="tx-row tx-row-print" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px;">
-                            @if($isLess)
-                                <td colspan="2" class="edit-cell date-col bleed-cell" style="{{ $textColor }} font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
+                        <tr class="tx-row tx-row-print" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px; {{ $textColor }}">
+                            @if($isCtoRow)
+                                {{-- 7 Columns (Period -> Title) with bleeding text --}}
+                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
+                                    <div style="position: absolute; left: 10px; top: 0; width: calc(488%); z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
+                                        {{ preg_replace('/\s\d+(\.\d+)?\sday(s)?$/i', '', $periodText) }}
+                                    </div>
+                                </td>
+                                <td></td> {{-- Particulars --}}
+                                <td></td> {{-- Title 1 --}}
+                                <td></td> {{-- Title 2 --}}
+                                <td></td> {{-- Title 3 --}}
+                                <td></td> {{-- Title 4 --}}
+                                <td></td> {{-- Title 5 --}}
+                                
+                                <td class="num-cell">{{ ($item['cto_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_earned'], 3), '0'), '.') : '' }}</td>
+                                <td class="num-cell">{{ ($item['cto_used'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_used'], 3), '0'), '.') : '' }}</td>
+                                <td class="bal-cell" style="font-weight: 700;">{{ rtrim(rtrim(number_format($item['cto_balance_after'] ?? 0, 3), '0'), '.') }}</td>
+                                <td class="date-taken-col edit-cell" style="font-size: 0.65rem; vertical-align: middle; text-align: center;" contenteditable="true">{{ $item['action_taken'] ?? '' }}</td>
+                            @elseif($isLess)
+                                <td colspan="2" class="edit-cell date-col bleed-cell" style="font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
                                     <div class="bleed-content" style="padding: 2px 4px 1px 10px; line-height: 19px; min-height: 19px;">
                                         {{ $periodText }} &nbsp; <span style="font-size: 0.9em; font-weight: 500;">{{ $remarksText }}</span>
                                     </div>
                                 </td>
                             @else
-                                <td class="edit-cell date-col" style="{{ $textColor }} {{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $periodText }}</td>
-                                <td class="edit-cell particulars-col" style="{{ $textColor }} {{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $remarksText }}</td>
+                                <td class="edit-cell date-col" style="{{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $periodText }}</td>
+                                <td class="edit-cell particulars-col" style="{{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $remarksText }}</td>
                             @endif
-                            <td class="num-cell edit-cell vl-earned-col" style="{{ $textColor }}">{{ (float)($item['vl_earned'] ?? '') ?: '' }}</td>
-                            <td class="num-cell edit-cell vl-used-col" style="{{ $textColor }}">{{ (float)($item['vl_used'] ?? '') ?: '' }}</td>
-                            <td class="bal-cell edit-cell vl-bal-col" style="{{ $textColor }}">
-                                {{ ($item['vl_wop'] ?? 0) > 0 ? '-' : (isset($item['vl_balance_after']) ? number_format($item['vl_balance_after'], 5) : '-') }}
-                            </td>
-                            <td class="num-cell edit-cell vl-wop-col" style="{{ $textColor }} white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
-                                @if((float)($item['vl_wop'] ?? 0) > 0)
-                                    {{ (float)$item['vl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: #b91c1c; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['vl_wop_reason'] ?? '' }}</span>
-                                @endif
-                            </td>
-                            <td class="num-cell edit-cell sl-earned-col" style="{{ $textColor }}">{{ (float)($item['sl_earned'] ?? '') ?: '' }}</td>
-                            <td class="num-cell edit-cell sl-used-col" style="{{ $textColor }}">{{ (float)($item['sl_used'] ?? '') ?: '' }}</td>
-                            <td class="bal-cell edit-cell sl-bal-col" style="{{ $textColor }}">
-                                {{ ($item['sl_wop'] ?? 0) > 0 ? '-' : (isset($item['sl_balance_after']) ? number_format($item['sl_balance_after'], 5) : '-') }}
-                            </td>
-                            <td class="num-cell edit-cell sl-wop-col" style="{{ $textColor }} white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
-                                @if((float)($item['sl_wop'] ?? 0) > 0)
-                                    {{ (float)$item['sl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: #b91c1c; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['sl_wop_reason'] ?? '' }}</span>
-                                @endif
-                            </td>
-                            <td class="edit-cell action-col" style="{{ $textColor }} font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
+
+                            @if(!$isCtoRow)
+                                <td class="num-cell edit-cell vl-earned-col">{{ ($item['vl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_earned'], 6), '0'), '.') : '' }}</td>
+                                <td class="num-cell edit-cell vl-used-col">{{ ($item['vl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_used'], 6), '0'), '.') : '' }}</td>
+                                <td class="bal-cell edit-cell vl-bal-col">
+                                    @php $isMonetRow = stripos($periodText, 'Monetization') !== false; @endphp
+                                    {{ ($item['vl_wop'] ?? 0) > 0 && !$isMonetRow ? '-' : (isset($item['vl_balance_after']) ? rtrim(rtrim(number_format($item['vl_balance_after'], 6), '0'), '.') : '-') }}
+                                </td>
+                                <td class="num-cell edit-cell vl-wop-col" style="white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
+                                    @if((float)($item['vl_wop'] ?? 0) > 0)
+                                        {{ (float)$item['vl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: inherit; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['vl_wop_reason'] ?? '' }}</span>
+                                    @endif
+                                </td>
+                                <td class="num-cell edit-cell sl-earned-col">{{ ($item['sl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_earned'], 6), '0'), '.') : '' }}</td>
+                                <td class="num-cell edit-cell sl-used-col">{{ ($item['sl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_used'], 6), '0'), '.') : '' }}</td>
+                                <td class="bal-cell edit-cell sl-bal-col">
+                                    {{ ($item['sl_wop'] ?? 0) > 0 && !$isMonetRow ? '-' : (isset($item['sl_balance_after']) ? rtrim(rtrim(number_format($item['sl_balance_after'], 6), '0'), '.') : '-') }}
+                                </td>
+                                <td class="num-cell edit-cell sl-wop-col" style="white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
+                                    @if((float)($item['sl_wop'] ?? 0) > 0)
+                                        @if($isMonetRow)
+                                            <span style="font-size: 0.6rem; font-weight: 700;">= {{ rtrim(rtrim(number_format((float)$item['sl_wop'], 6), '0'), '.') }}</span>
+                                        @else
+                                            {{ (float)$item['sl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: inherit; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['sl_wop_reason'] ?? '' }}</span>
+                                        @endif
+                                    @endif
+                                </td>
+                                <td class="edit-cell action-col" style="font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
+                            @endif
                         </tr>
                     @endforeach
 
@@ -456,6 +545,26 @@
         width: 1.5px;
         background: #334155;
         z-index: 1;
+    }
+
+    /* CTO Bleed (Spans 7 columns: Period + Particulars + 5 title cols) */
+    .bleed-cto-cell::after,
+    .bleed-cto-cell::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1.5px;
+        background: #334155;
+        z-index: 1;
+    }
+    /* Border between Period (13%) and Particulars (16%) of the 63.5% group */
+    .bleed-cto-cell::before {
+        left: calc((13 / 63.5) * 100%); 
+    }
+    /* Border between Particulars (16%) and Title Area (34.5%) */
+    .bleed-cto-cell::after {
+        left: calc(((13 + 16) / 63.5) * 100%);
     }
 
     .bleed-content {
@@ -641,6 +750,27 @@
             margin: 4px 0 10px !important;
         }
 
+        /* Ensure CTO title overlap works in print */
+        .leave-card-table td {
+            overflow: visible !important;
+            position: relative !important;
+        }
+
+        .leave-card-table .date-col div {
+            position: absolute !important;
+            width: calc(488%) !important;
+            overflow: visible !important;
+            z-index: 100 !important;
+            display: block !important;
+            pointer-events: none;
+            background: transparent !important;
+        }
+
+        .leave-card-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+
         /* Tighten the 2-column Name/Status section */
         .leave-card-form div[style*="display: grid"] {
             margin-bottom: 8px !important;
@@ -819,6 +949,142 @@
         let saveTimeout;
         const indicator = document.getElementById('saveIndicator');
 
+        // ═══════════════════════════════════════════════════════
+        // Color Picker Context Menu (Right-click on editable cells)
+        // ═══════════════════════════════════════════════════════
+        const colorMenu = document.createElement('div');
+        colorMenu.id = 'colorContextMenu';
+        colorMenu.innerHTML = `
+            <div class="color-menu-title">Text Color</div>
+            <div class="color-option" data-color="#000000">
+                <span class="color-dot" style="background: #000;"></span> Black
+            </div>
+            <div class="color-option" data-color="#dc2626">
+                <span class="color-dot" style="background: #dc2626;"></span> Red
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; margin: 4px 0;"></div>
+            <div class="color-scroll-area">
+                <div class="color-option" data-color="#2563eb">
+                    <span class="color-dot" style="background: #2563eb;"></span> Blue
+                </div>
+                <div class="color-option" data-color="#16a34a">
+                    <span class="color-dot" style="background: #16a34a;"></span> Green
+                </div>
+                <div class="color-option" data-color="#ea580c">
+                    <span class="color-dot" style="background: #ea580c;"></span> Orange
+                </div>
+                <div class="color-option" data-color="#9333ea">
+                    <span class="color-dot" style="background: #9333ea;"></span> Purple
+                </div>
+                <div class="color-option" data-color="#92400e">
+                    <span class="color-dot" style="background: #92400e;"></span> Brown
+                </div>
+                <div class="color-option" data-color="#0d9488">
+                    <span class="color-dot" style="background: #0d9488;"></span> Teal
+                </div>
+                <div class="color-option" data-color="#0369a1">
+                    <span class="color-dot" style="background: #0369a1;"></span> Dark Blue
+                </div>
+                <div class="color-option" data-color="#be185d">
+                    <span class="color-dot" style="background: #be185d;"></span> Pink
+                </div>
+                <div class="color-option" data-color="#ca8a04">
+                    <span class="color-dot" style="background: #ca8a04;"></span> Yellow
+                </div>
+                <div class="color-option" data-color="#166534">
+                    <span class="color-dot" style="background: #166534;"></span> Dark Green
+                </div>
+                <div class="color-option" data-color="#7c3aed">
+                    <span class="color-dot" style="background: #7c3aed;"></span> Violet
+                </div>
+                <div class="color-option" data-color="#e11d48">
+                    <span class="color-dot" style="background: #e11d48;"></span> Rose
+                </div>
+                <div class="color-option" data-color="#4338ca">
+                    <span class="color-dot" style="background: #4338ca;"></span> Indigo
+                </div>
+                <div class="color-option" data-color="#0891b2">
+                    <span class="color-dot" style="background: #0891b2;"></span> Cyan
+                </div>
+                <div class="color-option" data-color="#65a30d">
+                    <span class="color-dot" style="background: #65a30d;"></span> Lime
+                </div>
+                <div class="color-option" data-color="#c026d3">
+                    <span class="color-dot" style="background: #c026d3;"></span> Magenta
+                </div>
+                <div class="color-option" data-color="#475569">
+                    <span class="color-dot" style="background: #475569;"></span> Gray
+                </div>
+                <div class="color-option" data-color="#78350f">
+                    <span class="color-dot" style="background: #78350f;"></span> Amber
+                </div>
+                <div class="color-option" data-color="#b45309">
+                    <span class="color-dot" style="background: #b45309;"></span> Gold
+                </div>
+                <div class="color-option" data-color="#1e3a5f">
+                    <span class="color-dot" style="background: #1e3a5f;"></span> Navy
+                </div>
+            </div>
+        `;
+        colorMenu.style.cssText = `
+            display: none; position: fixed; z-index: 9999;
+            background: white; border: 1px solid #e2e8f0; border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15); padding: 6px 0;
+            min-width: 140px; font-family: inherit;
+        `;
+        document.body.appendChild(colorMenu);
+
+        // Add styles for menu
+        const menuStyle = document.createElement('style');
+        menuStyle.textContent = `
+            .color-menu-title { font-size: 0.65rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 14px 6px; }
+            .color-option { display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 0.82rem; cursor: pointer; transition: background 0.15s; font-weight: 600; }
+            .color-option:hover { background: #f1f5f9; }
+            .color-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #e2e8f0; flex-shrink: 0; }
+            .color-scroll-area { max-height: 200px; overflow-y: auto; }
+        `;
+        document.head.appendChild(menuStyle);
+
+        let targetRow = null;
+
+        // Right-click on any editable cell
+        document.addEventListener('contextmenu', function(e) {
+            const cell = e.target.closest('.edit-cell');
+            if (!cell) return;
+
+            e.preventDefault();
+            targetRow = cell.closest('tr');
+
+            colorMenu.style.display = 'block';
+            colorMenu.style.left = e.clientX + 'px';
+            colorMenu.style.top = e.clientY + 'px';
+
+            // Keep menu within viewport
+            const rect = colorMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) colorMenu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+            if (rect.bottom > window.innerHeight) colorMenu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+        });
+
+        // Select a color
+        colorMenu.addEventListener('click', function(e) {
+            const opt = e.target.closest('.color-option');
+            if (!opt || !targetRow) return;
+
+            const color = opt.dataset.color;
+            targetRow.style.color = color;
+
+            colorMenu.style.display = 'none';
+            targetRow = null;
+            scheduleSave();
+        });
+
+        // Close menu when clicking elsewhere
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#colorContextMenu')) {
+                colorMenu.style.display = 'none';
+            }
+        });
+
         // Beginning Balance Auto-Save
         document.querySelectorAll('.inline-edit-input').forEach(input => {
             input.addEventListener('input', function() {
@@ -869,6 +1135,7 @@
                     sl_balance: row.querySelector('.sl-bal-col')?.innerText.trim() || '',
                     sl_wop: row.querySelector('.sl-wop-col')?.innerText.trim() || '',
                     action_taken: row.querySelector('.action-col')?.innerText.trim() || '',
+                    text_color: row.style.color || '',
                 };
 
                 // Check if row actually has data typed into it

@@ -48,52 +48,60 @@ class LeaveCard extends Model
             ->orderBy('id', 'asc')
             ->get();
 
-        $runningVl = $this->vl_beginning_balance;
-        $runningSl = $this->sl_beginning_balance;
-        $vlUsedTotal = 0;
-        $slUsedTotal = 0;
-        $vlEarnedTotal = 0;
-        $slEarnedTotal = 0;
-
+        $runningVl = (float)($this->vl_beginning_balance ?? 0);
+        $runningSl = (float)($this->sl_beginning_balance ?? 0);
+        $runningCto = (float)($this->cto_beginning_balance ?? 0);
+        $vlUsedTotal = $slUsedTotal = $vlEarnedTotal = $slEarnedTotal = 0;
+        $ctoEarnedTotal = $ctoUsedTotal = 0;
+ 
         foreach ($allTransactions as $tx) {
             // Credits
             $vlEarned = (float)($tx->vl_earned ?? 0);
             $slEarned = (float)($tx->sl_earned ?? 0);
+            $ctoEarned = (float)($tx->cto_earned ?? 0);
             
             // Deductions
             $vlUsed = (float)($tx->vl_used ?? 0);
             $slUsed = (float)($tx->sl_used ?? 0);
-
+            $ctoUsed = (float)($tx->cto_used ?? 0);
+ 
             // Fallback for old system-generated/non-grid data if needed
-            if ($vlUsed == 0 && $slUsed == 0 && $vlEarned == 0 && $slEarned == 0) {
+            if ($vlUsed == 0 && $slUsed == 0 && $vlEarned == 0 && $slEarned == 0 && $ctoEarned == 0 && $ctoUsed == 0) {
                 $code = $tx->leaveType ? $tx->leaveType->code : '';
                 $days = (float)($tx->days ?? 0);
                 if ($tx->transaction_type === 'earned') {
                     if ($code === 'VL') { $vlEarned = $days; }
                     elseif ($code === 'SL') { $slEarned = $days; }
+                    elseif ($code === 'CTO') { $ctoEarned = $days; }
                 } elseif ($tx->transaction_type === 'used') {
                     if (in_array($code, ['VL', 'FL'])) { $vlUsed = $days; }
                     elseif ($code === 'SL') { $slUsed = $days; }
+                    elseif ($code === 'CTO') { $ctoUsed = $days; }
                 }
             }
-
+ 
             $hasVlActivity = ($vlEarned != 0 || $vlUsed != 0);
             $hasSlActivity = ($slEarned != 0 || $slUsed != 0);
-
+            $hasCtoActivity = ($ctoEarned != 0 || $ctoUsed != 0);
+ 
             $runningVl += $vlEarned - $vlUsed;
             $runningSl += $slEarned - $slUsed;
+            $runningCto += $ctoEarned - $ctoUsed;
             
             $vlEarnedTotal += $vlEarned;
             $slEarnedTotal += $slEarned;
             $vlUsedTotal += $vlUsed;
             $slUsedTotal += $slUsed;
-
+            $ctoEarnedTotal += $ctoEarned;
+            $ctoUsedTotal += $ctoUsed;
+ 
             $tx->update([
                 'vl_balance_after' => $hasVlActivity ? $runningVl : null,
                 'sl_balance_after' => $hasSlActivity ? $runningSl : null,
+                'cto_balance_after' => $hasCtoActivity ? $runningCto : null,
             ]);
         }
-
+ 
         $this->update([
             'vl_earned' => $vlEarnedTotal,
             'sl_earned' => $slEarnedTotal,
@@ -101,6 +109,7 @@ class LeaveCard extends Model
             'sl_used' => $slUsedTotal,
             'vl_balance' => $runningVl,
             'sl_balance' => $runningSl,
+            'cto_balance' => $runningCto,
         ]);
     }
 }

@@ -12,12 +12,13 @@ class LeaveTransaction extends Model
     protected $fillable = [
         'employee_id', 'leave_card_id', 'leave_type_id',
         'transaction_date',
-        'period',
+        'period', 'cto_title',
         'transaction_type', 'days',
         'vl_balance_after', 'sl_balance_after', 'remarks', 'encoded_by',
         'vl_earned', 'vl_used', 'vl_wop', 'vl_wop_reason',
         'sl_earned', 'sl_used', 'sl_wop', 'sl_wop_reason',
-        'action_taken', 'leave_application_id'
+        'action_taken', 'leave_application_id', 'text_color',
+        'cto_earned', 'cto_used', 'cto_balance_after'
     ];
 
     protected $casts = [
