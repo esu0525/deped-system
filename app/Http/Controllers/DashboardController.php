@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\LeaveApplication;
-use App\Models\AiDetectionLog;
 use App\Models\AuditTrail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +16,6 @@ class DashboardController extends Controller
         $totalApplications = LeaveApplication::count();
         $pendingCount = LeaveApplication::where("status", "Pending")->count();
         
-        $suspiciousAlerts = AiDetectionLog::with("employee")
-            ->where("is_reviewed", false)
-            ->where("risk_level", "!=", "Low")
-            ->latest()
-            ->take(5)
-            ->get();
-
         $recentActivity = AuditTrail::latest()->take(10)->get();
 
         $monthlySummary = [];
@@ -46,9 +38,9 @@ class DashboardController extends Controller
             "totalEmployees",
             "totalApplications",
             "pendingCount",
-            "suspiciousAlerts",
             "recentActivity",
             "monthlySummary"
         ));
     }
 }
+

@@ -299,7 +299,8 @@ class LeaveCardService
         $approverSign = explode(' ', trim($approverName))[0];
 
         foreach ($application->details as $detail) {
-            $title = trim(($detail->cto_title ?? '') . ' ' . ($detail->inclusive_dates ?? '')) ?: 'Untitled';
+            $formattedDates = $detail->inclusive_dates ? $detail->inclusive_dates : "";
+            $title = trim($formattedDates . ' ' . ($detail->cto_title ?? '')) ?: 'Untitled';
             $earned = floatval($detail->cto_earned_days);
             $used = floatval($detail->num_days);
 

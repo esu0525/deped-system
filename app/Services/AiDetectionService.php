@@ -29,138 +29,86 @@ class AiDetectionService
         $allDetails = $applications->pluck('details')->flatten()->values();
         for ($i = 0; $i < count($allDetails); $i++) {
             for ($j = $i + 1; $j < count($allDetails); $j++) {
-                $d1 = $allDetails[$i];
-                $d2 = $allDetails[$j];
-
-                // Skip if both rows belong to the same parent application
-                if ($d1->leave_application_id === $d2->leave_application_id)
-                    continue;
-
-                // Also skip if it's using the "placeholder" dates (date_from == filing_date)
-                $app1 = $d1->leaveApplication;
-                $app2 = $d2->leaveApplication;
-
-                if ($app1 && $d1->date_from->isSameDay($app1->date_filed))
-                    continue;
-                if ($app2 && $d2->date_from->isSameDay($app2->date_filed))
-                    continue;
-
+                $d1 = $allDetails[$i]; $d2 = $allDetails[$j];
+                if ($d1->leave_application_id === $d2->leave_application_id) continue;
+                $app1 = $d1->leaveApplication; $app2 = $d2->leaveApplication;
+                if ($app1 && $d1->date_from->isSameDay($app1->date_filed)) continue;
+                if ($app2 && $d2->date_from->isSameDay($app2->date_filed)) continue;
                 if ($d1->date_from <= $d2->date_to && $d2->date_from <= $d1->date_to) {
                     $overlappingCount++;
                 }
             }
         }
-
         if ($overlappingCount > 0) {
             $flags[] = "Detected {$overlappingCount} overlapping date-entries with separate records";
             $score += 40;
         }
 
-        // Check 2: Filing Deadlines
+        // Check 2: Filing Deadlines (Based on CSC Form 6 Instructions)
         $deadlineViolations = 0;
         foreach ($applications as $app) {
             $dateFiled = Carbon::parse($app->date_filed);
             $dateFrom = Carbon::parse($app->date_from);
-
-            // Skip checks if the date_from is placeholder (equal to filing_date)
-            if ($dateFrom->isSameDay($dateFiled))
-                continue;
+            if ($dateFrom->isSameDay($dateFiled)) continue; // Skip placeholders
 
             $code = $app->leaveType->code ?? '';
             $daysDiff = $dateFiled->diffInDays($dateFrom, false);
 
             if ($code === 'VL' && $daysDiff < 5) {
-                $flags[] = "VL filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 5)";
+                $flags[] = "VL filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 5 days advance)";
                 $deadlineViolations++;
             }
             elseif ($code === 'SPL' && $daysDiff < 7) {
-                $flags[] = "SPL filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 7)";
+                $flags[] = "SPL filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 1 week advance)";
                 $deadlineViolations++;
             }
             elseif ($code === 'SOLO' && $daysDiff < 5) {
-                $flags[] = "Solo Parent Leave filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 5)";
+                $flags[] = "Solo Parent Leave filed late on {$app->date_filed->format('m/d/Y')} ({$daysDiff} days notice instead of 5 days advance)";
                 $deadlineViolations++;
             }
         }
         if ($deadlineViolations > 0)
-            $score += min($deadlineViolations * 10, 30);
+            $score += min($deadlineViolations * 15, 45);
 
-        // Check 3: Frequent Monday/Friday (potential long weekend abuse)
-        $mondayFridayCount = $applications->filter(function ($app) {
-            $from = Carbon::parse($app->date_from);
-            $dateFiled = Carbon::parse($app->date_filed);
-            // Skip placeholders
-            if ($from->isSameDay($dateFiled))
-                return false;
-            return $from->isMonday() || $from->isFriday();
-        })->count();
-
-        if ($mondayFridayCount >= 8) {
-            $flags[] = 'Frequent Monday/Friday leaves (' . $mondayFridayCount . ' occurrences)';
-            $score += min($mondayFridayCount * 3, 15);
-        }
-
-        // Check 4: Consecutive short leaves (splitting)
-        $shortLeaves = $applications->filter(fn($app) => $app->num_days <= 1)->count();
-        if ($shortLeaves >= 12) {
-            $flags[] = 'High frequency of single-day leaves (' . $shortLeaves . ' occurrences)';
-            $score += min($shortLeaves * 2, 10);
-        }
-
-        // Check 5: Leave near holidays
-        $nearHolidayCount = $this->checkNearHolidayLeaves($applications);
-        if ($nearHolidayCount >= 5) {
-            $flags[] = 'Leaves frequently taken near holidays (' . $nearHolidayCount . ' occurrences)';
-            $score += min($nearHolidayCount * 5, 15);
-        }
-
-        // Check 6: Sick leave without documentation (Target: > 5 days as per image)
+        // Check 3: Sick Leave Documentation (Target: > 5 days or if filed in advance)
         $undocumentedSL = $applications->filter(function ($app) {
-            return $app->leaveType && $app->leaveType->code === 'SL'
-            && $app->num_days > 5
-            && !$app->attachment;
+            if (!$app->leaveType || $app->leaveType->code !== 'SL') return false;
+            $dateFiled = Carbon::parse($app->date_filed);
+            $dateFrom = Carbon::parse($app->date_from);
+            $isFileInAdvance = $dateFiled->lt($dateFrom);
+            
+            return ($app->num_days > 5 || $isFileInAdvance) && !$app->attachment;
         })->count();
 
         if ($undocumentedSL > 0) {
-            $flags[] = 'Sick Leave exceeding 5 days without documentation (' . $undocumentedSL . ' occurrences)';
-            $score += $undocumentedSL * 20;
+            $flags[] = 'Sick Leave (exceeding 5 days or filed in advance) lacking medical certificate (' . $undocumentedSL . ' occurrences)';
+            $score += $undocumentedSL * 25;
         }
 
-        // Check 7: Yearly Leave Type Limits
-        $currentYear = now()->year;
-        $leaveTypeUsage = $applications->filter(fn($app) => Carbon::parse($app->date_from)->year == $currentYear)
-            ->groupBy(fn($app) => $app->leaveType->code ?? '')
-            ->map(fn($group) => $group->sum('num_days'));
-
-        $limits = [
-            'FL' => 5,
-            'SPL' => 3,
-            'SOLO' => 7,
-            'CAL' => 5,
-        ];
-
-        foreach ($limits as $code => $limit) {
-            $usage = $leaveTypeUsage->get($code, 0);
-            if ($usage > $limit) {
-                $flags[] = "Exceeded yearly limit for {$code} (Used: {$usage} days, Limit: {$limit} days)";
-                $score += ($usage - $limit) * 15; // Significant penalty for exceeding limits
+        // Check 4: Sequential Filing after Rejection
+        $rejections = LeaveApplication::where('employee_id', $employee->id)->where('status', 'Rejected')->where('updated_at', '>=', now()->subMonths(3))->get();
+        $sequentialRejections = 0;
+        foreach ($applications as $app) {
+            foreach ($rejections as $rej) {
+                $timeDiff = $app->created_at->diffInDays($rej->updated_at);
+                if ($timeDiff >= 0 && $timeDiff <= 2) { $sequentialRejections++; }
             }
         }
+        if ($sequentialRejections > 0) {
+            $flags[] = "Application refiled shortly after a rejection ({$sequentialRejections} occurrences)";
+            $score += 20;
+        }
 
-        // Cap score at 100
-        $score = min($score, 100);
+        if ($score > 0 && $score < 100) { $score += rand(-3, 3); }
+        $score = max(0, min($score, 100));
 
-        // Determine risk level
         $riskLevel = match (true) {
-                $score >= 80 => 'High',
-                $score >= 50 => 'Medium',
-                default => 'Low',
-            };
+            $score >= 80 => 'High',
+            $score >= 50 => 'Medium',
+            default => 'Low',
+        };
 
-        // Generate reason summary
-        $reason = empty($flags)
-            ? 'No suspicious patterns detected. System considers this safe for approval.'
-            : 'Detected: ' . implode('; ', $flags);
+        $reason = empty($flags) ? 'No policy violations detected.' : 'Detected: ' . implode('; ', $flags);
 
         return AiDetectionLog::create([
             'employee_id' => $employee->id,

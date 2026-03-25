@@ -13,29 +13,40 @@
                 {!! $leaveApplication->status_badge !!}
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <div>
-                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Employee</label>
-                    <p style="font-weight: 700; font-size: 0.9rem; margin-top: 2px;">{{ $leaveApplication->employee->full_name }}</p>
-                </div>
-                <div>
-                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Dept/Position</label>
-                    <p style="font-size: 0.85rem; margin-top: 2px;">{{ $leaveApplication->employee->department->name ?? 'N/A' }} · {{ $leaveApplication->employee->position ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">{{ $hasCto ? 'Title' : 'Inclusive Dates' }}</label>
-                    <p style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">
-                        @if($hasCto)
-                            @php $ctoDetail = $leaveApplication->details->firstWhere(fn($d) => stripos($d->leaveType->name ?? '', 'CTO') !== false); @endphp
-                            {{ $ctoDetail->cto_title ?? 'Untitled' }}
-                        @else
-                            {{ $leaveApplication->details->first()->inclusive_dates ?? ($leaveApplication->date_from->format('M d') . ' - ' . $leaveApplication->date_to->format('M d, Y')) }}
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <label style="font-size: 0.68rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Total Days</label>
-                    <p style="font-weight: 800; color: var(--primary); font-size: 1.1rem; margin-top: 2px;">{{ $leaveApplication->num_days }} days</p>
+            <div style="background: white; border-radius: 16px; border: 1px solid #edf2f7; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <label style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Employee Name</label>
+                        <p style="font-weight: 800; font-size: 0.95rem; color: #1e293b; margin: 0;">{{ $leaveApplication->employee->full_name }}</p>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Department & Rank</label>
+                        <p style="font-size: 0.85rem; color: #475569; margin: 0; font-weight: 600;">{{ $leaveApplication->employee->department->name ?? 'N/A' }} <span style="color: #cbd5e1; margin: 0 4px;">|</span> {{ $leaveApplication->employee->position ?? 'N/A' }}</p>
+                    </div>
+                    <div style="grid-column: span 2; border-top: 1px solid #f1f5f9; padding-top: 15px; margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">{{ $hasCto ? 'CTO Source' : 'Primary Type' }}</label>
+                            <p style="font-weight: 700; font-size: 0.85rem; color: #1e293b; margin: 0; line-height: 1.3;">
+                                @if($hasCto)
+                                    @php $ctoDetail = $leaveApplication->details->firstWhere(fn($d) => stripos($d->leaveType->name ?? '', 'CTO') !== false); @endphp
+                                    {{ \Illuminate\Support\Str::limit($ctoDetail->cto_title ?? 'Untitled', 60, '...') }}
+                                @else
+                                    {{ $leaveApplication->details->first()->leaveType->name ?? 'N/A' }}
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Inclusive Dates</label>
+                            <p style="font-weight: 700; font-size: 0.85rem; color: #1e293b; margin: 0;">
+                                @php $firstWithDate = $leaveApplication->details->first(fn($d) => !empty($d->inclusive_dates)); @endphp
+                                {{ $firstWithDate->inclusive_dates ?? ($leaveApplication->date_from->format('M d') . ' - ' . $leaveApplication->date_to->format('M d, Y')) }}
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <label style="font-size: 0.65rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Total Volume</label>
+                            <p style="font-weight: 900; color: var(--primary); font-size: 1.25rem; margin: 0;">{{ (float)$leaveApplication->num_days }} <span style="font-size: 0.7rem; font-weight: 700; color: #64748b;">DAYS</span></p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -60,7 +71,18 @@
                             @php $isCtoRow = stripos($detail->leaveType->name ?? '', 'CTO') !== false; @endphp
                             <tr>
                                 <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">{{ $detail->leaveType->name ?? ($detail->other_type ?: 'N/A') }}</td>
-                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">{{ $isCtoRow ? ($detail->cto_title ?: ($detail->inclusive_dates ?: '—')) : $detail->inclusive_dates }}</td>
+                                <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">
+                                    @if($isCtoRow)
+                                        {{ \Illuminate\Support\Str::limit($detail->cto_title ?: 'Untitled', 80, '...') }}
+                                        @if($detail->inclusive_dates)
+                                            <div style="font-size: 0.7rem; color: var(--secondary); margin-top: 2px;">
+                                                <i class="far fa-calendar-alt"></i> {{ $detail->inclusive_dates }}
+                                            </div>
+                                        @endif
+                                    @else
+                                        {{ $detail->inclusive_dates }}
+                                    @endif
+                                </td>
                                 @if(!$hasCto)
                                     <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9;">
                                         <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
@@ -110,65 +132,36 @@
 
         <!-- Right Column: AI Insights & Actions -->
         <div>
-            @if(isset($aiLog) && $leaveApplication->status === 'Pending')
-            <div style="border: 1px solid {{ $aiLog->risk_level === 'High' ? '#ef4444' : ($aiLog->risk_level === 'Medium' ? '#f59e0b' : '#10b981') }}; background: {{ $aiLog->risk_level === 'High' ? '#fef2f2' : ($aiLog->risk_level === 'Medium' ? '#fffbeb' : '#f0fdf4') }}; padding: 12px; border-radius: 12px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h6 style="font-weight: 700; color: {{ $aiLog->risk_level === 'High' ? '#b91c1c' : ($aiLog->risk_level === 'Medium' ? '#b45309' : '#15803d') }}; margin-bottom: 0; font-size: 0.75rem;">
-                        <i class="fas fa-microchip"></i> AI INSIGHTS
-                    </h6>
-                    <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: {{ $aiLog->risk_level === 'High' ? '#ef4444' : ($aiLog->risk_level === 'Medium' ? '#f59e0b' : '#10b981') }}; color: white; font-weight: 700;">
-                        {{ $aiLog->risk_level }}
-                    </span>
-                </div>
-                
-                @if(!empty($aiLog->suspicious_flags))
-                <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.65rem;">
-                    @foreach($aiLog->suspicious_flags as $flag)
-                    <li style="margin-bottom: 4px; display: flex; gap: 6px; align-items: flex-start; color: {{ $aiLog->risk_level === 'High' ? '#991b1b' : '#4b5563' }};">
-                        <i class="fas fa-triangle-exclamation" style="margin-top: 1px;"></i>
-                        <span>{{ $flag }}</span>
-                    </li>
-                    @endforeach
-                </ul>
-                @else
-                <p style="font-size: 0.7rem; color: #15803d; font-weight: 600; margin: 0;">No issues detected.</p>
-                @endif
-            </div>
-            @endif
-
             @if($leaveApplication->status === 'Pending' && auth()->user()->canApproveLeave())
-            <div style="background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px;">
-                <h6 style="font-weight: 700; margin-bottom: 10px; font-size: 0.75rem;"><i class="fas fa-gavel"></i> DECISION</h6>
-                <form id="modalApproveForm" action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" style="margin-bottom: 8px;">
+            <div style="background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+                <h6 style="font-weight: 700; margin-bottom: 12px; font-size: 0.75rem;"><i class="fas fa-gavel"></i> DECISION</h6>
+                <form id="modalApproveForm" action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" style="margin-bottom: 10px;">
                     @csrf
-                    <textarea name="remarks" class="form-control" rows="2" placeholder="Admin remarks..." style="font-size: 0.75rem; margin-bottom: 8px; border-radius: 8px;"></textarea>
-                    <button type="submit" class="btn btn-success" style="width: 100%; font-size: 0.8rem; padding: 10px;">
+                    <textarea name="remarks" class="form-control" rows="2" placeholder="Admin remarks..." style="font-size: 0.75rem; margin-bottom: 10px; border-radius: 8px;"></textarea>
+                    <button type="submit" class="btn btn-success" style="width: 100%; font-size: 0.82rem; padding: 10px; font-weight: 700;">
                         <i class="fas fa-check"></i> Approve Application
                     </button>
                 </form>
                 <form id="modalRejectForm" action="{{ route('leave-applications.reject', $leaveApplication) }}" method="POST">
                     @csrf
                     <input type="hidden" name="remarks" id="modalRejectRemarks">
-                    <button type="button" class="btn btn-danger" style="width: 100%; font-size: 0.8rem; padding: 10px;" onclick="confirmModalReject()">
+                    <button type="button" class="btn btn-danger" style="width: 100%; font-size: 0.82rem; padding: 10px; font-weight: 700;" onclick="confirmModalReject()">
                         <i class="fas fa-times"></i> Reject
                     </button>
                 </form>
             </div>
             @else
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; font-size: 0.75rem;">
-                <div style="margin-bottom: 8px;">
-                    <span style="color: var(--secondary);">Status:</span> {!! $leaveApplication->status_badge !!}
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; font-size: 0.75rem;">
+                <div style="margin-bottom: 10px;">
+                    <span style="color: var(--secondary); font-weight: 600;">Current Status:</span> {!! $leaveApplication->status_badge !!}
                 </div>
                 <div>
-                    <span style="color: var(--secondary);">Admin Remarks:</span>
-                    <p style="margin-top: 4px; font-style: italic;">{{ $leaveApplication->remarks ?: 'No remarks.' }}</p>
+                    <span style="color: var(--secondary); font-weight: 600;">Admin Remarks:</span>
+                    <p style="margin-top: 5px; font-style: italic; color: #475569;">{{ $leaveApplication->remarks ?: 'No remarks provided.' }}</p>
                 </div>
             </div>
             @endif
 
-            <div style="margin-top: 15px; text-align: center;">
-                <button type="button" class="btn btn-secondary" style="font-size: 0.8rem; width: 100%; border-radius: 10px;" data-bs-dismiss="modal">Close</button>
-            </div>
         </div>
     </div>
 </div>

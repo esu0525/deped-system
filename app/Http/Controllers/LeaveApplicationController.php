@@ -17,17 +17,14 @@ class LeaveApplicationController extends Controller
 {
     protected LeaveCardService $leaveCardService;
     protected MailService $mailService;
-    protected \App\Services\AiDetectionService $aiService;
 
     public function __construct(
         LeaveCardService $leaveCardService,
-        MailService $mailService,
-        \App\Services\AiDetectionService $aiService
+        MailService $mailService
         )
     {
         $this->leaveCardService = $leaveCardService;
         $this->mailService = $mailService;
-        $this->aiService = $aiService;
     }
 
     public function index(Request $request)
@@ -241,19 +238,15 @@ class LeaveApplicationController extends Controller
         return redirect()->route('leave-applications.index')->with('success', 'Leave application submitted successfully.');
     }
 
-    public function show(Request $request, LeaveApplication $leaveApplication)
+    public function show(LeaveApplication $leaveApplication, Request $request)
     {
         $leaveApplication->load(['employee.department', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
 
-        $aiLog = (auth()->user()->hasRole(['super_admin', 'hr_admin']))
-            ? $this->aiService->analyze($leaveApplication->employee)
-            : null;
-
         if ($request->ajax()) {
-            return view('leave-applications.partials.show-modal', compact('leaveApplication', 'aiLog'));
+            return view('leave-applications.partials.show-modal', compact('leaveApplication'));
         }
 
-        return view('leave-applications.show', compact('leaveApplication', 'aiLog'));
+        return view('leave-applications.show', compact('leaveApplication'));
     }
 
     public function edit(LeaveApplication $leaveApplication)

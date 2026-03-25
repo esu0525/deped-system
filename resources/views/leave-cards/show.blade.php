@@ -80,7 +80,7 @@
             $pageCount = count($pages);
             $isFront = ($pageCount % 2 === 0);
             $maxRows = $isFront ? $FRONT_DATA_ROWS : $BACK_DATA_ROWS;
-            $maxSlots = $maxRows - 1; // 1 for the balance/carried row
+            $maxSlots = ($tab === 'cto') ? $maxRows : $maxRows - 1; // 1 for the balance/carried row
             
             $itemsForPage = [];
             $slotsUsed = 0;
@@ -93,9 +93,13 @@
                 $isC = stripos($p, 'CTO') !== false;
                 $isL = strpos(strtoupper($p), 'LESS') !== false;
                 
-                // Estimate slots. CTO spans 7 cols, so it can handle ~100 chars per line
+                // Estimate slots. Must exactly match the rendering phase logic.
                 if ($isC) {
-                    $s = max($s, ceil(strlen($p) / 100));
+                    $cleanText = preg_replace('/\s\d+(\.\d+)?\sday(s)?$/i', '', $p);
+                    $len = strlen($cleanText);
+                    if ($len > 85) {
+                        $s = 2; // Hard cap at 2 slots for CTO
+                    }
                 } else if ($isL) {
                     $s = max($s, ceil(strlen($p . ' ' . $r) / 40));
                 } else {
@@ -189,6 +193,21 @@
 
         <div style="overflow-x: auto;">
             <table class="leave-card-table">
+                @if($tab === 'cto')
+                <colgroup>
+                    <col style="width: 10%;">
+                    <col style="width: 14%;">
+                    <col style="width: 8%;">
+                    <col style="width: 8%;">
+                    <col style="width: 8%;">
+                    <col style="width: 8%;">
+                    <col style="width: 8%;">
+                    <col style="width: 7%;">
+                    <col style="width: 7%;">
+                    <col style="width: 7%;">
+                    <col style="width: 15%;">
+                </colgroup>
+                @else
                 <colgroup>
                     <col style="width: 13%;">
                     <col style="width: 16%;">
@@ -202,6 +221,7 @@
                     <col style="width: 7%;">
                     <col style="width: 15%;">
                 </colgroup>
+                @endif
                 <thead>
                     <tr>
                         <th rowspan="2">PERIOD</th>
@@ -235,9 +255,10 @@
                 <tbody>
                     @if($page['is_very_first'] && $tab !== 'cto')
                         <tr style="height: 19px; background: #fffbeb;">
-                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0;">
-                                <div class="bleed-content" style="padding: 2px 4px 1px 10px; white-space: nowrap !important; word-break: normal !important; overflow: visible !important;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
+                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0; overflow: visible;">
+                                <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; white-space: nowrap; pointer-events: none; overflow: visible;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
                             </td>
+                            <td></td>
                             <td></td><td></td>
                             <td class="bal-cell" style="padding: 1.5px 2px; vertical-align: middle;">
                                 <span class="no-print">
@@ -295,9 +316,10 @@
                             }
                         @endphp
                         <tr class="carried-row tx-row-print" style="height: 19px; background: #fafafa;">
-                            <td colspan="2" class="date-col bleed-cell" style="font-weight: 700; font-size: 0.68rem; vertical-align: top; position: relative; padding: 0;">
-                                <div class="bleed-content" style="padding: 2px 4px 1px 10px;">{{ $carriedDate }} {{ $pageIndex > 0 ? 'CARRIED OVER' : '' }}</div>
+                            <td class="date-col" style="font-weight: 700; font-size: 0.68rem; vertical-align: top; position: relative; padding: 0; overflow: visible;">
+                                <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; white-space: nowrap; pointer-events: none; overflow: visible;">BAL. AS OF: {{ $carriedDate }}</div>
                             </td>
+                            <td></td>
                             <td></td><td></td>
                             <td class="bal-cell" style="padding: 1.5px 2px; font-weight: 700; vertical-align: middle;">
                                 {{ number_format($carriedVl, 5) }}
@@ -329,8 +351,26 @@
                             $swR = $item['sl_wop_reason'] ?? '';
                                 $isCtoRow = stripos($periodText, 'CTO') !== false;
                                 $itSlots = 1;
+                                
+                                $ctoPrintFontSize = '0.7rem';
+                                $ctoScreenFontSize = '0.85rem';
+
                                 if ($isCtoRow) {
-                                    $itSlots = max($itSlots, ceil(strlen($periodText) / 100));
+                                    $cleanText = preg_replace('/\s\d+(\.\d+)?\sday(s)?$/i', '', $periodText);
+                                    $len = strlen($cleanText);
+                                    
+                                    if ($len <= 85) {
+                                        $itSlots = 1;
+                                    } else {
+                                        $itSlots = 2; // Hard cap at 2 lines
+                                        $maxLength = 175; // Capacity for 2 natural lines before font shrink is required
+                                        if ($len > $maxLength) { 
+                                            // Shrink font precisely using area scaling to prevent excessive empty vertical space
+                                            $ratio = pow($maxLength / $len, 0.55);
+                                            $ctoPrintFontSize = round(0.71 * $ratio, 3) . 'rem';
+                                            $ctoScreenFontSize = round(0.85 * $ratio, 3) . 'rem';
+                                        }
+                                    }
                                 } else if ($isLess) {
                                     $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 40));
                                 } else {
@@ -343,31 +383,32 @@
                                 // Each slot is exactly 19px to match a full row size
                                 $rowHeight = 19 * $itSlots;
                         @endphp
-                        <tr class="tx-row tx-row-print" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px; {{ $textColor }}">
+                        <tr class="tx-row tx-row-print cto-row" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px; {{ $textColor }}">
                             @if($isCtoRow)
                                 {{-- 7 Columns (Period -> Title) with bleeding text --}}
-                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
-                                    <div style="position: absolute; left: 10px; top: 0; width: calc(488%); z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
+                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0; overflow: visible;" contenteditable="true">
+                                    <div class="cto-bleed-text" style="--screen-fs: {{ $ctoScreenFontSize }}; --print-fs: {{ $ctoPrintFontSize }}; position: absolute; left: 10px; top: 0; width: 640%; z-index: 10; padding: 2px 4px 1px 0; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
                                         {{ preg_replace('/\s\d+(\.\d+)?\sday(s)?$/i', '', $periodText) }}
                                     </div>
                                 </td>
                                 <td></td> {{-- Particulars --}}
-                                <td></td> {{-- Title 1 --}}
-                                <td></td> {{-- Title 2 --}}
-                                <td></td> {{-- Title 3 --}}
-                                <td></td> {{-- Title 4 --}}
-                                <td></td> {{-- Title 5 --}}
+                                <td class="cto-title-cell cto-title-first"></td> {{-- Title 1 --}}
+                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 2 --}}
+                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 3 --}}
+                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 4 --}}
+                                <td class="cto-title-cell cto-title-last"></td> {{-- Title 5 --}}
                                 
                                 <td class="num-cell">{{ ($item['cto_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_earned'], 3), '0'), '.') : '' }}</td>
                                 <td class="num-cell">{{ ($item['cto_used'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_used'], 3), '0'), '.') : '' }}</td>
                                 <td class="bal-cell" style="font-weight: 700;">{{ rtrim(rtrim(number_format($item['cto_balance_after'] ?? 0, 3), '0'), '.') }}</td>
                                 <td class="date-taken-col edit-cell" style="font-size: 0.65rem; vertical-align: middle; text-align: center;" contenteditable="true">{{ $item['action_taken'] ?? '' }}</td>
                             @elseif($isLess)
-                                <td colspan="2" class="edit-cell date-col bleed-cell" style="font-weight: 600; vertical-align: top; position: relative; padding: 0;" contenteditable="true">
-                                    <div class="bleed-content" style="padding: 2px 4px 1px 10px; line-height: 19px; min-height: 19px;">
+                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0; overflow: visible;" contenteditable="true">
+                                    <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
                                         {{ $periodText }} &nbsp; <span style="font-size: 0.9em; font-weight: 500;">{{ $remarksText }}</span>
                                     </div>
                                 </td>
+                                <td></td>
                             @else
                                 <td class="edit-cell date-col" style="{{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $periodText }}</td>
                                 <td class="edit-cell particulars-col" style="{{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $remarksText }}</td>
@@ -406,12 +447,29 @@
 
                     {{-- Fill empty rows to maintain card height --}}
                     @php
-                        // Empty slots needed is max - slots used
-                        $maxRows = $page['show_header'] ? $FRONT_DATA_ROWS - 1 : $BACK_DATA_ROWS - 1;
+                        // Form 6 uses 1 row for 'BAL AS OF' or 'Cont.' at the top, so we subtract 1.
+                        // CTO doesn't have this header row, so it uses the full count.
+                        $reservedHeaderRow = ($tab === 'cto') ? 0 : 1;
+                        $maxRows = $page['show_header'] ? $FRONT_DATA_ROWS - $reservedHeaderRow : $BACK_DATA_ROWS - $reservedHeaderRow;
                         $emptyRowsNeeded = $maxRows - $page['slots_used'];
                         if ($emptyRowsNeeded < 0) $emptyRowsNeeded = 0;
                     @endphp
                     @for($i = 0; $i < $emptyRowsNeeded; $i++)
+                        @if($tab === 'cto')
+                        <tr class="tx-row empty-row tx-row-print" style="height: 19px;">
+                            <td class="edit-cell date-col" contenteditable="true"></td>
+                            <td class="edit-cell particulars-col" contenteditable="true"></td>
+                            <td class="cto-title-cell cto-title-first edit-cell" contenteditable="true"></td>
+                            <td class="cto-title-cell cto-title-inner edit-cell" contenteditable="true"></td>
+                            <td class="cto-title-cell cto-title-inner edit-cell" contenteditable="true"></td>
+                            <td class="cto-title-cell cto-title-inner edit-cell" contenteditable="true"></td>
+                            <td class="cto-title-cell cto-title-last edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="num-cell edit-cell" contenteditable="true"></td>
+                            <td class="bal-cell edit-cell" contenteditable="true"></td>
+                            <td class="edit-cell action-col" contenteditable="true"></td>
+                        </tr>
+                        @else
                         <tr class="tx-row empty-row tx-row-print" style="height: 19px;">
                             <td class="edit-cell date-col" contenteditable="true"></td>
                             <td class="edit-cell particulars-col" contenteditable="true"></td>
@@ -425,6 +483,7 @@
                             <td class="num-cell edit-cell sl-wop-col" contenteditable="true"></td>
                             <td class="edit-cell action-col" contenteditable="true"></td>
                         </tr>
+                        @endif
                     @endfor
                 </tbody>
             </table>
@@ -510,7 +569,7 @@
 
     .leave-card-table th,
     .leave-card-table td {
-        border: 1.5px solid #334155;
+        border: 1px solid #334155;
         padding: 6px 8px;
         text-align: center;
         vertical-align: middle;
@@ -536,15 +595,24 @@
         outline: none;
     }
 
-    .bleed-cell::after {
-        content: '';
-        position: absolute;
-        left: 44.82%; /* Precision: 13 / (13 + 16) */
-        top: 0;
-        bottom: 0;
-        width: 1.5px;
-        background: #334155;
-        z-index: 1;
+    /* bleed-cell no longer used - real table borders handle the line */
+
+    /* CTO Rows: hide internal borders between the 5 title-area cells only */
+    .leave-card-table tbody td.cto-title-inner {
+        border-right: none !important;
+        border-left: none !important;
+    }
+    .leave-card-table tbody td.cto-title-first {
+        border-right: none !important;
+    }
+    .leave-card-table tbody td.cto-title-last {
+        border-left: none !important;
+    }
+
+    /* Screen styling for CTO bleed text */
+    .cto-bleed-text {
+        font-size: var(--screen-fs, 0.85rem) !important;
+        line-height: 1.25 !important;
     }
 
     /* CTO Bleed (Spans 7 columns: Period + Particulars + 5 title cols) */
@@ -554,7 +622,7 @@
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 1.5px;
+        width: 1px;
         background: #334155;
         z-index: 1;
     }
@@ -756,10 +824,24 @@
             position: relative !important;
         }
 
-        .leave-card-table .date-col div {
+        /* CTO rows: text bleeds across 7 columns (~63% of table width) */
+        .leave-card-table .date-col .cto-bleed-text {
             position: absolute !important;
-            width: calc(488%) !important;
-            overflow: visible !important;
+            width: 620% !important;
+            overflow: hidden !important;
+            z-index: 100 !important;
+            display: block !important;
+            pointer-events: none;
+            background: transparent !important;
+            font-size: var(--print-fs, 0.7rem) !important;
+            line-height: 1.15 !important;
+        }
+
+        /* LESS/BAL rows: text bleeds across Period+Particulars only (~24% of table width) */
+        .leave-card-table .date-col .bleed-text {
+            position: absolute !important;
+            width: 240% !important;
+            overflow: hidden !important;
             z-index: 100 !important;
             display: block !important;
             pointer-events: none;
@@ -825,6 +907,12 @@
             box-sizing: border-box !important;
         }
 
+        /* Prevent background colors from overwriting adjacent borders due to Chrome sub-pixel printing bugs */
+        .leave-card-table tbody td.bal-cell,
+        .leave-card-table tbody tr.beginning-row {
+            background: transparent !important;
+        }
+
         .tx-row-print {
             height: 19px; /* This is the minimal slot height for data rows */
         }
@@ -845,18 +933,27 @@
             display: none !important;
         }
 
+        .leave-card-table tbody td.cto-title-inner {
+            border-right: none !important;
+            border-left: none !important;
+        }
+        .leave-card-table tbody td.cto-title-first {
+            border-right: none !important;
+        }
+        .leave-card-table tbody td.cto-title-last {
+            border-left: none !important;
+        }
+
         .leave-card-table .date-col,
-        .leave-card-table .particulars-col,
-        .bleed-content {
+        .leave-card-table .particulars-col {
             white-space: normal !important;
             word-wrap: break-word !important;
             word-break: break-all !important;
             overflow-wrap: anywhere !important;
         }
 
-        .bleed-cell::after {
-            background: #000 !important;
-            width: 1px !important;
+        .leave-card-table .date-col {
+            overflow: visible !important;
         }
     }
 

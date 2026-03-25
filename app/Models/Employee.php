@@ -68,16 +68,6 @@ class Employee extends Model
         return $this->hasMany(LeaveTransaction::class);
     }
 
-    public function aiDetectionLogs()
-    {
-        return $this->hasMany(AiDetectionLog::class)->latest();
-    }
-
-    public function latestAiLog()
-    {
-        return $this->hasOne(AiDetectionLog::class)->latest();
-    }
-
     // Helpers
     public function getProfilePictureUrlAttribute(): string
     {

@@ -903,10 +903,13 @@
                 if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
             } else if (isCto) {
                 if (daysLabel) daysLabel.textContent = "No. of Days";
-                if (rowGrid) rowGrid.style.gridTemplateColumns = '1.8fr 1.6fr 1.2fr 1.2fr';
                 
-                datesTextInput.closest('.form-group').style.display = 'none';
-                datesTextInput.removeAttribute('required');
+                // Show 5 columns if earned credits is visible, otherwise 4
+                const isEarnedShown = ctoEarnedWrapper && ctoEarnedWrapper.style.display !== 'none';
+                if (rowGrid) rowGrid.style.gridTemplateColumns = isEarnedShown ? '1.5fr 1.5fr 2fr 1fr 1fr' : '1.5fr 1.5fr 2fr 1fr';
+                
+                datesTextInput.closest('.form-group').style.display = '';
+                datesTextInput.setAttribute('required', 'required');
                 
                 payStatusWrapper.style.display = 'none';
                 daysWrapper.style.display = '';
@@ -932,6 +935,10 @@
                             ctoEarnedWrapper.style.display = '';
                             ctoEarnedWrapper.querySelector('input').setAttribute('required', 'required');
                         }
+                    }
+                    if (rowGrid) {
+                        const isEarnedShown = ctoEarnedWrapper && ctoEarnedWrapper.style.display !== 'none';
+                        rowGrid.style.gridTemplateColumns = isEarnedShown ? '1.5fr 1.5fr 2fr 1fr 1fr' : '1.5fr 1.5fr 2fr 1fr';
                     }
                 }
                 
@@ -1011,11 +1018,14 @@
             const typeInput = entry.querySelector('.entry-type');
             const typeName = (typeInput.value || '').trim();
             const isMonetization = typeName.toLowerCase().includes('50% monetization');
+            const isCtoRow = typeName.toLowerCase().includes('cto');
             
             const daysInput = entry.querySelector('.entry-days');
             const datesTextInput = entry.querySelector('.entry-dates-text');
             const payStatusSelect = entry.querySelector('.entry-pay-status');
             const reasonInput = entry.querySelector('.entry-lwop-reason');
+            const ctoTitleInput = entry.querySelector('.entry-cto-title');
+            const ctoTitle = ctoTitleInput ? (ctoTitleInput.value || '') : '';
 
             const days = parseFloat(daysInput.value) || 0;
             const isWop = payStatusSelect && payStatusSelect.value === "0";
@@ -1026,10 +1036,13 @@
 
             let dayDisplay = isMonetization ? 'HALF Bal' : `${days} ${days === 1 ? 'day' : 'days'}`;
 
+            const displayTitleForPreview = ctoTitle.length > 60 ? ctoTitle.substring(0, 60) + '...' : ctoTitle;
+            
             html += `<div class="entry-summary-row">
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <strong style="font-size: 0.8rem;">${typeName || 'Not Selected'}</strong>
+                        ${isCtoRow ? ' <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">(' + displayTitleForPreview + ')</span>' : ''}
                         ${isWop ? '<span style="color: #dc2626; font-size: 0.65rem; font-weight: 700;">(WOP)</span>' : ''}
                     </div>
                     <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">
