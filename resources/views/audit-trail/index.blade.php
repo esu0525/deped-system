@@ -4,25 +4,7 @@
 
 @section('content')
 <div class="animate-fade">
-    <div class="header-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-        <div class="tab-pill-container" style="display: flex; background: #f1f5f9; padding: 5px; border-radius: 12px; gap: 5px;">
-            <a href="{{ route('users.index') }}" 
-               class="tab-pill-item" 
-               style="padding: 10px 20px; text-decoration: none; color: #64748b; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-users"></i> USERS
-            </a>
-            <a href="#" 
-               class="tab-pill-item" 
-               style="padding: 10px 20px; text-decoration: none; color: #64748b; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; transition: all 0.2s; display: flex; align-items: center; gap: 8px; opacity: 0.6; cursor: not-allowed;">
-                <i class="fas fa-user-tag"></i> ROLES
-            </a>
-            <a href="{{ route('audit-trail.index') }}" 
-               class="tab-pill-item active" 
-               style="padding: 10px 20px; text-decoration: none; color: #1e293b; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-history"></i> AUDIT LOGS
-            </a>
-        </div>
-
+    <div class="header-container" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 25px;">
         <div style="margin-bottom: 8px;">
             <form id="filterForm" method="GET" action="{{ route('audit-trail.index') }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <div style="position: relative;">
@@ -118,7 +100,7 @@
         if (!url) {
             const formData = new FormData(form);
             const params = new URLSearchParams(formData);
-            url = `${form.action}?${params.toString()}`;
+            url = `${form.getAttribute('action')}?${params.toString()}`;
         }
 
         tableBody.style.opacity = '0.6';

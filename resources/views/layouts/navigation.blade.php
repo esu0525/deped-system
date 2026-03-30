@@ -40,14 +40,6 @@
                 </a>
             </li>
 
-            @if(auth()->user()->hasRole('super_admin'))
-            <li class="nav-item">
-                <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" data-tooltip="User Management">
-                    <i class="fas fa-user-shield"></i> <span class="nav-text">User Management</span>
-                </a>
-            </li>
-            @endif
-
             @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
             <li class="nav-item">
                 <a href="{{ route('employees.index') }}" class="nav-link {{ request()->routeIs('employees.*') ? 'active' : '' }}" data-tooltip="Employees">

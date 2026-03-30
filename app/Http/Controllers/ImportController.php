@@ -11,6 +11,7 @@ class ImportController extends Controller
 {
     public function importEmployees(Request $request)
     {
+        set_time_limit(600); // Set to 10 minutes
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:10240',
         ]);
