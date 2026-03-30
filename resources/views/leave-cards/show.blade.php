@@ -168,7 +168,7 @@
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
                 <p style="font-size: 0.8rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
-                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">{{ $tab === 'cto' ? 'Compensatory Time Off (CTO) Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
+                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">{{ $tab === 'cto' ? 'CTO Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem;">
@@ -227,7 +227,7 @@
                         <th rowspan="2">PERIOD</th>
                         <th rowspan="2">PARTICULARS</th>
                         @if($tab === 'cto')
-                            <th colspan="8" class="group-header cto-header" style="background: #f0fdf4; color: #166534;">Compensatory Time Off (CTO)</th>
+                            <th colspan="8" class="group-header cto-header" style="background: #f0fdf4; color: #166534;">CTO</th>
                         @else
                             <th colspan="4" class="group-header vl-header">Vacation Leave</th>
                             <th colspan="4" class="group-header sl-header">Sick Leave</th>

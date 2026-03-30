@@ -250,7 +250,7 @@
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.95rem; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
                 <p style="font-size: 0.82rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
-                <h3 style="font-weight: 800; font-size: 1.1rem; text-decoration: underline; text-transform: uppercase; letter-spacing: 1px;">COMPENSATORY TIME OFF (CTO) CARD NON-TEACHING PERSONNEL</h3>
+                <h3 style="font-weight: 800; font-size: 1.1rem; text-decoration: underline; text-transform: uppercase; letter-spacing: 1px;">CTO CARD NON-TEACHING PERSONNEL</h3>
             </div>
 
             {{-- Employee Info Fields (Same as main card) --}}
@@ -289,7 +289,7 @@
                         <tr>
                             <th rowspan="2">PERIOD</th>
                             <th rowspan="2">PARTICULARS</th>
-                            <th colspan="4" class="group-header" style="background: #ecfdf5; color: #065f46;">COMPENSATORY TIME OFF (CTO)</th>
+                            <th colspan="4" class="group-header" style="background: #ecfdf5; color: #065f46;">CTO</th>
                             <th rowspan="2">DATE & ACTION<br>TAKEN ON<br>APPL. FOR LEAVE</th>
                         </tr>
                         <tr>
