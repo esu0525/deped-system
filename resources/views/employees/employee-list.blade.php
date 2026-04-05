@@ -23,7 +23,7 @@
             <div class="form-group" style="margin-bottom: 0;">
                 <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, school, or position..." value="{{ request('search') }}" oninput="debouncedFilter()">
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
+            <div class="form-group" style="margin-bottom: 0;">   
                 <select name="status" class="form-control" onchange="fetchTable()">
                     <option value="">All Status</option>
                     <option value="Active" {{ request('status') == 'Active' ? 'selected' : '' }}>Active</option>
