@@ -6,19 +6,40 @@
 <div class="animate-fade">
     <div class="card glass animate-fade">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;">
-            <h4 style="font-weight: 700;">Employee Masterlist</h4>
+            <h4 style="font-weight: 700;">Employee Management</h4>
             <div style="display: flex; gap: 12px; align-items: center;">
-                <button type="button" class="btn btn-secondary" title="Export Masterlist" onclick="document.getElementById('exportFlag').value='true'; document.getElementById('filterForm').submit(); document.getElementById('exportFlag').value='';">
+                <button type="button" class="btn btn-secondary" title="Export List" onclick="document.getElementById('exportFlag').value='true'; document.getElementById('filterForm').submit(); document.getElementById('exportFlag').value='';">
                     <i class="fas fa-file-export"></i> Export
                 </button>
-                <button type="button" class="btn btn-primary" onclick="openCreateModal('{{ route('employees.create') }}')" title="Add New Employee">
-                    <i class="fas fa-plus"></i> Add New Employee
+                <button type="button" class="btn btn-primary" onclick="openCreateModal('{{ route('employees.create') }}')" title="Add User">
+                    <i class="fas fa-user-plus"></i> Add User
                 </button>
             </div>
         </div>
 
+        <!-- Tabs -->
+        <div style="display: flex; gap: 4px; margin-bottom: 25px; border-bottom: 2px solid #f1f5f9; padding-bottom: 0;">
+            <a href="{{ route('employees.index', ['type' => 'employee']) }}" 
+               class="tab-btn {{ !request('type') || request('type') == 'employee' ? 'active' : '' }}" 
+               onclick="switchTab(event, 'employee')"
+               id="tab-employee"
+               style="padding: 12px 24px; font-weight: 700; font-size: 0.9rem; position: relative; color: {{ !request('type') || request('type') == 'employee' ? 'var(--primary)' : 'var(--secondary)' }}; cursor: pointer; text-decoration: none;">
+               Employees
+               <div class="tab-indicator" style="position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--primary); display: {{ !request('type') || request('type') == 'employee' ? 'block' : 'none' }};"></div>
+            </a>
+            <a href="{{ route('employees.index', ['type' => 'ntp']) }}" 
+               class="tab-btn {{ request('type') == 'ntp' ? 'active' : '' }}" 
+               onclick="switchTab(event, 'ntp')"
+               id="tab-ntp"
+               style="padding: 12px 24px; font-weight: 700; font-size: 0.9rem; position: relative; color: {{ request('type') == 'ntp' ? 'var(--primary)' : 'var(--secondary)' }}; cursor: pointer; text-decoration: none;">
+               NTP
+               <div class="tab-indicator" style="position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--primary); display: {{ request('type') == 'ntp' ? 'block' : 'none' }};"></div>
+            </a>
+        </div>
+
         <!-- Filters -->
         <form id="filterForm" action="{{ route('employees.index') }}" method="GET" target="_self" style="display: grid; grid-template-columns: 2fr 1fr 150px; gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+            <input type="hidden" name="type" id="typeInput" value="{{ request('type', 'employee') }}">
             <input type="hidden" name="export" id="exportFlag" value="">
             <div class="form-group" style="margin-bottom: 0;">
                 <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search name, school, or position..." value="{{ request('search') }}" oninput="debouncedFilter()">

@@ -48,15 +48,35 @@ class LeaveCardController extends Controller
         $leaveCard = $employee->leaveCards->where('year', $year)->first();
 
         // Get transactions for selected year
-        $transactions = $leaveCard ? 
-            $employee->leaveTransactions()
-            ->with(['leaveType', 'encoder'])
-            ->where('leave_card_id', $leaveCard->id)
-            ->orderBy('id', 'asc')
-            ->get()
-            : collect();
+        $tab = $request->input('tab', 'form6');
 
-        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions'));
+        $query = $employee->leaveTransactions()
+            ->with(['leaveType', 'encoder'])
+            ->orderBy('id', 'asc');
+
+        if ($leaveCard) {
+            $query->where('leave_card_id', $leaveCard->id);
+        } else {
+            return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'tab'))->with('transactions', collect());
+        }
+
+        if ($tab === 'cto') {
+            $query->whereHas('leaveType', function($q) {
+                $q->where('code', 'CTO');
+            });
+        } else {
+            // Form 6: Exclude CTO, include everything else
+            $query->where(function($q) {
+                $q->whereDoesntHave('leaveType')
+                  ->orWhereHas('leaveType', function($sq) {
+                      $sq->where('code', '!=', 'CTO');
+                  });
+            });
+        }
+
+        $transactions = $query->get();
+
+        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions', 'tab'));
     }
 
     /**
@@ -209,22 +229,37 @@ class LeaveCardController extends Controller
                 'remarks' => $data['particulars'] ?? null,
                 'action_taken' => $data['action_taken'] ?? null,
                 'encoded_by' => auth()->id(),
+                'text_color' => $data['text_color'] ?? null,
             ];
 
             // Use local vars for checks to handle empty/string cases correctly
+            $vlWText = trim($data['vl_wop'] ?? '');
+            $slWText = trim($data['sl_wop'] ?? '');
+
+            // Try to extract number and reason (e.g., "1 CREDITS EXHAUSTED" or "= 111.5075")
+            preg_match('/^=?\s*([\d.]+)\s*(.*)$/', $vlWText, $vlMatches);
             $vlE = isset($data['vl_earned']) && $data['vl_earned'] !== '' ? floatval($data['vl_earned']) : 0;
             $vlU = isset($data['vl_used']) && $data['vl_used'] !== '' ? floatval($data['vl_used']) : 0;
-            $vlW = isset($data['vl_wop']) && $data['vl_wop'] !== '' ? floatval($data['vl_wop']) : 0;
+            $vlW = isset($vlMatches[1]) ? floatval($vlMatches[1]) : 0;
+            $vlWR = isset($vlMatches[2]) ? trim($vlMatches[2]) : (isset($data['vl_wop_reason']) ? $data['vl_wop_reason'] : null);
+            // If the text was just "=", don't treat as 0 wop
+            if (trim($vlWText) === '=') $vlW = 0;
+
+            preg_match('/^=?\s*([\d.]+)\s*(.*)$/', $slWText, $slMatches);
             $slE = isset($data['sl_earned']) && $data['sl_earned'] !== '' ? floatval($data['sl_earned']) : 0;
             $slU = isset($data['sl_used']) && $data['sl_used'] !== '' ? floatval($data['sl_used']) : 0;
-            $slW = isset($data['sl_wop']) && $data['sl_wop'] !== '' ? floatval($data['sl_wop']) : 0;
+            $slW = isset($slMatches[1]) ? floatval($slMatches[1]) : 0;
+            $slWR = isset($slMatches[2]) ? trim($slMatches[2]) : (isset($data['sl_wop_reason']) ? $data['sl_wop_reason'] : null);
+            if (trim($slWText) === '=') $slW = 0;
 
             $updateData['vl_earned'] = $vlE ?: null;
             $updateData['vl_used'] = $vlU ?: null;
             $updateData['vl_wop'] = $vlW ?: null;
+            $updateData['vl_wop_reason'] = $vlWR ?: null;
             $updateData['sl_earned'] = $slE ?: null;
             $updateData['sl_used'] = $slU ?: null;
             $updateData['sl_wop'] = $slW ?: null;
+            $updateData['sl_wop_reason'] = $slWR ?: null;
 
             // Handle balances: explicitly save NULL if empty, hyphen OR if the column is NOT active in this row
             $vlBalStr = trim($data['vl_balance'] ?? '');

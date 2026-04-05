@@ -126,37 +126,6 @@
             </div>
         </div>
 
-        <!-- AI Detection Settings -->
-        <div class="card" style="margin-bottom: 24px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
-                <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #fefce8, #fde68a); display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-brain" style="color: var(--warning);"></i>
-                </div>
-                <div>
-                    <h4 style="font-weight: 700; margin: 0;">AI Detection</h4>
-                    <small style="color: var(--secondary);">Configure anomaly detection thresholds</small>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-                <div class="form-group">
-                    <label class="form-label">High Risk Threshold</label>
-                    <input type="number" name="settings[ai_high_risk_threshold]" class="form-control" value="{{ $settings->get('ai_high_risk_threshold')->value ?? '70' }}" placeholder="70">
-                    <small style="color: var(--secondary); margin-top: 4px; display: block;">Score above this = High Risk (0-100)</small>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Medium Risk Threshold</label>
-                    <input type="number" name="settings[ai_medium_risk_threshold]" class="form-control" value="{{ $settings->get('ai_medium_risk_threshold')->value ?? '40' }}" placeholder="40">
-                    <small style="color: var(--secondary); margin-top: 4px; display: block;">Score above this = Medium Risk (0-100)</small>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Max Consecutive Leave Days</label>
-                    <input type="number" name="settings[max_consecutive_leave]" class="form-control" value="{{ $settings->get('max_consecutive_leave')->value ?? '10' }}" placeholder="10">
-                    <small style="color: var(--secondary); margin-top: 4px; display: block;">Flag if leave exceeds this many days</small>
-                </div>
-            </div>
-        </div>
-
         <!-- Save Button -->
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
             <a href="{{ route('dashboard') }}" class="btn btn-secondary">

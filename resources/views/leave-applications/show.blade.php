@@ -42,6 +42,41 @@
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;">
 
             <div>
+                <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">6.C Inclusive Dates breakdown</label>
+                <div style="margin-top: 10px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 25px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead style="background: #f1f5f9;">
+                            <tr>
+                                <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Leave Type</th>
+                                <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Inclusive Dates</th>
+                                <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Pay Status</th>
+                                <th style="padding: 10px 14px; text-align: center; font-weight: 700; border-bottom: 1px solid #e2e8f0;">Days</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($leaveApplication->details as $detail)
+                            <tr>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9;">{{ $detail->leaveType->name ?? ($detail->other_type ?: 'N/A') }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: var(--secondary);">{{ $detail->inclusive_dates }}</td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9;">
+                                    <span style="font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; border: 1px solid {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; color: {{ $detail->is_with_pay ? '#10b981' : '#f59e0b' }}; font-weight: 700;">
+                                        {{ $detail->is_with_pay ? 'WITH PAY' : 'WITHOUT PAY' }}
+                                    </span>
+                                    @if(!$detail->is_with_pay && $detail->lwop_reason)
+                                        <div style="font-size: 0.75rem; color: #dc2626; margin-top: 6px; font-weight: 600;">
+                                            Reason: {{ $detail->lwop_reason }}
+                                        </div>
+                                    @endif
+                                </td>
+                                <td style="padding: 10px 14px; border-bottom: 1px solid #f1f5f9; text-align: center; font-weight: 700;">{{ $detail->num_days }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
                 <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Reason / Details</label>
                 <p style="margin-top: 8px; line-height: 1.6;">{{ $leaveApplication->reason ?? 'No reason provided.' }}</p>
             </div>

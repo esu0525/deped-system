@@ -89,31 +89,43 @@
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
                                 <span class="entry-label">#1</span>
                             </div>
-                            <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
+                            <div class="entry-row-grid" style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
                                     <input type="text" name="entries[0][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
-                                    <datalist id="leaveTypesList">
-                                        @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
-                                            <option value="{{ $type->name }}" data-code="{{ $type->code }}">
-                                        @endforeach
-                                    </datalist>
+                                        <datalist id="leaveTypesList">
+                                            @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
+                                                <option value="{{ $type->name }}" data-code="{{ $type->code }}">
+                                            @endforeach
+                                        </datalist>
+                                </div>
+                                <div class="form-group cto-title-wrapper" style="display: none; margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 0.75rem;">CTO Title / Certificate</label>
+                                    <input type="text" name="entries[0][cto_title]" class="form-control entry-cto-title" list="ctoTitlesList" placeholder="e.g. Special Event">
                                 </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
                                     <input type="text" name="entries[0][inclusive_dates]" class="form-control entry-dates-text" required>
                                 </div>
-                                <div class="form-group" style="margin-bottom: 0;">
+                                <div class="form-group pay-status-wrapper" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
                                     <select name="entries[0][is_with_pay]" class="form-control entry-pay-status" required>
                                         <option value="1" selected>WITH PAY</option>
                                         <option value="0">WITHOUT PAY</option>
                                     </select>
                                 </div>
+                                <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
+                                    <label class="form-label" style="font-size: 0.75rem;">Earned Credits</label>
+                                    <input type="number" name="entries[0][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0">
+                                </div>
                                 <div class="form-group" style="margin-bottom: 0;">
                                     <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
                                     <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                                 </div>
+                            </div>
+                            <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                                <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                                <input type="text" name="entries[0][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc." style="border-color: #fecaca;">
                             </div>
                             <div class="others-specify" style="display: none; margin-top: 8px;">
                                 <input type="hidden" name="entries[0][other_type]" value="">
@@ -229,6 +241,8 @@
         </div>
     </div>
 </div>
+
+<datalist id="ctoTitlesList"></datalist>
 
 @push('styles')
 <style>
@@ -607,9 +621,59 @@
 
                 // Update certification table
                 updateCertification();
+
+                // Fetch CTO balances for autocomplete
+                fetchEmployeeCtoBalances(employeeId);
             })
             .catch(err => {
                 console.error('Failed to fetch balance:', err);
+            });
+    }
+
+    function fetchEmployeeCtoBalances(employeeId) {
+        if (!employeeId) return;
+        fetch(`/api/employee/${employeeId}/cto-balances`)
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('ctoTitlesList');
+                if (list) {
+                    list.innerHTML = '';
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.cto_title;
+                        const bal = parseFloat(item.balance);
+                        const balStr = (bal % 1 !== 0) ? bal.toFixed(3) : bal.toString();
+                        option.textContent = ` (Balance: ${balStr})`;
+                        list.appendChild(option);
+                    });
+                }
+            })
+            .catch(err => console.error('Failed to fetch CTO balances:', err));
+    }
+    @else
+    // For regular users filing for themselves
+    document.addEventListener('DOMContentLoaded', () => {
+        const empId = document.getElementById('employee_id')?.value;
+        if (empId) fetchEmployeeCtoBalances(empId);
+    });
+
+    function fetchEmployeeCtoBalances(employeeId) {
+        if (!employeeId) return;
+        fetch(`/api/employee/${employeeId}/cto-balances`)
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('ctoTitlesList');
+                if (list) {
+                    list.innerHTML = '';
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.cto_title;
+                        const bal = parseFloat(item.balance);
+                        const balStr = (bal % 1 !== 0) ? bal.toFixed(3) : bal.toString();
+                        option.textContent = ` (Balance: ${balStr})`;
+                        list.appendChild(option);
+                    });
+                }
             });
     }
     @endif
@@ -639,27 +703,47 @@
         const vlCurrentBalance = parseFloat(employeeBalance.vl_balance);
         const slCurrentBalance = parseFloat(employeeBalance.sl_balance);
 
-        // Calculate VL/SL days from entries
+        // Check if ANY entry is a monetization type
+        let isMonetization50 = false;
+        let isMonetization1030 = false;
+        document.querySelectorAll('.date-entry').forEach(entry => {
+            const typeInput = entry.querySelector('.entry-type');
+            const val = (typeInput.value || '').trim().toLowerCase();
+            if (val.includes('50% monetization')) isMonetization50 = true;
+            if (val.includes('10-30 days monetization')) isMonetization1030 = true;
+        });
+
         let vlDays = 0;
         let slDays = 0;
 
-        document.querySelectorAll('.date-entry').forEach(entry => {
-            const typeInput = entry.querySelector('.entry-type');
-            const daysInput = entry.querySelector('.entry-days');
-            const payStatusSelect = entry.querySelector('.entry-pay-status');
-            
-            const typeName = (typeInput.value || '').trim();
-            const matchingType = leaveTypeData.find(t => t.name === typeName);
-            const typeCode = matchingType ? matchingType.code : null;
-            
-            const days = parseFloat(daysInput.value) || 0;
-            const isWithPay = payStatusSelect && payStatusSelect.value === "1";
- 
-            if (typeName && isWithPay) {
-                if (typeCode === 'VL' || typeCode === 'FL') vlDays += days;
-                else if (typeCode === 'SL') slDays += days;
-            }
-        });
+        if (isMonetization50) {
+            vlDays = vlCurrentBalance / 2;
+            slDays = slCurrentBalance / 2;
+        } else if (isMonetization1030) {
+            document.querySelectorAll('.date-entry').forEach(entry => {
+                const daysInput = entry.querySelector('.entry-days');
+                vlDays += parseFloat(daysInput.value) || 0;
+            });
+            slDays = 0;
+        } else {
+            document.querySelectorAll('.date-entry').forEach(entry => {
+                const typeInput = entry.querySelector('.entry-type');
+                const daysInput = entry.querySelector('.entry-days');
+                const payStatusSelect = entry.querySelector('.entry-pay-status');
+                
+                const typeName = (typeInput.value || '').trim();
+                const matchingType = leaveTypeData.find(t => t.name === typeName);
+                const typeCode = matchingType ? matchingType.code : null;
+                
+                const days = parseFloat(daysInput.value) || 0;
+                const isWithPay = payStatusSelect && payStatusSelect.value === "1";
+    
+                if (typeName && isWithPay) {
+                    if (typeCode === 'VL' || typeCode === 'FL') vlDays += days;
+                    else if (typeCode === 'SL') slDays += days;
+                }
+            });
+        }
 
         const vlNewBalance = vlCurrentBalance - vlDays;
         const slNewBalance = slCurrentBalance - slDays;
@@ -700,26 +784,38 @@
                     <i class="fas fa-trash-alt"></i> Remove
                 </button>
             </div>
-            <div style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
+            <div class="entry-row-grid" style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
                     <input type="text" name="entries[${i}][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
-                    <input type="text" name="entries[${i}][inclusive_dates]" class="form-control entry-dates-text" required>
+                <div class="form-group cto-title-wrapper" style="display: none; margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 0.75rem;">CTO Title / Certificate</label>
+                    <input type="text" name="entries[${i}][cto_title]" class="form-control entry-cto-title" list="ctoTitlesList" placeholder="e.g. Special Event">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label entry-dates-label" style="font-size: 0.75rem;">Inclusive Dates</label>
+                    <input type="text" name="entries[${i}][inclusive_dates]" class="form-control entry-dates-text" required>
+                </div>
+                <div class="form-group pay-status-wrapper" style="margin-bottom: 0;">
                     <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
                     <select name="entries[${i}][is_with_pay]" class="form-control entry-pay-status" required>
                         <option value="1" selected>WITH PAY</option>
                         <option value="0">WITHOUT PAY</option>
                     </select>
                 </div>
+                <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
+                    <label class="form-label" style="font-size: 0.75rem;">Earned Credits</label>
+                    <input type="number" name="entries[${i}][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0">
+                </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
+                    <label class="form-label entry-days-label" style="font-size: 0.75rem;">No. of Days</label>
                     <input type="number" name="entries[${i}][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
                 </div>
+            </div>
+            <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                <input type="text" name="entries[${i}][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc." style="border-color: #fecaca;">
             </div>
             <div class="others-specify" style="display: none; margin-top: 8px;">
                 <input type="text" name="entries[${i}][other_type]" class="form-control" placeholder="Specify other leave type..." style="font-size: 0.85rem;">
@@ -754,19 +850,153 @@
         const datesTextInput = entry.querySelector('.entry-dates-text');
         const payStatusSelect = entry.querySelector('.entry-pay-status');
         const othersDiv = entry.querySelector('.others-specify');
+        const lwopReasonWrapper = entry.querySelector('.lwop-reason-wrapper');
+        const reasonInput = entry.querySelector('.entry-lwop-reason');
+
+        const payStatusWrapper = payStatusSelect.closest('.form-group');
+        const daysWrapper = daysInput.closest('.form-group');
 
         const updateAll = () => {
+            const typeValue = (typeSelect.value || '').trim().toLowerCase();
+            const isMonet50 = typeValue.includes('50% monetization');
+            const isMonet1030 = typeValue.includes('10-30 days monetization');
+            const isCto = typeValue.includes('cto');
+
+            const datesLabel = entry.querySelector('.entry-dates-label') || entry.querySelector('label[for*="dates"]');
+            const daysLabel = entry.querySelector('.entry-days-label') || entry.querySelector('label[for*="days"]');
+            const ctoEarnedWrapper = entry.querySelector('.cto-earned-wrapper');
+            const ctoTitleWrapper = entry.querySelector('.cto-title-wrapper');
+            const rowGrid = entry.querySelector('.entry-row-grid');
+
+            // Reset grid
+            if (rowGrid) rowGrid.style.gridTemplateColumns = '2fr 3fr 1.2fr 1fr';
+
+            if (isMonet50) {
+                // Auto-fill inclusive dates with current year
+                datesTextInput.value = new Date().getFullYear().toString();
+                // Hide Pay Status and No. of Days
+                payStatusWrapper.style.display = 'none';
+                daysWrapper.style.display = 'none';
+                if (ctoEarnedWrapper) ctoEarnedWrapper.style.display = 'none';
+                if (ctoTitleWrapper) ctoTitleWrapper.style.display = 'none';
+                // Set hidden values for form submission
+                payStatusSelect.value = "1";
+                payStatusSelect.removeAttribute('required');
+                daysInput.value = "0";
+                daysInput.removeAttribute('required');
+                daysInput.removeAttribute('min');
+                daysInput.removeAttribute('step');
+                if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
+            } else if (isMonet1030) {
+                 // Auto-fill inclusive dates with current year
+                datesTextInput.value = new Date().getFullYear().toString();
+                // Hide Pay Status, SHOW No. of Days
+                payStatusWrapper.style.display = 'none';
+                daysWrapper.style.display = '';
+                if (ctoEarnedWrapper) ctoEarnedWrapper.style.display = 'none';
+                if (ctoTitleWrapper) ctoTitleWrapper.style.display = 'none';
+                payStatusSelect.value = "1";
+                payStatusSelect.removeAttribute('required');
+                daysInput.setAttribute('required', 'required');
+                daysInput.setAttribute('min', '1');
+                daysInput.setAttribute('step', '1');
+                if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
+            } else if (isCto) {
+                if (daysLabel) daysLabel.textContent = "No. of Days";
+                
+                // Show 5 columns if earned credits is visible, otherwise 4
+                const isEarnedShown = ctoEarnedWrapper && ctoEarnedWrapper.style.display !== 'none';
+                if (rowGrid) rowGrid.style.gridTemplateColumns = isEarnedShown ? '1.5fr 1.5fr 2fr 1fr 1fr' : '1.5fr 1.5fr 2fr 1fr';
+                
+                datesTextInput.closest('.form-group').style.display = '';
+                datesTextInput.setAttribute('required', 'required');
+                
+                payStatusWrapper.style.display = 'none';
+                daysWrapper.style.display = '';
+                
+                if (ctoTitleWrapper) {
+                    ctoTitleWrapper.style.display = '';
+                    const ctoTitleInput = ctoTitleWrapper.querySelector('input');
+                    ctoTitleInput.setAttribute('required', 'required');
+
+                    // Check if the title is an existing one from the datalist
+                    const list = document.getElementById('ctoTitlesList');
+                    const options = list ? Array.from(list.options).map(o => o.value) : [];
+                    const isExisting = options.includes(ctoTitleInput.value);
+
+                    if (ctoEarnedWrapper) {
+                        if (isExisting) {
+                            // If title exists, we don't need "Earned Credits" anymore
+                            ctoEarnedWrapper.style.display = 'none';
+                            ctoEarnedWrapper.querySelector('input').removeAttribute('required');
+                            ctoEarnedWrapper.querySelector('input').value = '0';
+                        } else {
+                            // If new title, "Earned Credits" is required
+                            ctoEarnedWrapper.style.display = '';
+                            ctoEarnedWrapper.querySelector('input').setAttribute('required', 'required');
+                        }
+                    }
+                    if (rowGrid) {
+                        const isEarnedShown = ctoEarnedWrapper && ctoEarnedWrapper.style.display !== 'none';
+                        rowGrid.style.gridTemplateColumns = isEarnedShown ? '1.5fr 1.5fr 2fr 1fr 1fr' : '1.5fr 1.5fr 2fr 1fr';
+                    }
+                }
+                
+                payStatusSelect.value = "1";
+                payStatusSelect.removeAttribute('required');
+                daysInput.setAttribute('required', 'required');
+                daysInput.setAttribute('min', '0.5');
+                if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
+            } else {
+                datesTextInput.closest('.form-group').style.display = '';
+                datesTextInput.setAttribute('required', 'required');
+
+                if (datesLabel) datesLabel.textContent = "Inclusive Dates";
+                if (daysLabel) daysLabel.textContent = "No. of Days";
+                payStatusWrapper.style.display = '';
+                daysWrapper.style.display = '';
+                if (ctoTitleWrapper) {
+                    ctoTitleWrapper.style.display = 'none';
+                    ctoTitleWrapper.querySelector('input').removeAttribute('required');
+                }
+                if (ctoEarnedWrapper) {
+                    ctoEarnedWrapper.style.display = 'none';
+                    ctoEarnedWrapper.querySelector('input').removeAttribute('required');
+                }
+                payStatusSelect.setAttribute('required', 'required');
+                daysInput.setAttribute('required', 'required');
+                daysInput.setAttribute('min', '0.5');
+                daysInput.setAttribute('step', '0.5');
+            }
+
             updatePreview();
             updateCertification();
         };
 
-        typeSelect.addEventListener('input', () => {
+        typeSelect.addEventListener('input', updateAll);
+        daysInput.addEventListener('input', updateAll);
+        datesTextInput.addEventListener('input', updatePreview);
+        
+        const ctoTitleInput = entry.querySelector('.entry-cto-title');
+        if (ctoTitleInput) {
+            ctoTitleInput.addEventListener('input', updateAll);
+        }
+
+        if (reasonInput) reasonInput.addEventListener('input', updatePreview);
+        
+        payStatusSelect.addEventListener('change', () => {
+            if (lwopReasonWrapper) {
+                lwopReasonWrapper.style.display = payStatusSelect.value === "0" ? 'block' : 'none';
+                if (payStatusSelect.value !== "0") {
+                    const reasonInput = lwopReasonWrapper.querySelector('input');
+                    if (reasonInput) reasonInput.value = '';
+                }
+            }
             updateAll();
         });
 
-        daysInput.addEventListener('input', updateAll);
-        datesTextInput.addEventListener('input', updatePreview);
-        payStatusSelect.addEventListener('change', updateAll);
+        // Initialize state
+        updateAll();
     }
 
     function recalculateAllStatus() {
@@ -786,32 +1016,53 @@
         document.querySelectorAll('.date-entry').forEach((entry) => {
             const index = entry.dataset.index;
             const typeInput = entry.querySelector('.entry-type');
+            const typeName = (typeInput.value || '').trim();
+            const isMonetization = typeName.toLowerCase().includes('50% monetization');
+            const isCtoRow = typeName.toLowerCase().includes('cto');
+            
             const daysInput = entry.querySelector('.entry-days');
             const datesTextInput = entry.querySelector('.entry-dates-text');
             const payStatusSelect = entry.querySelector('.entry-pay-status');
+            const reasonInput = entry.querySelector('.entry-lwop-reason');
+            const ctoTitleInput = entry.querySelector('.entry-cto-title');
+            const ctoTitle = ctoTitleInput ? (ctoTitleInput.value || '') : '';
 
-            const typeName = typeInput.value.trim() || 'Not Selected';
             const days = parseFloat(daysInput.value) || 0;
             const isWop = payStatusSelect && payStatusSelect.value === "0";
             const dateText = datesTextInput.value || 'No dates';
+            const lwopReason = reasonInput ? reasonInput.value.trim() : '';
             
             totalDays += days;
 
+            let dayDisplay = isMonetization ? 'HALF Bal' : `${days} ${days === 1 ? 'day' : 'days'}`;
+
+            const displayTitleForPreview = ctoTitle.length > 60 ? ctoTitle.substring(0, 60) + '...' : ctoTitle;
+            
             html += `<div class="entry-summary-row">
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <strong style="font-size: 0.8rem;">${typeName}</strong>
+                        <strong style="font-size: 0.8rem;">${typeName || 'Not Selected'}</strong>
+                        ${isCtoRow ? ' <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">(' + displayTitleForPreview + ')</span>' : ''}
                         ${isWop ? '<span style="color: #dc2626; font-size: 0.65rem; font-weight: 700;">(WOP)</span>' : ''}
                     </div>
-                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">${dateText}</div>
+                    <div style="font-size: 0.72rem; color: var(--secondary); margin-top: 2px;">
+                        ${dateText}${isWop && lwopReason ? ' <span style="color: #dc2626;">· Reason: ' + lwopReason + '</span>' : ''}
+                    </div>
                 </div>
-                <span style="font-weight: 700; color: ${isWop ? '#dc2626' : 'var(--primary)'}; white-space: nowrap; margin-left: 12px;">${days} ${days === 1 ? 'day' : 'days'}</span>
+                <span style="font-weight: 700; color: ${isWop ? '#dc2626' : 'var(--primary)'}; white-space: nowrap; margin-left: 12px;">${dayDisplay}</span>
             </div>`;
         });
 
         summaryDiv.innerHTML = html || '<p style="color: var(--secondary); font-size: 0.82rem;">No entries yet.</p>';
         totalDisplay.textContent = totalDays + (totalDays === 1 ? ' day' : ' days');
     }
+
+    // Re-enable disabled fields before form submission so values are included in POST
+    document.getElementById('leaveForm').addEventListener('submit', function() {
+        this.querySelectorAll('input:disabled, select:disabled').forEach(el => {
+            el.disabled = false;
+        });
+    });
 
     // Initialize
     bindEntryEvents(document.querySelector('.date-entry'));

@@ -4,30 +4,39 @@
 
 @section('content')
 <div class="animate-fade">
-    <div class="card glass">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;">
-            <h4 style="font-weight: 700; margin-bottom: 0;"><i class="fas fa-clock-rotate-left text-primary"></i> Activity Logs</h4>
-            
-            <form id="filterForm" method="GET" action="{{ route('audit-trail.index') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+    <div class="header-container" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 25px;">
+        <div style="margin-bottom: 8px;">
+            <form id="filterForm" method="GET" action="{{ route('audit-trail.index') }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <div style="position: relative;">
-                    <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search logs or user..." value="{{ request('search') }}" style="width: 280px; padding-left: 35px;" oninput="debouncedFilter()">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--secondary); opacity: 0.5;"></i>
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 10px; color: #94a3b8; font-size: 0.85rem;"></i>
+                    <input type="text" id="searchInput" name="search" value="{{ request('search') }}" 
+                           placeholder="Search logs or user..." 
+                           style="padding: 8px 12px 8px 35px; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 0.85rem; width: 230px; outline: none; (transition: border-color 0.2s);" oninput="debouncedFilter()">
                 </div>
                 
-                <select name="module" class="form-control" style="width: 180px;" onchange="fetchTable()">
+                <select name="module" class="form-control" style="width: 150px; font-size: 0.8rem; border-radius: 8px;" onchange="fetchTable()">
                     <option value="">All Modules</option>
                     @foreach($modules as $module)
                         <option value="{{ $module }}">{{ $module }}</option>
                     @endforeach
                 </select>
 
-                <select name="action" class="form-control" style="width: 140px;" onchange="fetchTable()">
+                <select name="action" class="form-control" style="width: 130px; font-size: 0.8rem; border-radius: 8px;" onchange="fetchTable()">
                     <option value="">All Actions</option>
                     @foreach($actions as $action)
                         <option value="{{ $action }}">{{ $action }}</option>
                     @endforeach
                 </select>
             </form>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="padding: 20px 25px; border-bottom: 1px solid #f1f5f9; background: #fff; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; background: #fef2f2; color: #991b1b; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-history"></i>
+            </div>
+            <h4 style="margin: 0; font-weight: 700; color: #1e293b; font-size: 1.1rem;">Activity Logs</h4>
         </div>
 
         <div style="overflow-x: auto; position: relative;">
@@ -91,7 +100,7 @@
         if (!url) {
             const formData = new FormData(form);
             const params = new URLSearchParams(formData);
-            url = `${form.action}?${params.toString()}`;
+            url = `${form.getAttribute('action')}?${params.toString()}`;
         }
 
         tableBody.style.opacity = '0.6';

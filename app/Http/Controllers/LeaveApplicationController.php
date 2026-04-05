@@ -17,17 +17,14 @@ class LeaveApplicationController extends Controller
 {
     protected LeaveCardService $leaveCardService;
     protected MailService $mailService;
-    protected \App\Services\AiDetectionService $aiService;
 
     public function __construct(
         LeaveCardService $leaveCardService,
-        MailService $mailService,
-        \App\Services\AiDetectionService $aiService
+        MailService $mailService
         )
     {
         $this->leaveCardService = $leaveCardService;
         $this->mailService = $mailService;
-        $this->aiService = $aiService;
     }
 
     public function index(Request $request)
@@ -144,14 +141,22 @@ class LeaveApplicationController extends Controller
         ]);
     }
 
+    /**
+     * API: Get employee active CTO balances.
+     */
+    public function getEmployeeCtoBalances(Employee $employee)
+    {
+        return response()->json($employee->ctoBalances());
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'employee_id' => 'required|exists:employees,id',
             'entries' => 'required|array|min:1',
             'entries.*.leave_type_name' => 'required|string|max:255',
-            'entries.*.inclusive_dates' => 'required|string|max:255',
-            'entries.*.num_days' => 'required|numeric|min:0.5',
+            'entries.*.inclusive_dates' => 'nullable|string|max:255',
+            'entries.*.num_days' => 'required|numeric|min:0',
             'reason' => 'nullable|string|max:1000',
             'commutation' => 'nullable|string',
         ]);
@@ -218,10 +223,13 @@ class LeaveApplicationController extends Controller
                 'leave_type_id' => $entry['leave_type_id'],
                 'inclusive_dates' => $entry['inclusive_dates'] ?? '',
                 'other_type' => $entry['other_type'] ?? null,
+                'cto_title' => $entry['cto_title'] ?? null,
                 'date_from' => now(),
                 'date_to' => now(),
                 'num_days' => $entry['num_days'],
+                'cto_earned_days' => $entry['cto_earned_days'] ?? null,
                 'is_with_pay' => ($entry['is_with_pay'] ?? '1') === '1',
+                'lwop_reason' => $entry['lwop_reason'] ?? null,
             ]);
         }
 
@@ -230,19 +238,15 @@ class LeaveApplicationController extends Controller
         return redirect()->route('leave-applications.index')->with('success', 'Leave application submitted successfully.');
     }
 
-    public function show(Request $request, LeaveApplication $leaveApplication)
+    public function show(LeaveApplication $leaveApplication, Request $request)
     {
         $leaveApplication->load(['employee.department', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
 
-        $aiLog = (auth()->user()->hasRole(['super_admin', 'hr_admin']))
-            ? $this->aiService->analyze($leaveApplication->employee)
-            : null;
-
         if ($request->ajax()) {
-            return view('leave-applications.partials.show-modal', compact('leaveApplication', 'aiLog'));
+            return view('leave-applications.partials.show-modal', compact('leaveApplication'));
         }
 
-        return view('leave-applications.show', compact('leaveApplication', 'aiLog'));
+        return view('leave-applications.show', compact('leaveApplication'));
     }
 
     public function edit(LeaveApplication $leaveApplication)
@@ -309,7 +313,7 @@ class LeaveApplicationController extends Controller
         $slCurrentBalance = floatval($leaveCardBefore->sl_balance);
 
         // Deduct credits
-        $deducted = $this->leaveCardService->deductLeaveCredits($leaveApplication);
+        $deducted = $this->leaveCardService->deductLeaveCredits($leaveApplication, $request->remarks);
 
         if (!$deducted) {
             return back()->with('error', 'Insufficient leave credits. Cannot approve this application.');
@@ -321,12 +325,27 @@ class LeaveApplicationController extends Controller
         // Calculate VL/SL days for this application from actual details
         $vlDays = 0;
         $slDays = 0;
+        $isMonetization = false;
+
         foreach ($leaveApplication->details as $detail) {
             $type = $detail->leaveType;
-            if ($type->code === 'VL' || $type->code === 'FL')
-                $vlDays += floatval($detail->num_days);
-            elseif ($type->code === 'SL')
-                $slDays += floatval($detail->num_days);
+            if (stripos($type->name, '50% Monetization') !== false) {
+                $isMonetization = true;
+                break;
+            }
+        }
+
+        if ($isMonetization) {
+            $vlDays = $vlCurrentBalance / 2;
+            $slDays = $slCurrentBalance / 2;
+        } else {
+            foreach ($leaveApplication->details as $detail) {
+                $type = $detail->leaveType;
+                if ($type->code === 'VL' || $type->code === 'FL')
+                    $vlDays += floatval($detail->num_days);
+                elseif ($type->code === 'SL')
+                    $slDays += floatval($detail->num_days);
+            }
         }
 
         $leaveApplication->update([

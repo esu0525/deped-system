@@ -32,11 +32,11 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Initial VL Balance (Days)</label>
-                <input type="number" step="any" name="vl_balance" class="form-control" placeholder="0">
+                <input type="number" step="any" name="vl_balance" class="form-control" value="0" onfocus="if(this.value==='0') this.value='';" onblur="if(this.value==='') this.value='0';">
             </div>
             <div class="form-group">
                 <label class="form-label">Initial SL Balance (Days)</label>
-                <input type="number" step="any" name="sl_balance" class="form-control" placeholder="0">
+                <input type="number" step="any" name="sl_balance" class="form-control" value="0" onfocus="if(this.value==='0') this.value='';" onblur="if(this.value==='') this.value='0';">
             </div>
         </div>
 

@@ -36,14 +36,6 @@
             </div>
         </div>
 
-        <div class="card stat-card" style="border-left: 5px solid var(--danger);">
-            <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div>
-                <p style="font-size: 0.9rem; color: var(--secondary); margin-bottom: 4px;">AI Alerts</p>
-                <h3 style="font-size: 1.8rem; font-weight: 700;">{{ $suspiciousAlerts->count() }}</h3>
-            </div>
         </div>
     </div>
 
@@ -81,53 +73,6 @@
         </div>
     </div>
 
-    <!-- AI Alerts Table -->
-    @if($suspiciousAlerts->count() > 0)
-    <div class="card" style="margin-top: 24px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.02);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h4 style="font-weight: 700; color: var(--danger);"><i class="fas fa-robot"></i> AI Suspicious Pattern Alerts</h4>
-            <a href="{{ route('ai.index') }}" class="btn btn-sm btn-outline-danger">View All Alerts</a>
-        </div>
-        <div class="table-responsive">
-            <table class="table" style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="text-align: left; border-bottom: 1px solid #eee;">
-                        <th style="padding: 12px;">Employee</th>
-                        <th style="padding: 12px;">Risk Score</th>
-                        <th style="padding: 12px;">Reason</th>
-                        <th style="padding: 12px;">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($suspiciousAlerts as $alert)
-                    <tr style="border-bottom: 1px solid #f9f9f9;">
-                        <td style="padding: 12px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">
-                                    {{ substr($alert->employee->full_name, 0, 1) }}
-                                </div>
-                                <span style="font-weight: 600;">{{ $alert->employee->full_name }}</span>
-                            </div>
-                        </td>
-                        <td style="padding: 12px;">
-                            <div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 5px;">
-                                <div style="width: {{ $alert->risk_score }}%; height: 100%; background: var(--danger);"></div>
-                            </div>
-                            <small style="font-weight: 700; color: var(--danger);">{{ $alert->risk_score }}% {{ $alert->risk_level }}</small>
-                        </td>
-                        <td style="padding: 12px; font-size: 0.85rem; max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            {{ $alert->generated_reason }}
-                        </td>
-                        <td style="padding: 12px;">
-                            <a href="{{ route('ai.show', $alert) }}" class="btn btn-sm btn-primary">Review</a>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @endif
 </div>
 @endsection
 

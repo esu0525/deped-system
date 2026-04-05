@@ -139,7 +139,7 @@ class EmployeeController extends Controller
 
     public function show(Request $request, Employee $employee)
     {
-        $employee->load(['department', 'user', 'leaveCards', 'leaveApplications.leaveType', 'latestAiLog']);
+        $employee->load(['department', 'user', 'leaveCards', 'leaveApplications.leaveType']);
         $currentLeaveCard = $employee->currentLeaveCard;
 
         if ($request->ajax()) {

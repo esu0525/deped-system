@@ -68,16 +68,6 @@ class Employee extends Model
         return $this->hasMany(LeaveTransaction::class);
     }
 
-    public function aiDetectionLogs()
-    {
-        return $this->hasMany(AiDetectionLog::class)->latest();
-    }
-
-    public function latestAiLog()
-    {
-        return $this->hasOne(AiDetectionLog::class)->latest();
-    }
-
     // Helpers
     public function getProfilePictureUrlAttribute(): string
     {
@@ -92,5 +82,17 @@ class Employee extends Model
         if (!$this->date_hired)
             return 'N/A';
         return $this->date_hired->diffForHumans(now(), true);
+    }
+
+    public function ctoBalances()
+    {
+        return $this->leaveTransactions()
+            ->whereNotNull('cto_title')
+            ->where('cto_title', '!=', '')
+            ->select('cto_title')
+            ->selectRaw('SUM(CAST(COALESCE(cto_earned, 0) AS DECIMAL(10,3))) - SUM(CAST(COALESCE(cto_used, 0) AS DECIMAL(10,3))) as balance')
+            ->groupBy('cto_title')
+            ->having('balance', '>', 0)
+            ->get();
     }
 }
