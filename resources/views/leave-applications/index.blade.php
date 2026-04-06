@@ -290,6 +290,27 @@
     document.getElementById('viewModalOverlay').addEventListener('click', (e) => {
         if (e.target.id === 'viewModalOverlay') closeViewModal();
     });
+
+    window.confirmModalReject = function() {
+        Swal.fire({
+            title: 'Reject Application',
+            input: 'textarea',
+            inputPlaceholder: 'Enter reason for rejection...',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, Reject',
+            inputValidator: (value) => { if (!value) return 'Required!' }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('modalRejectRemarks').value = result.value;
+                setTimeout(() => {
+                    document.getElementById('modalRejectForm').submit();
+                }, 100);
+            }
+        });
+    };
 </script>
 @endpush
 @endsection

@@ -181,7 +181,7 @@
                     </tbody>
                 </table>
 
-                <div id="certNotice" style="margin-top: 12px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 0.78rem; color: #1e40af; border: 1px solid #bfdbfe;">
+                <div id="certNotice" style="margin-top: 12px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-size: 0.78rem; color: var(--primary); border: 1px solid var(--border-color);">
                     <i class="fas fa-info-circle"></i> Select an employee to see leave credit certification.
                 </div>
             </div>
@@ -201,34 +201,34 @@
             </div>
 
             <!-- Leave Reminders -->
-            <div class="card animate-fade" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe; margin-top: 20px;">
+            <div class="card animate-fade" style="background: var(--bg-body); border: 1px solid var(--border-color); margin-top: 20px;">
                 <h5 style="color: var(--primary); font-weight: 700; margin-bottom: 20px;"><i class="fas fa-info-circle"></i> Instructions & Requirements</h5>
                 <ul style="list-style: none; font-size: 0.82rem; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Vacation Leave:</strong> File 5 days in advance.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Sick Leave:</strong> File immediately upon return. Medical certificate is required for <strong>exceeding 5 days</strong>.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>SPL:</strong> 3 days per year. File at least <strong>1 week prior</strong> to availment.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Solo Parent:</strong> 7 days per year. File <strong>5 days in advance</strong>.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Calamity Leave:</strong> Up to <strong>5 days</strong> per year.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Maternity:</strong> 105 days. <strong>Paternity:</strong> 7 days.</span>
                     </li>
-                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--dark);">
+                    <li style="margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; color: var(--text-main);">
                         <i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px; flex-shrink: 0;"></i>
                         <span><strong>Forced Leave:</strong> 5 days (must be consumed within the year).</span>
                     </li>
@@ -269,15 +269,15 @@
     }
     .employee-option:last-child { border-bottom: none; }
     .employee-option:hover, .employee-option.active {
-        background: #eff6ff;
+        background: var(--hover-color);
     }
     .employee-option:first-child { border-radius: 12px 12px 0 0; }
     .employee-option:last-child { border-radius: 0 0 12px 12px; }
 
     /* Balance Card */
     .balance-card {
-        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-        border: 1px solid #e2e8f0;
+        background: var(--bg-body);
+        border: 1px solid var(--border-color);
         border-radius: 16px;
         padding: 20px;
     }
@@ -289,12 +289,12 @@
         overflow: hidden;
     }
     .vl-box {
-        background: linear-gradient(135deg, #eff6ff, #dbeafe);
-        border: 1px solid #bfdbfe;
+        background: rgba(37, 99, 235, 0.1);
+        border: 1px solid rgba(37, 99, 235, 0.2);
     }
     .sl-box {
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        border: 1px solid #bbf7d0;
+        background: rgba(22, 163, 74, 0.1);
+        border: 1px solid rgba(22, 163, 74, 0.2);
     }
     .balance-label {
         font-size: 0.75rem;
@@ -321,12 +321,13 @@
 
     /* Date Entries */
     .date-entry {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: var(--bg-body);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 16px;
         margin-bottom: 12px;
         transition: all 0.2s;
+        color: var(--text-main);
     }
     .date-entry:hover {
         border-color: var(--primary);
@@ -339,6 +340,11 @@
         border-radius: 8px;
         font-size: 0.72rem;
         font-weight: 700;
+    }
+    .leave-card-form {
+        background: var(--bg-card);
+        padding: 32px;
+        color: var(--text-main);
     }
     .remove-entry-btn {
         background: none;
@@ -428,15 +434,23 @@
         border-collapse: collapse;
         font-size: 0.82rem;
     }
+    .leave-card-table thead th {
+        background: var(--bg-body);
+        font-weight: 800;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--text-main);
+    }
     .cert-table thead th {
-        background: #f1f5f9;
+        background: var(--bg-body);
         padding: 8px 12px;
         font-weight: 700;
         text-align: center;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border-color);
         font-size: 0.78rem;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        color: var(--text-main);
     }
     .cert-table thead th:first-child {
         text-align: left;

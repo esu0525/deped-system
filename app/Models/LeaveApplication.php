@@ -26,9 +26,9 @@ class LeaveApplication extends Model
     ];
 
     protected $casts = [
-        'date_filed' => 'date',
-        'date_from' => 'date',
-        'date_to' => 'date',
+        'date_filed' => 'datetime',
+        'date_from' => 'datetime',
+        'date_to' => 'datetime',
         'approved_at' => 'datetime',
         'num_days' => 'float',
     ];

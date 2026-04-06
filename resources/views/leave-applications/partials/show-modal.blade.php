@@ -166,21 +166,4 @@
     </div>
 </div>
 
-<script>
-    function confirmModalReject() {
-        Swal.fire({
-            title: 'Reject Application',
-            input: 'textarea',
-            inputPlaceholder: 'Enter reason for rejection...',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, Reject',
-            inputValidator: (value) => { if (!value) return 'Required!' }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                document.getElementById('modalRejectRemarks').value = result.value;
-                document.getElementById('modalRejectForm').submit();
-            }
-        });
-    }
-</script>
+

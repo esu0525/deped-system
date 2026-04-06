@@ -18,15 +18,59 @@ class LeaveCardController extends Controller
     {
         $query = Employee::with(['department', 'leaveCards'])->where('status', 'Active');
 
-        if ($request->has('search') && $request->search) {
-            $search = '%' . $request->search . '%';
-            $query->where('full_name', 'like', $search)
-                ->orWhere('employee_id', 'like', $search);
+        // RBAC: Restricted Access Filter
+        $user = auth()->user();
+        if ($user && !in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
+            $accessList = explode(', ', $user->access);
+            $query->where(function ($sq) use ($accessList) {
+                foreach ($accessList as $access) {
+                    preg_match('/^(.*?)(?:\s+\((National|City)\))?$/', trim($access), $matches);
+                    $pos = trim($matches[1] ?? '');
+                    $cat = $matches[2] ?? null;
+                    
+                    $sq->orWhere(function($subQ) use ($pos, $cat) {
+                        $subQ->where('position', 'like', '%' . $pos . '%');
+                        if ($cat) {
+                            $subQ->where('category', $cat);
+                        }
+                    });
+                }
+            });
         }
 
-        $employees = $query->orderBy('full_name')->paginate(15)->withQueryString();
+        // Summary Stats (Based on RBAC universe, without search/sort filters)
+        $statsQuery = clone $query;
+        $stats = [
+            'total' => (clone $statsQuery)->count(),
+            'national' => (clone $statsQuery)->where('category', 'National')->count(),
+            'city' => (clone $statsQuery)->where('category', 'City')->count(),
+        ];
 
-        return view('leave-cards.index', compact('employees'));
+        if ($request->has('search') && $request->search) {
+            $search = '%' . $request->search . '%';
+            $query->where(function($q) use ($search) {
+                $q->where('full_name', 'like', $search)
+                  ->orWhere('employee_id', 'like', $search);
+            });
+        }
+
+        // Sorting & Auto-Filtering
+        $sort = $request->get('sort', 'name');
+        if ($sort === 'National') {
+            $query->where('category', 'National')->orderBy('full_name');
+        } elseif ($sort === 'City') {
+            $query->where('category', 'City')->orderBy('full_name');
+        } else {
+            $query->orderBy('full_name');
+        }
+
+        $employees = $query->paginate(15)->withQueryString();
+
+        if ($request->ajax()) {
+            return view('leave-cards.partials.leave-card-rows', compact('employees'));
+        }
+
+        return view('leave-cards.index', compact('employees', 'stats'));
     }
 
     /**

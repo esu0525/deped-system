@@ -32,7 +32,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">System Name</label>
-                    <input type="text" name="settings[system_name]" class="form-control" value="{{ $settings->get('system_name')->value ?? 'DepEd Leave Card System' }}" placeholder="e.g. DepEd Leave Card System">
+                    <input type="text" name="settings[system_name]" class="form-control" value="{{ $settings->get('system_name')->value ?? 'Leave Card Management System' }}" placeholder="e.g. Leave Card Management System">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Organization Name</label>

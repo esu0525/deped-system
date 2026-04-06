@@ -1,10 +1,10 @@
 @forelse($logs as $log)
-<tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s;">
+<tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s;">
     <td style="padding: 15px; font-size: 0.85rem; color: var(--secondary);">
         {{ $log->created_at->format('M d, Y h:i A') }}
     </td>
     <td style="padding: 15px;">
-        <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $log->user->name ?? 'System' }}</p>
+        <p style="font-weight: 600; margin: 0; color: var(--text-main);">{{ $log->user->name ?? 'System' }}</p>
         @if($log->user?->employee) <small style="color: var(--secondary);">ID: {{ $log->user->employee->employee_id }}</small> @endif
     </td>
     <td style="padding: 15px;">
@@ -30,9 +30,9 @@
             {{ $log->action }}
         </span>
     </td>
-    <td style="padding: 15px; font-size: 0.85rem;">{{ $log->module }}</td>
+    <td style="padding: 15px; font-size: 0.85rem; color: var(--text-main);">{{ $log->module }}</td>
     <td style="padding: 15px; max-width: 400px;">
-        <p style="font-size: 0.8rem; line-height: 1.4; color: var(--dark); margin: 0;">{{ $log->description }}</p>
+        <p style="font-size: 0.8rem; line-height: 1.4; color: var(--text-main); margin: 0;">{{ $log->description }}</p>
     </td>
 </tr>
 @empty

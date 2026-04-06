@@ -1,40 +1,38 @@
 @extends('layouts.app')
 
-@section('header_title', 'User Management')
-
 @section('content')
 <div class="animate-fade">
-    <div class="header-container" style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 25px;">
-        <div style="margin-bottom: 8px;">
-            <form action="{{ route('users.index') }}" method="GET" style="display: flex; gap: 10px; align-items: center;">
-                <div style="position: relative;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 10px; color: #94a3b8; font-size: 0.85rem;"></i>
-                    <input type="text" name="search" value="{{ request('search') }}" 
-                           placeholder="Search users..." 
-                           style="padding: 8px 12px 8px 35px; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 0.85rem; width: 250px; outline: none; transition: border-color 0.2s;">
-                </div>
-            </form>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+        <div>
+            <h2 style="font-weight: 900; color: var(--text-main); margin: 0; font-size: 2.5rem; letter-spacing: -1px;">Account Management</h2>
+            <p style="color: var(--secondary); font-size: 1rem; margin-top: 5px; font-weight: 500;">Manage user accounts and access permissions</p>
+        </div>
+        <button type="button" class="btn-add-account" onclick="openCreateUserModal()">
+            <i class="fas fa-plus"></i> Add User
+        </button>
+    </div>
+
+    <!-- Search / Filter Area -->
+    <div class="card glass animate-fade" style="padding: 20px; border-radius: 15px; margin-bottom: 25px; border: 2px solid rgba(255, 255, 255, 0.8);">
+        <div style="position: relative;">
+            <i class="fas fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+            <input type="text" id="userSearchInput" class="form-control" placeholder="Search by name, email, or role..." 
+            style="padding-left: 45px; height: 50px;" oninput="debouncedFilterUsers()">
         </div>
     </div>
 
-    <div class="card" style="padding: 0; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-        <div style="padding: 20px 25px; border-bottom: 1px solid #f1f5f9; background: #fff; display: flex; align-items: center; gap: 10px;">
-            <div style="width: 36px; height: 36px; background: #f0f9ff; color: #0369a1; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-users-cog"></i>
-            </div>
-            <h4 style="margin: 0; font-weight: 700; color: #1e293b; font-size: 1.1rem;">List of Users</h4>
-        </div>
-
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse;">
+    <!-- Accounts Table Card -->
+    <div class="card" style="border-radius: 20px; overflow: hidden;">
+        <div class="table-responsive">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
                 <thead>
-                    <tr style="background: #f8fafc; border-bottom: 1px solid #f1f5f9;">
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Username</th>
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Name</th>
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Email</th>
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Role</th>
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Status</th>
-                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Actions</th>
+                    <tr style="border-bottom: 2px solid var(--border-color);">
+                        <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase; width: 30%;">User Detail</th>
+                        <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Role</th>
+                        <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Permissions</th>
+                        <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Last Logged In</th>
+                        <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Created</th>
+                        <th style="padding: 15px 25px; text-align: right; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="userTableBody">
@@ -42,91 +40,187 @@
                 </tbody>
             </table>
         </div>
+    </div>
 
-        <div id="paginationContainer" style="padding: 20px 25px; border-top: 1px solid #f1f5f9; background: #f8fafc;">
-            @if($users->hasPages())
-                {{ $users->links('vendor.pagination.custom') }}
-            @endif
-        </div>
+    <div id="userPagination" style="margin-top: 25px;">
+        {{ $users->links('vendor.pagination.custom') }}
     </div>
 </div>
 
+<!-- Simple Add User Modal (Glassmorphism Styled) -->
+<div class="modal-overlay" id="createUserModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(10px); z-index: 1050; align-items: center; justify-content: center; padding: 20px;">
+    <div class="modal-container" style="background: var(--bg-card); width: 100%; max-width: 500px; max-height: 90vh; display: flex; flex-direction: column; border-radius: 25px; box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); overflow: hidden;">
+        <div style="padding: 25px 30px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-body); flex-shrink: 0;">
+            <h5 style="margin: 0; font-weight: 900; color: var(--text-main); font-size: 1.25rem;">Create New Account</h5>
+            <button type="button" onclick="closeCreateUserModal()" style="border: none; background: none; font-size: 1.5rem; color: var(--secondary); cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="createUserForm" onsubmit="submitCreateUser(event)" style="padding: 30px; overflow-y: auto;">
+            @csrf
+            <div style="display: grid; gap: 15px;">
+                <div class="form-group">
+                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="John Doe" required style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Email Address</label>
+                    <input type="email" name="email" class="form-control" placeholder="email@example.com" required style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Default Role</label>
+                        <select name="role" class="form-control" style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                            @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                            <option value="admin">System Admin</option>
+                            @endif
+                            <option value="coordinator">Coordinator</option>
+                            <option value="ojt">OJT Trainee</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2; position: relative;">
+                        <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Permission Level (Select Multiple)</label>
+                        <div class="custom-dropdown" style="border: 2px solid var(--border-color); border-radius: 10px; background: var(--bg-body); cursor: pointer;">
+                            <div id="dropdownHeaderIndex" class="dropdown-header" onclick="toggleDropdown('permissionsDropdownIndex')" style="height: 45px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
+                                <span>Select Permissions...</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            <div class="dropdown-body" id="permissionsDropdownIndex" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--bg-card); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 2px solid var(--border-color); z-index: 10;">
+                                <div style="padding: 10px; border-bottom: 1px solid var(--border-color);">
+                                    <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListIndex')" style="border-radius: 8px; height: 35px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.85rem; padding-left: 10px; width: 100%;">
+                                </div>
+                                <div id="permissionsListIndex" style="max-height: 200px; overflow-y: auto; padding: 10px;">
+                                    @foreach($rolesList as $rListItem)
+                                    <label class="dropdown-item-label" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-main); cursor: pointer; line-height: 1.2; padding: 8px; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.background='var(--hover-color)'" onmouseout="this.style.background='transparent'">
+                                        <input type="checkbox" name="access[]" value="{{ $rListItem }}" style="width: 16px; height: 16px; accent-color: #6366f1;" onchange="updateDropdownText('permissionsListIndex', 'dropdownHeaderIndex')">
+                                        <span class="item-text">{{ $rListItem }}</span>
+                                    </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Password</label>
+                    <input type="password" name="password" class="form-control" required minlength="4" style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                </div>
+            </div>
+            <div style="margin-top: 30px; display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" onclick="closeCreateUserModal()" class="btn btn-secondary" style="border-radius: 10px; font-weight: 800; padding: 12px 25px;">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); border: none; border-radius: 10px; font-weight: 800; padding: 12px 25px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">Create Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .btn-add-account {
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        color: white; border: none; padding: 14px 30px; border-radius: 15px; font-weight: 900; font-size: 0.95rem; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .btn-add-account:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4); }
+    .swal2-backdrop-show { backdrop-filter: blur(12px) !important; background: rgba(15, 23, 42, 0.3) !important; }
+    .swal2-popup { border-radius: 25px !important; box-shadow: 0 30px 60px -12px rgba(0,0,0,0.4) !important; border: none !important; }
+</style>
+
 @push('scripts')
 <script>
-    let filterTimer;
-    let fetchController = null;
-
-    function debouncedFilter() {
-        clearTimeout(filterTimer);
-        filterTimer = setTimeout(() => {
-            fetchTable();
-        }, 300);
+    function openCreateUserModal() { document.getElementById('createUserModal').style.display = 'flex'; }
+    function closeCreateUserModal() { document.getElementById('createUserModal').style.display = 'none'; }
+    
+    async function submitCreateUser(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        try {
+            const resp = await fetch("{{ route('users.store') }}", {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Accept": "application/json" },
+                body: formData
+            });
+            const data = await resp.json();
+            if (data.success) {
+                Swal.fire({ title: 'Success!', text: 'Account created!', icon: 'success' });
+                closeCreateUserModal(); fetchUsers();
+            } else {
+                Swal.fire('Error!', data.message || 'Check fields', 'error');
+            }
+        } catch (error) { Swal.fire('Error!', 'System error', 'error'); }
     }
 
-    function fetchTable(url = null) {
-        const searchInput = document.querySelector('input[name="search"]');
-        const tableBody = document.getElementById('userTableBody');
-        const paginationContainer = document.getElementById('paginationContainer');
+    async function fetchUsers() {
+        const search = document.getElementById('userSearchInput').value;
+        const resp = await fetch(`{{ route('users.index') }}?search=${search}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        document.getElementById('userTableBody').innerHTML = await resp.text();
+    }
 
-        if (fetchController) {
-            fetchController.abort();
-        }
-        fetchController = new AbortController();
+    function debouncedFilterUsers() { clearTimeout(window.searchTimer); window.searchTimer = setTimeout(fetchUsers, 500); }
 
-        if (!url) {
-            const params = new URLSearchParams({ search: searchInput.value });
-            url = `{{ route('users.index') }}?${params.toString()}`;
-        }
-
-        tableBody.style.opacity = '0.5';
-
-        fetch(url, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            signal: fetchController.signal
-        })
-        .then(res => res.text())
-        .then(html => {
-            const tempTable = document.createElement('table');
-            const tempTbody = document.createElement('tbody');
-            tempTable.appendChild(tempTbody);
-            tempTbody.innerHTML = html;
-            
-            const paginationRow = tempTbody.querySelector('#paginationLinksContainer');
-            if (paginationRow) {
-                paginationContainer.innerHTML = paginationRow.querySelector('td').innerHTML;
-                paginationRow.remove();
-            } else {
-                paginationContainer.innerHTML = '';
-            }
-            
-            tableBody.innerHTML = tempTbody.innerHTML;
-            tableBody.style.opacity = '1';
-            history.pushState(null, '', url);
-        })
-        .catch(err => {
-            if (err.name !== 'AbortError') {
-                console.error('Fetch Error:', err);
-                tableBody.style.opacity = '1';
+    function deleteUser(id, name) {
+        Swal.fire({
+            title: 'Are you sure?', text: `Remove ${name} from the system?`, icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#dc2626', confirmButtonText: 'Yes, delete it!',
+            backdrop: true
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const resp = await fetch(`/users/${id}`, {
+                    method: "POST",
+                    headers: { 
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'), 
+                        "Accept": "application/json", "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({ _method: "DELETE" })
+                });
+                const data = await resp.json();
+                if (data.success) { Swal.fire('Deleted!', 'User removed.', 'success'); fetchUsers(); }
+                else { Swal.fire('Error!', data.message, 'error'); }
             }
         });
     }
 
-    // Intercept search input
-    document.querySelector('input[name="search"]').addEventListener('input', debouncedFilter);
+    function viewUser(userId) {
+        window.location.href = `/users/${userId}`;
+    }
 
-    // Intercept pagination clicks
-    document.getElementById('paginationContainer').addEventListener('click', (e) => {
-        if (e.target.closest('a')) {
-            e.preventDefault();
-            fetchTable(e.target.closest('a').href);
+    // Dropdown functions
+    function toggleDropdown(id) {
+        const el = document.getElementById(id);
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        
+        // Ensure modal scrolls to it if needed
+        if(el.style.display === 'block') {
+            const form = document.getElementById('createUserForm');
+            if(form) form.scrollTop = form.scrollHeight;
+        }
+    }
+    
+    function filterDropdown(input, listId) {
+        const filter = input.value.toLowerCase();
+        const labels = document.getElementById(listId).getElementsByClassName('dropdown-item-label');
+        for (let i = 0; i < labels.length; i++) {
+            const text = labels[i].getElementsByClassName('item-text')[0].innerText.toLowerCase();
+            labels[i].style.display = text.includes(filter) ? 'flex' : 'none';
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-dropdown')) {
+            document.querySelectorAll('.dropdown-body').forEach(el => el.style.display = 'none');
         }
     });
 
-    // Handle form submission to prevent page reload
-    document.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        fetchTable();
-    });
+    function updateDropdownText(listId, headerId) {
+        const checked = document.getElementById(listId).querySelectorAll('input[type="checkbox"]:checked');
+        const header = document.querySelector(`#${headerId} span`);
+        if(checked.length > 0) {
+            header.innerText = `${checked.length} role(s) selected`;
+            header.style.color = '#6366f1';
+            header.style.fontWeight = '800';
+        } else {
+            header.innerText = 'Select Permissions...';
+            header.style.color = '#475569';
+            header.style.fontWeight = '600';
+        }
+    }
 </script>
 @endpush
 @endsection

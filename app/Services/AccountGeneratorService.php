@@ -138,7 +138,6 @@ class AccountGeneratorService
         $user = User::create([
             'name' => $employee->full_name,
             'email' => $credentials['email'],
-            'username' => $credentials['username'],
             'password' => bcrypt($credentials['password']),
             'role' => 'employee',
             'is_active' => true,

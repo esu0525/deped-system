@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify OTP - DepEd Leave Card Management System</title>
+    <title>Verify OTP - LCMS</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
@@ -77,9 +77,9 @@
         <div class="login-left">
             <div style="z-index: 2; text-align: center;">
                 <div style="width: 140px; height: 140px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; overflow: hidden;">
-                    <img src="{{ asset('images/logo.jpg') }}" alt="DepEd Logo" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.1);">
+                    <img src="{{ asset('images/logo.jpg') }}" alt="LCMS Logo" style="width: 100%; height: 100%; object-fit: cover; transform: scale(1.1);">
                 </div>
-                <h1 style="font-size: 3rem; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">DepEd Leave Card<br>Management System</h1>
+                <h1 style="font-size: 3rem; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">Leave Card<br>Management System</h1>
                 <p style="font-size: 1.1rem; opacity: 0.9; max-width: 500px; margin: 0 auto; line-height: 1.6;">
                     Providing automated, efficient, and secure leave management services for non-teaching personnel of the Department of Education.
                 </p>

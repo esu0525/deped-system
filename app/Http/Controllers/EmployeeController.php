@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use App\Exports\EmployeeExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class EmployeeController extends Controller
 {
@@ -26,6 +28,10 @@ class EmployeeController extends Controller
     {
         /** @var \Illuminate\Database\Eloquent\Builder $query */
         $query = Employee::with(['department', 'user']);
+
+        // Default filter: only show National and City (exclude HR/NTP accounts if any in employee table)
+        // Adjusting this to be flexible
+        $query->whereIn('category', ['National', 'City', 'employee']);
 
         if ($request->search) {
             $search = $request->search;
@@ -48,11 +54,25 @@ class EmployeeController extends Controller
             $query->where('employment_status', $request->employment_status);
         }
 
+        if ($request->category) {
+            $query->where('category', $request->category);
+        }
+
+        // Sorting & Auto-Filtering
+        $sort = $request->get('sort', 'name');
+        if ($sort === 'National') {
+            $query->where('category', 'National')->orderBy('full_name');
+        } elseif ($sort === 'City') {
+            $query->where('category', 'City')->orderBy('full_name');
+        } else {
+            $query->orderBy('full_name');
+        }
+
         if ($request->input('export') === 'true') {
             return $this->export($query->get());
         }
 
-        $employees = $query->orderBy('full_name')->paginate(15)->withQueryString();
+        $employees = $query->paginate(15)->withQueryString();
 
         if ($request->ajax()) {
             return view('employees.partials.employee-table-rows', compact('employees'));
@@ -71,70 +91,110 @@ class EmployeeController extends Controller
 
     public function create(Request $request)
     {
-        if ($request->ajax()) {
-            return view('employees.partials.create-modal');
-        }
+        $defaultCategory = $request->query('category', 'employee');
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $users = User::where('role', 'employee')->whereDoesntHave('employee')->get();
-        return view('employees.create', compact('departments', 'users'));
+
+        if ($request->ajax()) {
+            return view('employees.partials.create-modal', compact('defaultCategory', 'departments', 'users'));
+        }
+        return view('employees.create', compact('defaultCategory', 'departments', 'users'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'employee_id' => 'nullable|string|unique:employees',
-            'full_name' => 'required|string|max:255',
-            'position' => 'nullable|string|max:255',
-            'department_name' => 'nullable|string|max:255',
-            'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
-            'date_hired' => 'nullable|date',
-            'contact_number' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'status' => 'nullable|in:Active,Inactive,Resigned,Retired',
-            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'user_id' => 'nullable|exists:users,id',
-            'vl_balance' => 'nullable|numeric|min:0',
-            'sl_balance' => 'nullable|numeric|min:0',
-        ]);
+        \Log::info('Store Attempt:', $request->all());
 
-        // Dynamically find or create the department by name
-        $departmentId = null;
-        if (!empty($validated['department_name'])) {
-            $dept = Department::firstOrCreate(['name' => $validated['department_name']]);
-            $departmentId = $dept->id;
-        }
-        $validated['department_id'] = $departmentId;
-        unset($validated['department_name']);
-
-        // Profile picture logic removed
-
-        $employee = Employee::create($validated);
-
-        // Auto-create leave card for current year and set initial balances
-        $leaveCard = $this->leaveCardService->getOrCreateLeaveCard($employee);
-
-        $vlBalance = floatval($request->input('vl_balance', 0));
-        $slBalance = floatval($request->input('sl_balance', 0));
-
-        if ($vlBalance > 0 || $slBalance > 0) {
-            $leaveCard->update([
-                'vl_beginning_balance' => $vlBalance,
-                'vl_balance' => $vlBalance,
-                'sl_beginning_balance' => $slBalance,
-                'sl_balance' => $slBalance,
+        try {
+            $validated = $request->validate([
+                'category' => 'required|in:employee,hrntp,National,City',
+                'full_name' => 'required|string|max:255',
+                'employee_id' => 'nullable|string', // Reference ID/Username
+                'position' => 'nullable|string|max:255',
+                'access' => 'nullable|string|max:255',
+                'email' => 'required_if:category,hrntp|nullable|email|unique:users,email',
+                'password' => 'required_if:category,hrntp|nullable|string|min:4',
+                // Employee specific fields
+                'department_name' => 'nullable|string|max:255',
+                'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
+                'vl_balance' => 'nullable|numeric|min:0',
+                'sl_balance' => 'nullable|numeric|min:0',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation Failed:', $e->errors());
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors()
+            ], 422);
         }
 
-        // Auto-create user account for the employee
-        $accountResult = AccountGeneratorService::createAccountForEmployee($employee);
-        $generatedPassword = $accountResult['password'];
-        $generatedEmail = $accountResult['user']->email;
+        try {
+            return DB::transaction(function () use ($request, $validated) {
+                if ($validated['category'] === 'hrntp') {
+                    // --- 1. COORDINATOR PATH: Save ONLY to USERS Table ---
+                    // No Employee::create() here to avoid dependency issues
+                    $user = User::create([
+                        'name' => $validated['full_name'], // Forms still use full_name for uniqueness
+                        'email' => $validated['email'],
+                        'password' => Hash::make($validated['password']),
+                        'role' => $validated['position'], // This maps to position in modal name
+                        'access' => $validated['access'],
+                        'is_active' => true,
+                    ]);
 
-        AuditTrail::log('CREATE', 'Employee Management', "Created employee profile for {$employee->full_name} (ID: {$employee->employee_id}) with account {$generatedEmail}");
+                    \App\Models\AuditTrail::log('CREATE', 'System Users', "Created Coordinator User account: {$user->name}");
 
-        return redirect()->route('employees.index')->with('success',
-            "Employee profile created successfully. Auto-generated account — Email: {$generatedEmail} | Password: {$generatedPassword}"
-        );
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Coordinator account saved successfully in Users database.",
+                        'redirect' => route('employees.index', ['type' => 'hrntp'])
+                    ]);
+                } else {
+                    // --- 2. EMPLOYEE PATH: Save to EMPLOYEES Table (and auto-generate account) ---
+                    $departmentId = null;
+                    if (!empty($validated['department_name'])) {
+                        $dept = Department::firstOrCreate(['name' => $validated['department_name']]);
+                        $departmentId = $dept->id;
+                    }
+
+                    $employee = Employee::create([
+                        'employee_id' => $validated['employee_id'],
+                        'full_name' => $validated['full_name'],
+                        'position' => $validated['position'],
+                        'category' => in_array($validated['category'], ['National', 'City']) ? $validated['category'] : 'National',
+                        'employment_status' => $validated['employment_status'],
+                        'department_id' => $departmentId,
+                        'status' => 'Active',
+                    ]);
+                    
+                    // Set balances and auto-account
+                    $leaveCard = $this->leaveCardService->getOrCreateLeaveCard($employee);
+                    $leaveCard->update([
+                        'vl_beginning_balance' => $validated['vl_balance'] ?? 0,
+                        'sl_beginning_balance' => $validated['sl_balance'] ?? 0,
+                        'vl_balance' => $validated['vl_balance'] ?? 0,
+                        'sl_balance' => $validated['sl_balance'] ?? 0,
+                    ]);
+
+                    $accountResult = AccountGeneratorService::createAccountForEmployee($employee);
+                    $generatedPassword = $accountResult['password'] ?? 'Check system settings';
+                    $generatedEmail = $accountResult['user']->email;
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Employee profile created. Account: {$generatedEmail} | Pass: {$generatedPassword}",
+                        'redirect' => route('employees.index', ['type' => 'employee'])
+                    ]);
+                }
+            });
+        } catch (\Exception $e) {
+            \Log::error('Coordinator/Employee Store Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Saving Failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show(Request $request, Employee $employee)
@@ -167,9 +227,11 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         $validated = $request->validate([
+            'category' => 'nullable|in:National,City',
             'employee_id' => 'required|string|unique:employees,employee_id,' . $employee->id,
             'full_name' => 'required|string|max:255',
             'position' => 'nullable|string|max:255',
+            'access' => 'nullable|string|max:255',
             'department_name' => 'nullable|string|max:255',
             'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
             'date_hired' => 'nullable|date',
@@ -211,6 +273,10 @@ class EmployeeController extends Controller
 
         AuditTrail::log('UPDATE', 'Employee Management', "Updated employee profile for {$employee->full_name}", $old, $employee->toArray());
 
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Employee updated successfully.']);
+        }
+
         return redirect()->route('employees.index')->with('success', 'Employee profile updated successfully.');
     }
 
@@ -220,6 +286,23 @@ class EmployeeController extends Controller
         $employee->delete();
         AuditTrail::log('DELETE', 'Employee Management', "Deleted employee profile for {$name}");
         return redirect()->route('employees.index')->with('success', "Employee {$name} deleted successfully.");
+    }
+
+    /**
+     * Remove the specified user from storage.
+     */
+    public function destroyUser(User $user)
+    {
+        try {
+            $name = $user->name;
+            $user->delete();
+            
+            \App\Models\AuditTrail::log('DELETE', 'System Users', "Deleted user account: {$name}");
+            
+            return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete user: ' . $e->getMessage()], 500);
+        }
     }
 
     /**

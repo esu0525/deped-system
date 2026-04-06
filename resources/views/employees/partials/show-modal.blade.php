@@ -11,7 +11,7 @@
                 {{ $employee->status }}
             </span>
 
-            <div style="text-align: left; font-size: 0.82rem; margin-top: 25px; background: #f8fafc; padding: 15px; border-radius: 12px;">
+            <div style="text-align: left; font-size: 0.82rem; margin-top: 25px; background: var(--bg-body); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);">
                 <div style="margin-bottom: 10px;"><i class="fas fa-id-badge" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> <strong>Ref ID: {{ $employee->employee_id }}</strong></div>
                 <div style="margin-bottom: 10px;"><i class="fas fa-building" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> {{ $employee->department->name ?? 'No Office/Department' }}</div>
                 <div style="margin-bottom: 10px;"><i class="fas fa-briefcase" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> {{ $employee->employment_status ?? 'N/A' }}</div>
@@ -34,22 +34,22 @@
             <div style="margin-bottom: 25px;">
                 <h6 style="font-weight: 800; margin-bottom: 15px; font-size: 0.8rem; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px;">Current Leave Credits</h6>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div style="padding: 15px; background: #f0f9ff; border-radius: 16px; border: 1px solid #bae6fd; text-align: center;">
-                        <small style="color: #0369a1; font-weight: 700;">VL Balance</small>
-                        <h4 style="font-weight: 800; color: #075985; margin-top: 4px;">{{ (float)$currentLeaveCard->vl_balance }}</h4>
+                    <div style="padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 16px; border: 1px solid var(--border-color); text-align: center;">
+                        <small style="color: var(--primary); font-weight: 700;">VL Balance</small>
+                        <h4 style="font-weight: 800; color: var(--text-main); margin-top: 4px;">{{ (float)$currentLeaveCard->vl_balance }}</h4>
                     </div>
-                    <div style="padding: 15px; background: #f0fdf4; border-radius: 16px; border: 1px solid #bbf7d0; text-align: center;">
-                        <small style="color: #15803d; font-weight: 700;">SL Balance</small>
-                        <h4 style="font-weight: 800; color: #166534; margin-top: 4px;">{{ (float)$currentLeaveCard->sl_balance }}</h4>
+                    <div style="padding: 15px; background: rgba(16, 185, 129, 0.1); border-radius: 16px; border: 1px solid var(--border-color); text-align: center;">
+                        <small style="color: var(--success); font-weight: 700;">SL Balance</small>
+                        <h4 style="font-weight: 800; color: var(--text-main); margin-top: 4px;">{{ (float)$currentLeaveCard->sl_balance }}</h4>
                     </div>
                 </div>
             </div>
             @endif
 
             <h6 style="font-weight: 800; margin-bottom: 12px; font-size: 0.8rem; color: var(--secondary); text-transform: uppercase;">Recent Applications</h6>
-            <div style="border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden;">
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
-                    <thead style="background: #f8fafc;">
+                    <thead style="background: var(--bg-body);">
                         <tr>
                             <th style="padding: 10px; text-align: left; color: var(--secondary);">Type</th>
                             <th style="padding: 10px; text-align: left; color: var(--secondary);">Inclusive Dates</th>
@@ -58,7 +58,7 @@
                     </thead>
                     <tbody>
                         @forelse($employee->leaveApplications->take(5) as $app)
-                        <tr style="border-top: 1px solid #f1f5f9;">
+                        <tr style="border-top: 1px solid var(--border-color);">
                             <td style="padding: 10px; font-weight: 600;">{{ $app->leaveType->name ?? 'N/A' }}</td>
                             <td style="padding: 10px;"><small>{{ $app->date_from->format('M d') }} - {{ $app->date_to->format('M d, Y') }}</small></td>
                             <td style="padding: 10px; text-align: center;">{!! $app->status_badge !!}</td>

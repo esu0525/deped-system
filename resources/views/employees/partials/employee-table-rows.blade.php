@@ -1,8 +1,8 @@
 @forelse($employees as $emp)
-<tr style="border-bottom: 1px solid #f8fafc; transition: background 0.2s; cursor: pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'" onclick="if(!event.target.closest('button') && !event.target.closest('a')) openViewModal('{{ route('employees.show', $emp) }}')">
+<tr style="border-bottom: 1px solid var(--border-color); transition: background 0.2s; cursor: pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('a')) openViewModal('{{ route('employees.show', $emp) }}')">
     <td style="padding: 15px;">
         <div>
-            <p style="font-weight: 600; margin: 0; color: var(--dark);">{{ $emp->full_name }}</p>
+            <p style="font-weight: 600; margin: 0; color: var(--text-main);">{{ $emp->full_name }}</p>
             @if($emp->user)
                 <div style="display: flex; align-items: center; gap: 4px; font-size: 0.68rem; color: #2563eb; margin-top: 2px;">
                     <i class="fas fa-user-circle"></i>
@@ -16,10 +16,15 @@
             @endif
         </div>
     </td>
+    <td style="padding: 15px;">
+        <span style="font-size: 0.68rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid var(--border-color); text-transform: uppercase;">
+            {{ $emp->category ?: 'National' }}
+        </span>
+    </td>
     <td style="padding: 15px; font-size: 0.85rem;">{{ $emp->department?->name ?? 'N/A' }}</td>
     <td style="padding: 15px; font-size: 0.85rem;">{{ $emp->position }}</td>
     <td style="padding: 15px;">
-        <span class="badge" style="background: {{ $emp->status == 'Active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)' }}; color: {{ $emp->status == 'Active' ? '#059669' : '#475569' }}; padding: 6px 12px; border-radius: 8px; font-size: 0.72rem; font-weight: 700;">
+        <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 6px 12px; border-radius: 8px; font-size: 0.72rem; font-weight: 700;">
             {{ $emp->status }}
         </span>
     </td>
@@ -33,7 +38,7 @@
 </tr>
 @empty
 <tr>
-    <td colspan="5" style="padding: 40px; text-align: center; color: var(--secondary);">
+    <td colspan="6" style="padding: 40px; text-align: center; color: var(--secondary);">
         <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;"></i>
         <p style="font-weight: 600;">No employees found matching your search.</p>
     </td>

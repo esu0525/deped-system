@@ -44,7 +44,11 @@ class AuditTrailController extends Controller
             return view('audit-trail.partials.table-rows', compact('logs'));
         }
 
-        $modules = AuditTrail::distinct()->pluck('module')->filter()->sort();
+        $excludeModules = ['Reports', 'Import'];
+        $modules = AuditTrail::distinct()
+            ->pluck('module')
+            ->filter(fn($m) => !empty($m) && !in_array($m, $excludeModules))
+            ->sort();
         $actions = AuditTrail::distinct()->pluck('action')->filter()->sort();
 
         return view('audit-trail.index', compact('logs', 'modules', 'actions'));

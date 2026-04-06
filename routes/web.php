@@ -7,7 +7,6 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeePortalController;
 use App\Http\Controllers\LeaveApplicationController;
 use App\Http\Controllers\LeaveCardController;
-use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuditTrailController;
@@ -44,17 +43,22 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/profile/password', [EmployeePortalController::class, 'updatePassword'])->name('employee.profile.password');
     });
 
-    // ─── Employee Management (Admin/HR/Encoder) ───────────────────────────
-    Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
+    // ─── Employee Management (Admin only) ───────────────────────────
+    Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::resource('employees', EmployeeController::class);
         Route::post('/employees/{employee}/create-account', [EmployeeController::class, 'createAccount'])->name('employees.create-account');
+    });
+
+    // ─── Account Management ───────────────────────────────────────────
+    Route::middleware(['role:admin,super_admin,coordinator,ojt'])->group(function () {
+        Route::resource('users', UserController::class);
     });
 
     // Employees can view their own profile
     Route::get('/profile', [EmployeeController::class, 'show'])->name('profile');
 
-    // ─── Leave Applications (Admin/HR/Encoder) ──────────────────────────
-    Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
+    // ─── Leave Applications (Admin/Coordinator/OJT) ──────────────────────────
+    Route::middleware(['role:admin,super_admin,coordinator,ojt'])->group(function () {
         Route::resource('leave-applications', LeaveApplicationController::class);
         Route::post('/leave-applications/bulk-approve', [LeaveApplicationController::class, 'bulkApprove'])->name('leave-applications.bulk-approve');
         Route::post('/leave-applications/{leave_application}/approve', [LeaveApplicationController::class, 'approve'])->name('leave-applications.approve');
@@ -68,36 +72,20 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/leave-cards', [LeaveCardController::class, 'index'])->name('leave-cards.index');
     Route::get('/leave-cards/{employee}', [LeaveCardController::class, 'show'])->name('leave-cards.show');
 
-    Route::middleware(['role:super_admin,hr_admin,encoder'])->group(function () {
+    Route::middleware(['role:admin,super_admin,coordinator,ojt'])->group(function () {
         Route::post('/leave-cards/{employee}/adjust', [LeaveCardController::class, 'adjust'])->name('leave-cards.adjust');
         Route::post('/leave-cards/{employee}/sync-transactions', [LeaveCardController::class, 'syncTransactions'])->name('leave-cards.sync-transactions');
         Route::post('/leave-cards/monthly-credit', [LeaveCardController::class, 'addMonthlyCredits'])->name('leave-cards.monthly-credits');
     });
 
-    // ─── Reports ──────────────────────────────────────────────────────────
-    Route::group(['prefix' => 'reports', 'as' => 'reports.', 'middleware' => ['role:super_admin,hr_admin']], function () {
-        Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/employee-summary', [ReportController::class, 'employeeSummary'])->name('employee-summary');
-        Route::get('/monthly-leave', [ReportController::class, 'monthlyLeave'])->name('monthly-leave');
-        Route::get('/department-usage', [ReportController::class, 'departmentUsage'])->name('department-usage');
-        Route::get('/leave-balances', [ReportController::class, 'leaveBalances'])->name('leave-balances');
-
-        // Exports
-        Route::get('/export/employees', [ReportController::class, 'exportEmployees'])->name('export.employees');
-        Route::get('/export/leave-cards', [ReportController::class, 'exportLeaveCards'])->name('export.leave-cards');
-        Route::get('/export/leave-applications', [ReportController::class, 'exportLeaveApplications'])->name('export.leave-applications');
-        Route::get('/export/leave-transactions', [ReportController::class, 'exportLeaveTransactions'])->name('export.leave-transactions');
-        Route::get('/export/monthly-summary', [ReportController::class, 'exportMonthlyDeptSummary'])->name('export.monthly-summary');
-    });
 
     // ─── Import ───────────────────────────────────────────────────────────
-    Route::middleware(['role:super_admin,hr_admin'])->group(function () {
+    Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::post('/import/employees', [ImportController::class, 'importEmployees'])->name('import.employees');
     });
 
-    // ─── User Management ──────────────────────────────────────────────────
-    Route::middleware(['role:super_admin'])->group(function () {
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    // ─── User Management & Settings (Admin only) ──────────────────────────────────────────────────
+    Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
         Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');

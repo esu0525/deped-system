@@ -47,15 +47,13 @@ class AuthController extends Controller
             ]);
         }
 
-        // Find user by email or username
-        $user = User::where('email', $request->email)
-            ->orWhere('username', $request->email)
-            ->first();
+        // Find user by email
+        $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             RateLimiter::hit($key, 300);
             throw ValidationException::withMessages([
-                'email' => 'Invalid credentials. Please check your email/username and password.',
+                'email' => 'Invalid credentials. Please check your email and password.',
             ]);
         }
 
@@ -257,7 +255,6 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'username' => 'required|string|unique:users|max:50',
             'email' => 'required|email|unique:users',
             'password' => 'required|min:8|confirmed',
             'role' => 'required|in:super_admin,hr_admin,encoder,employee',
@@ -265,7 +262,6 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $request->name,
-            'username' => $request->username,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,

@@ -33,8 +33,29 @@ class LeaveApplicationController extends Controller
         $query = LeaveApplication::with(['employee.department', 'leaveType', 'approver']);
 
         // Employees only see their own
-        if ($user->isEmployee() && $user->employee) {
+        if ($user->role === 'employee' && $user->employee) {
             $query->where('employee_id', $user->employee->id);
+        } elseif ($user->role === 'ojt') {
+            // OJTs only see what they encoded themselves
+            $query->where('encoded_by', $user->id);
+        } elseif (!in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
+            $accessList = explode(', ', $user->access);
+            $query->whereHas('employee', function ($q) use ($accessList) {
+                $q->where(function ($sq) use ($accessList) {
+                    foreach ($accessList as $access) {
+                        preg_match('/^(.*?)(?:\s+\((National|City)\))?$/', trim($access), $matches);
+                        $pos = trim($matches[1] ?? '');
+                        $cat = $matches[2] ?? null;
+                        
+                        $sq->orWhere(function($subQ) use ($pos, $cat) {
+                            $subQ->where('position', 'like', '%' . $pos . '%');
+                            if ($cat) {
+                                $subQ->where('category', $cat);
+                            }
+                        });
+                    }
+                });
+            });
         }
 
         if ($request->search) {
@@ -75,6 +96,24 @@ class LeaveApplicationController extends Controller
         $statsQuery = LeaveApplication::query();
         if ($user->isEmployee() && $user->employee) {
             $statsQuery->where('employee_id', $user->employee->id);
+        } elseif (!in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
+            $accessList = explode(', ', $user->access);
+            $statsQuery->whereHas('employee', function ($q) use ($accessList) {
+                $q->where(function ($sq) use ($accessList) {
+                    foreach ($accessList as $access) {
+                        preg_match('/^(.*?)(?:\s+\((National|City)\))?$/', trim($access), $matches);
+                        $pos = trim($matches[1] ?? '');
+                        $cat = $matches[2] ?? null;
+                        
+                        $sq->orWhere(function($subQ) use ($pos, $cat) {
+                            $subQ->where('position', 'like', '%' . $pos . '%');
+                            if ($cat) {
+                                $subQ->where('category', $cat);
+                            }
+                        });
+                    }
+                });
+            });
         }
 
         $stats = [
@@ -91,8 +130,26 @@ class LeaveApplicationController extends Controller
     {
         $user = auth()->user();
         $leaveTypes = LeaveType::where('is_active', true)->get();
+        $employeesQuery = Employee::where('status', 'Active');
+        if (!in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
+            $accessList = explode(', ', $user->access);
+            $employeesQuery->where(function ($sq) use ($accessList) {
+                foreach ($accessList as $access) {
+                    preg_match('/^(.*?)(?:\s+\((National|City)\))?$/', trim($access), $matches);
+                    $pos = trim($matches[1] ?? '');
+                    $cat = $matches[2] ?? null;
+                    
+                    $sq->orWhere(function($subQ) use ($pos, $cat) {
+                        $subQ->where('position', 'like', '%' . $pos . '%');
+                        if ($cat) {
+                            $subQ->where('category', $cat);
+                        }
+                    });
+                }
+            });
+        }
         $employees = $user->canManageEmployees()
-            ?Employee::where('status', 'Active')->orderBy('full_name')->get()
+            ? $employeesQuery->orderBy('full_name')->get()
             : collect([$user->employee])->filter();
 
         return view('leave-applications.create', compact('leaveTypes', 'employees'));

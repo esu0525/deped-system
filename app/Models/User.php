@@ -13,7 +13,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
-        'name', 'username', 'email', 'password', 'role', 'is_active',
+        'name', 'email', 'avatar', 'password', 'role', 'access', 'is_active', 'created_by',
         'otp_code', 'otp_expires_at', 'otp_attempts',
         'last_login_at', 'last_login_ip', 'email_verified_at',
     ];
@@ -59,12 +59,12 @@ class User extends Authenticatable
 
     public function canManageEmployees(): bool
     {
-        return in_array($this->role, ['super_admin', 'hr_admin']);
+        return in_array($this->role, ['super_admin', 'hr_admin', 'admin', 'coordinator', 'ojt']);
     }
 
     public function canApproveLeave(): bool
     {
-        return in_array($this->role, ['super_admin', 'hr_admin']);
+        return in_array($this->role, ['super_admin', 'hr_admin', 'coordinator']);
     }
 
     public function canDeleteFinalized(): bool

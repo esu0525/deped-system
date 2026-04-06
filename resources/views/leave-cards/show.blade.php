@@ -10,15 +10,15 @@
             <a href="{{ route('leave-cards.index') }}" class="btn btn-secondary" style="padding: 10px 20px;">
                 <i class="fas fa-arrow-left"></i> Back to Ledger
             </a>
-        <div class="tab-pill-container no-print" style="display: flex; background: #f1f5f9; padding: 5px; border-radius: 12px; gap: 5px; margin-left: 20px;">
+        <div class="tab-pill-container no-print" style="display: flex; background: var(--bg-body); padding: 5px; border-radius: 12px; gap: 5px; margin-left: 20px;">
             <a href="{{ route('leave-cards.show', [$employee->id, 'year' => $year, 'tab' => 'form6']) }}" 
                class="tab-pill-item" 
-               style="padding: 10px 20px; text-decoration: none; color: {{ $tab !== 'cto' ? '#1e293b' : '#64748b' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab !== 'cto' ? 'background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+               style="padding: 10px 20px; text-decoration: none; color: {{ $tab !== 'cto' ? 'var(--text-main)' : 'var(--secondary)' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab !== 'cto' ? 'background: var(--bg-card); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-file-lines"></i> FORM 6 (VL/SL)
             </a>
             <a href="{{ route('leave-cards.show', [$employee->id, 'year' => $year, 'tab' => 'cto']) }}" 
                class="tab-pill-item" 
-               style="padding: 10px 20px; text-decoration: none; color: {{ $tab === 'cto' ? '#1e293b' : '#64748b' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab === 'cto' ? 'background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
+               style="padding: 10px 20px; text-decoration: none; color: {{ $tab === 'cto' ? 'var(--text-main)' : 'var(--secondary)' }}; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; border-radius: 10px; {{ $tab === 'cto' ? 'background: var(--bg-card); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);' : '' }} transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-certificate"></i> CTO CARD
             </a>
         </div>
@@ -167,24 +167,24 @@
             <!-- Official Leave Card Header -->
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
-                <p style="font-size: 0.8rem; color: var(--dark); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
-                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase;">{{ $tab === 'cto' ? 'CTO Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
+                <p style="font-size: 0.8rem; color: var(--secondary); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
+                <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase; color: var(--text-main);">{{ $tab === 'cto' ? 'CTO Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem;">
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem; color: var(--text-main);">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Name:</span>
                     <span style="flex: 1;">{{ $employee->full_name }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Designation:</span>
                     <span style="flex: 1;">{{ $employee->position ?? '—' }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Station:</span>
                     <span style="flex: 1;">{{ $employee->department->name ?? '—' }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid #000; padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Status:</span>
                     <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
                 </div>
@@ -224,39 +224,39 @@
                 @endif
                 <thead>
                     <tr>
-                        <th rowspan="2">PERIOD</th>
-                        <th rowspan="2">PARTICULARS</th>
+                        <th rowspan="2" style="color: var(--text-main);">PERIOD</th>
+                        <th rowspan="2" style="color: var(--text-main);">PARTICULARS</th>
                         @if($tab === 'cto')
-                            <th colspan="8" class="group-header cto-header" style="background: #f0fdf4; color: #166534;">CTO</th>
+                            <th colspan="8" class="group-header cto-header" style="background: rgba(22, 163, 74, 0.15); color: #4ade80;">CTO</th>
                         @else
-                            <th colspan="4" class="group-header vl-header">Vacation Leave</th>
-                            <th colspan="4" class="group-header sl-header">Sick Leave</th>
+                            <th colspan="4" class="group-header vl-header" style="background: rgba(37, 99, 235, 0.15); color: #60a5fa;">Vacation Leave</th>
+                            <th colspan="4" class="group-header sl-header" style="background: rgba(22, 163, 74, 0.15); color: #4ade80;">Sick Leave</th>
                         @endif
-                        <th rowspan="2">Date & Action<br>Taken on<br>APPL. For Leave</th>
+                        <th rowspan="2" style="color: var(--text-main);">Date & Action<br>Taken on<br>APPL. For Leave</th>
                     </tr>
                     <tr>
                         @if($tab === 'cto')
-                            <th colspan="5" class="sub-header">TITLE</th>
-                            <th class="sub-header">EARNED</th>
-                            <th class="sub-header">USED</th>
-                            <th class="sub-header">BAL.</th>
+                            <th colspan="5" class="sub-header" style="color: var(--text-main);">TITLE</th>
+                            <th class="sub-header" style="color: var(--text-main);">EARNED</th>
+                            <th class="sub-header" style="color: var(--text-main);">USED</th>
+                            <th class="sub-header" style="color: var(--text-main);">BAL.</th>
                         @else
-                            <th class="sub-header">EARNED</th>
-                            <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                            <th class="sub-header">BAL.</th>
-                            <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
-                            <th class="sub-header">EARNED</th>
-                            <th class="sub-header">ABS.<br>UND.<br>W/P.</th>
-                            <th class="sub-header">BAL.</th>
-                            <th class="sub-header">ABS.<br>UND.<br>WOP.</th>
+                            <th class="sub-header" style="color: var(--text-main);">EARNED</th>
+                            <th class="sub-header" style="color: var(--text-main);">ABS.<br>UND.<br>W/P.</th>
+                            <th class="sub-header" style="color: var(--text-main);">BAL.</th>
+                            <th class="sub-header" style="color: var(--text-main);">ABS.<br>UND.<br>WOP.</th>
+                            <th class="sub-header" style="color: var(--text-main);">EARNED</th>
+                            <th class="sub-header" style="color: var(--text-main);">ABS.<br>UND.<br>W/P.</th>
+                            <th class="sub-header" style="color: var(--text-main);">BAL.</th>
+                            <th class="sub-header" style="color: var(--text-main);">ABS.<br>UND.<br>WOP.</th>
                         @endif
                     </tr>
                 </thead>
                 <tbody>
                     @if($page['is_very_first'] && $tab !== 'cto')
-                        <tr style="height: 19px; background: #fffbeb;">
+                        <tr style="height: 19px; background: rgba(245, 158, 11, 0.1);">
                             <td class="date-col" style="font-weight: 700; font-size: 0.68rem; line-height: 1.2; vertical-align: top; position: relative; padding: 0; overflow: visible;">
-                                <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; white-space: nowrap; pointer-events: none; overflow: visible;">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
+                                <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; white-space: nowrap; pointer-events: none; overflow: visible; color: var(--text-main);">BAL. AS OF: 12/31/{{ $leaveCard->year - 1 }}</div>
                             </td>
                             <td></td>
                             <td></td><td></td>
@@ -315,7 +315,7 @@
                                 }
                             }
                         @endphp
-                        <tr class="carried-row tx-row-print" style="height: 19px; background: #fafafa;">
+                        <tr class="carried-row tx-row-print" style="height: 19px; background: rgba(0, 0, 0, 0.1);">
                             <td class="date-col" style="font-weight: 700; font-size: 0.68rem; vertical-align: top; position: relative; padding: 0; overflow: visible;">
                                 <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; white-space: nowrap; pointer-events: none; overflow: visible;">BAL. AS OF: {{ $carriedDate }}</div>
                             </td>
@@ -511,9 +511,9 @@
 
     @else
     <!-- No Leave Card for this year - Create one -->
-    <div class="card no-print" style="text-align: center; padding: 50px;">
-        <i class="fas fa-folder-open" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px;"></i>
-        <h4 style="font-weight: 700; color: var(--dark); margin-bottom: 8px;">No Leave Card for {{ $year }}</h4>
+    <div class="card no-print" style="text-align: center; padding: 50px; background: var(--bg-card); border: 1px solid var(--border-color);">
+        <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--secondary); margin-bottom: 16px;"></i>
+        <h4 style="font-weight: 700; color: var(--text-main); margin-bottom: 8px;">No Leave Card for {{ $year }}</h4>
         <p style="color: var(--secondary); margin-bottom: 24px;">Set the beginning balance to create a leave card for this employee.</p>
 
         @if(auth()->user()->hasRole(['super_admin', 'hr_admin', 'encoder']))
@@ -555,8 +555,9 @@
        OFFICIAL LEAVE CARD TABLE STYLES
        ═══════════════════════════════════════════════════════════ */
     .leave-card-form {
-        background: white;
+        background: var(--bg-card);
         padding: 32px;
+        color: var(--text-main);
     }
 
     .leave-card-table {
@@ -569,19 +570,20 @@
 
     .leave-card-table th,
     .leave-card-table td {
-        border: 1px solid #334155;
+        border: 1px solid var(--border-color);
         padding: 6px 8px;
         text-align: center;
         vertical-align: middle;
+        color: var(--text-main);
     }
 
     .leave-card-table thead th {
-        background: #f8fafc;
+        background: var(--bg-body);
         font-weight: 800;
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.3px;
-        color: #1e293b;
+        color: var(--text-main);
     }
 
     /* Seamless "Period -> Particulars" bleed (tumagos sa particulars) with actual border! */
@@ -658,20 +660,20 @@
     }
 
     .leave-card-table .vl-header {
-        background: #eff6ff;
-        color: #1e40af;
+        background: rgba(37, 99, 235, 0.15);
+        color: #60a5fa;
     }
-
     .leave-card-table .sl-header {
-        background: #ecfdf5;
-        color: #065f46;
+        background: rgba(22, 163, 74, 0.15);
+        color: #4ade80;
     }
 
     .leave-card-table .sub-header {
         font-size: 0.65rem;
         padding: 5px 4px;
         line-height: 1.2;
-        background: #f8fafc;
+        background: var(--bg-body) !important;
+        color: var(--text-main) !important;
     }
 
     .leave-card-table tbody td {
@@ -720,7 +722,7 @@
     .leave-card-table .bal-cell {
         font-family: 'Outfit', monospace;
         font-weight: 700;
-        background: #fafbfc;
+        background: rgba(255, 255, 255, 0.03);
     }
 
     .leave-card-table .empty-row td {
