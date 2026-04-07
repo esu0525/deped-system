@@ -47,8 +47,8 @@ class AuthController extends Controller
             ]);
         }
 
-        // Find user by email
-        $user = User::where('email', $request->email)->first();
+        // Find user by email (using the searchable column as 'email' is encrypted)
+        $user = User::where('email_searchable', strtolower($request->email))->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             RateLimiter::hit($key, 300);

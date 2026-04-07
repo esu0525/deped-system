@@ -13,7 +13,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
-        'name', 'email', 'avatar', 'password', 'role', 'access', 'is_active', 'created_by',
+        'first_name', 'middle_name', 'last_name', 'email', 'email_searchable', 'avatar', 'password', 'role', 'access', 'is_active', 'created_by',
         'otp_code', 'otp_expires_at', 'otp_attempts',
         'last_login_at', 'last_login_ip', 'email_verified_at',
     ];
@@ -23,11 +23,13 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'email' => 'encrypted',
             'email_verified_at' => 'datetime',
             'otp_expires_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'access' => 'encrypted',
         ];
     }
 
@@ -94,6 +96,11 @@ class User extends Authenticatable
     public function clearOtp(): void
     {
         $this->update(['otp_code' => null, 'otp_expires_at' => null, 'otp_attempts' => 0]);
+    }
+
+    public function getNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
     }
 
     // Relationships

@@ -37,9 +37,17 @@ class UserController extends Controller
         $validated = $request->validate($rules);
 
         try {
+            $nameParts = explode(' ', $validated['name']);
+            $last = array_pop($nameParts);
+            $first = array_shift($nameParts);
+            $middle = implode(' ', $nameParts);
+
             $data = [
-                'name' => $validated['name'],
+                'first_name' => $first,
+                'middle_name' => $middle,
+                'last_name' => $last,
                 'email' => $validated['email'],
+                'email_searchable' => strtolower($validated['email']),
             ];
 
             if (in_array(auth()->user()->role, ['admin', 'super_admin'])) {
@@ -145,13 +153,14 @@ class UserController extends Controller
         if ($request->search) {
             $search = '%' . $request->search . '%';
             $query->where(function($q) use ($search) {
-                $q->where('name', 'like', $search)
-                  ->orWhere('email', 'like', $search)
+                $q->where('first_name', 'like', $search)
+                  ->orWhere('last_name', 'like', $search)
+                  ->orWhere('email_searchable', 'like', $search)
                   ->orWhere('role', 'like', $search);
             });
         }
 
-        $users = $query->orderBy('name')->paginate(15)->withQueryString();
+        $users = $query->orderBy('first_name')->paginate(15)->withQueryString();
         
         $rawPositions = Employee::select('position', 'category')->whereNotNull('position')->distinct()->get();
         $positions = [];
@@ -213,9 +222,17 @@ class UserController extends Controller
                     $accessToGrant = array_intersect($accessToGrant, $myAccess);
                 }
 
+                $nameParts = explode(' ', $request->name);
+                $last = array_pop($nameParts);
+                $first = array_shift($nameParts);
+                $middle = implode(' ', $nameParts);
+
                 User::create([
-                    'name' => $request->name,
+                    'first_name' => $first,
+                    'middle_name' => $middle,
+                    'last_name' => $last,
                     'email' => $request->email,
+                    'email_searchable' => strtolower($request->email),
                     'password' => Hash::make($request->password),
                     'role' => $request->role,
                     'access' => !empty($accessToGrant) ? implode(', ', $accessToGrant) : null,
