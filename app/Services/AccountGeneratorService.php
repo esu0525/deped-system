@@ -103,7 +103,8 @@ class AccountGeneratorService
      */
     private static function ensureUniqueEmail(string $email): string
     {
-        if (!User::where('email', $email)->exists()) {
+        $hashedEmail = hash_hmac('sha256', strtolower($email), config('app.key'));
+        if (!User::where('email_searchable', $hashedEmail)->exists()) {
             return $email;
         }
 
@@ -112,7 +113,12 @@ class AccountGeneratorService
         $domain = $parts[1];
         $counter = 2;
 
-        while (User::where('email', "{$base}{$counter}@{$domain}")->exists()) {
+        while (true) {
+            $testEmail = "{$base}{$counter}@{$domain}";
+            $hashedTest = hash_hmac('sha256', strtolower($testEmail), config('app.key'));
+            if (!User::where('email_searchable', $hashedTest)->exists()) {
+                break;
+            }
             $counter++;
         }
 
@@ -135,9 +141,17 @@ class AccountGeneratorService
 
         $credentials = self::generateCredentials($employee->full_name);
 
+        $nameParts = explode(' ', $employee->full_name);
+        $last = array_pop($nameParts);
+        $first = array_shift($nameParts);
+        $middle = implode(' ', $nameParts);
+
         $user = User::create([
-            'name' => $employee->full_name,
+            'first_name' => $first,
+            'middle_name' => $middle,
+            'last_name' => $last,
             'email' => $credentials['email'],
+            'email_searchable' => hash_hmac('sha256', strtolower($credentials['email']), config('app.key')),
             'password' => bcrypt($credentials['password']),
             'role' => 'employee',
             'is_active' => true,

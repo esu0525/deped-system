@@ -87,7 +87,7 @@ class LeaveCardService
         // Check if there are sufficient credits for ALL entries first
         foreach ($application->details as $detail) {
             $type = $detail->leaveType;
-            if (!$type)
+            if (!$type || !$detail->is_with_pay)
                 continue;
 
             $days = floatval($detail->num_days);
@@ -101,9 +101,10 @@ class LeaveCardService
             }
         }
 
-        // Get approver info for action taken
-        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
-        $approverSign = explode(' ', trim($approverName))[0];
+        // Get filer (encoder) info for action taken
+        $filer = $application->encoder;
+        $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        $filerSign = explode(' ', trim($filerName))[0];
 
         // Use local running balances
         $runningVl = floatval($leaveCard->vl_balance);
@@ -184,7 +185,7 @@ class LeaveCardService
             'vl_balance_after' => ($totalVlUsed !== null) ? $runningVl : null,
             'sl_balance_after' => ($totalSlUsed !== null) ? $runningSl : null,
             'remarks' => $combinedRemarks,
-            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+            'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
             'encoded_by' => auth()->id(),
         ]);
 
@@ -201,8 +202,9 @@ class LeaveCardService
      */
     protected function processMonetization(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
     {
-        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
-        $approverSign = explode(' ', trim($approverName))[0];
+        $filer = $application->encoder;
+        $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        $filerSign = explode(' ', trim($filerName))[0];
 
         $vlCurrent = floatval($leaveCard->vl_balance);
         $slCurrent = floatval($leaveCard->sl_balance);
@@ -236,7 +238,7 @@ class LeaveCardService
             'sl_balance_after' => $leaveCard->sl_balance,
             'sl_wop' => $totalHalves, // As requested: total goes to column beside action
             'remarks' => '',
-            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+            'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
             'encoded_by' => auth()->id(),
         ]);
 
@@ -248,8 +250,9 @@ class LeaveCardService
      */
     protected function processMonetization10to30(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
     {
-        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
-        $approverSign = explode(' ', trim($approverName))[0];
+        $filer = $application->encoder;
+        $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        $filerSign = explode(' ', trim($filerName))[0];
 
         $totalDays = 0;
         foreach ($application->details as $detail) {
@@ -283,7 +286,7 @@ class LeaveCardService
             'sl_balance_after' => null, // This ensures hyphen in SL column
             'sl_wop' => null, // No total for 10-30 days as requested
             'remarks' => '',
-            'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+            'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
             'encoded_by' => auth()->id(),
         ]);
 
@@ -295,8 +298,9 @@ class LeaveCardService
      */
     protected function processCto(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
     {
-        $approverName = $remarks ?: (auth()->user()->employee ? auth()->user()->employee->full_name : auth()->user()->name);
-        $approverSign = explode(' ', trim($approverName))[0];
+        $filer = $application->encoder;
+        $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        $filerSign = explode(' ', trim($filerName))[0];
 
         foreach ($application->details as $detail) {
             $formattedDates = $detail->inclusive_dates ? $detail->inclusive_dates : "";
@@ -321,7 +325,7 @@ class LeaveCardService
                     'days' => $earned,
                     'cto_earned' => $earned,
                     'cto_balance_after' => $leaveCard->cto_balance,
-                    'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+                    'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
                     'encoded_by' => auth()->id(),
                 ]);
             }
@@ -343,7 +347,7 @@ class LeaveCardService
                     'days' => $used,
                     'cto_used' => $used,
                     'cto_balance_after' => $leaveCard->cto_balance,
-                    'action_taken' => $approverSign . ' ' . now()->format('m/d/Y'),
+                    'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
                     'encoded_by' => auth()->id(),
                 ]);
             }

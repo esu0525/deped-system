@@ -45,7 +45,7 @@ return new class extends Migration
                 'first_name' => $first,
                 'middle_name' => $middle,
                 'last_name' => $last,
-                'email_searchable' => strtolower($user->email),
+                'email_searchable' => hash_hmac('sha256', strtolower($user->email), config('app.key')),
                 'email' => Crypt::encryptString($user->email),
                 'access' => $user->access ? Crypt::encryptString($user->access) : null,
             ]);

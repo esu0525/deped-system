@@ -112,7 +112,7 @@ class EmployeeController extends Controller
                 'employee_id' => 'nullable|string', // Reference ID/Username
                 'position' => 'nullable|string|max:255',
                 'access' => 'nullable|string|max:255',
-                'email' => 'required_if:category,hrntp|nullable|email|unique:users,email',
+                'email' => 'required_if:category,hrntp|nullable|email',
                 'password' => 'required_if:category,hrntp|nullable|string|min:4',
                 // Employee specific fields
                 'department_name' => 'nullable|string|max:255',
@@ -130,13 +130,32 @@ class EmployeeController extends Controller
         }
 
         try {
+            if (!empty($validated['email'])) {
+                $hashedEmail = hash_hmac('sha256', strtolower($validated['email']), config('app.key'));
+                if (\App\Models\User::where('email_searchable', $hashedEmail)->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation error',
+                        'errors' => ['email' => ['The email has already been taken.']]
+                    ], 422);
+                }
+            }
+
             return DB::transaction(function () use ($request, $validated) {
                 if ($validated['category'] === 'hrntp') {
                     // --- 1. COORDINATOR PATH: Save ONLY to USERS Table ---
                     // No Employee::create() here to avoid dependency issues
+                    $nameParts = explode(' ', $validated['full_name']);
+                    $last = array_pop($nameParts);
+                    $first = array_shift($nameParts);
+                    $middle = implode(' ', $nameParts);
+
                     $user = User::create([
-                        'name' => $validated['full_name'], // Forms still use full_name for uniqueness
+                        'first_name' => $first,
+                        'middle_name' => $middle,
+                        'last_name' => $last,
                         'email' => $validated['email'],
+                        'email_searchable' => hash_hmac('sha256', strtolower($validated['email']), config('app.key')),
                         'password' => Hash::make($validated['password']),
                         'role' => $validated['position'], // This maps to position in modal name
                         'access' => $validated['access'],

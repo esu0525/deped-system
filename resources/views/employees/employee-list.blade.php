@@ -11,9 +11,6 @@
                 <button type="button" class="btn btn-secondary" title="Export List" onclick="document.getElementById('exportFlag').value='true'; document.getElementById('filterForm').submit(); document.getElementById('exportFlag').value='';">
                     <i class="fas fa-file-export"></i> Export
                 </button>
-                <button type="button" class="btn btn-primary" onclick="openCreateModal('{{ route('employees.create', ['category' => 'employee']) }}')" title="Add Employee">
-                    <i class="fas fa-user-plus"></i> Add Employee
-                </button>
             </div>
         </div>
 

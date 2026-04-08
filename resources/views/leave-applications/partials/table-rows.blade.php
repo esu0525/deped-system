@@ -38,6 +38,13 @@
     <td style="padding: 15px; font-size: 0.85rem; color: var(--secondary);">
         {{ $app->created_at->format('M d, Y') }}
     </td>
+    <td style="padding: 15px; font-size: 0.85rem; color: var(--secondary); font-weight: 600;">
+        @php 
+            $filer = $app->encoder;
+            $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        @endphp
+        {{ $filerName }}
+    </td>
     <td style="padding: 15px; text-align: center;">
         <button type="button" class="btn btn-sm btn-secondary" onclick="openViewModal('{{ route('leave-applications.show', $app) }}')" title="View Details">
             <i class="fas fa-eye"></i>
@@ -46,7 +53,7 @@
 </tr>
 @empty
 <tr>
-    <td colspan="8" style="padding: 40px; text-align: center; color: var(--secondary);">
+    <td colspan="9" style="padding: 40px; text-align: center; color: var(--secondary);">
         <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.2;"></i>
         <p style="font-weight: 600;">No leave applications found.</p>
     </td>

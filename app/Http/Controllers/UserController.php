@@ -22,36 +22,45 @@ class UserController extends Controller
         }
 
         $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'suffix' => 'nullable|string|max:255',
+            'email' => 'required|email',
             'password' => 'nullable|string|min:4',
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
 
         if (in_array(auth()->user()->role, ['admin', 'super_admin'])) {
             $rules['role'] = 'required|in:admin,coordinator,ojt';
+            $rules['assign'] = 'nullable|string|in:National,City';
             $rules['access'] = 'nullable|array';
             $rules['access.*'] = 'string|max:255';
         }
 
         $validated = $request->validate($rules);
 
-        try {
-            $nameParts = explode(' ', $validated['name']);
-            $last = array_pop($nameParts);
-            $first = array_shift($nameParts);
-            $middle = implode(' ', $nameParts);
+        if (!empty($validated['email'])) {
+            $hashedEmail = hash_hmac('sha256', strtolower($validated['email']), config('app.key'));
+            $existingUser = User::where('email_searchable', $hashedEmail)->where('id', '!=', $user->id)->first();
+            if ($existingUser) {
+                return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => ['email' => ['The email has already been taken.']]], 422);
+            }
+        }
 
+        try {
             $data = [
-                'first_name' => $first,
-                'middle_name' => $middle,
-                'last_name' => $last,
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'suffix' => $request->suffix,
                 'email' => $validated['email'],
-                'email_searchable' => strtolower($validated['email']),
+                'email_searchable' => hash_hmac('sha256', strtolower($validated['email']), config('app.key')),
             ];
 
             if (in_array(auth()->user()->role, ['admin', 'super_admin'])) {
                 $data['role'] = $validated['role'];
+                $data['assign'] = $request->assign;
                 $data['access'] = !empty($validated['access']) ? implode(', ', $validated['access']) : null;
             }
 
@@ -115,23 +124,22 @@ class UserController extends Controller
             ->limit(8)
             ->get();
 
-        $rawPositions = Employee::select('position', 'category')->whereNotNull('position')->distinct()->get();
-        $positions = [];
-        foreach ($rawPositions as $rp) {
-            $pos = trim(preg_replace('/\s+(I|II|III|IV|V|VI|VII|VIII|IX|X)$/i', '', $rp->position));
-            $cat = in_array($rp->category, ['National', 'City']) ? $rp->category : 'National';
-            $positions[] = "{$pos} ({$cat})";
-        }
+        $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
+        $positions = $rawPositions->map(function($p) {
+            return trim(preg_replace('/\s*\(.*?\)\s*$/', '', $p));
+        })->unique()->toArray();
+
         $defaultPositions = [
-            'Assistant School Principal (National)', 'Assistant School Principal (City)',
-            'Head Teacher (National)', 'Head Teacher (City)',
-            'School Principal (National)', 'School Principal (City)',
-            'Administrative Assistant (National)', 'Administrative Assistant (City)',
-            'Administrative Aide (National)', 'Administrative Aide (City)',
-            'Administrative Officer (National)', 'Administrative Officer (City)',
-            'Nurse (National)', 'Nurse (City)',
-            'Security Guard (National)', 'Security Guard (City)',
-            'Watchman (National)', 'Watchman (City)'
+            'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
+            'Assistant School Principal', 'Assistant Schools Division Superintendent', 'Attorney',
+            'Chief Education Supervisor', 'Clerk', 'Communications Equipment Operator', 'Cook',
+            'Dental Aide', 'Dentist', 'Driver', 'Education Program Specialist', 'Education Program Supervisor',
+            'Engineer', 'Guidance Coordinator', 'Guidance Counselor', 'Head Teacher',
+            'Health Education and Promotion Officer', 'Houseparent', 'Information Technology Officer',
+            'Legal Assistant', 'Librarian', 'Medical Officer', 'Nurse', 'Nurse Maid', 'Planning Officer',
+            'Project Development Officer', 'Public Schools District Supervisor', 'Registrar',
+            'School Librarian', 'School Principal', 'Schools Division Superintendent', 'Security Guard',
+            'Senior Education Program Specialist', 'Supply Officer', 'Watchman'
         ];
         $rolesList = collect(array_merge($defaultPositions, $positions))->unique()->sort()->values()->toArray();
 
@@ -151,34 +159,36 @@ class UserController extends Controller
         }
 
         if ($request->search) {
-            $search = '%' . $request->search . '%';
-            $query->where(function($q) use ($search) {
-                $q->where('first_name', 'like', $search)
-                  ->orWhere('last_name', 'like', $search)
-                  ->orWhere('email_searchable', 'like', $search)
-                  ->orWhere('role', 'like', $search);
+            $search = $request->search;
+            $searchLike = '%' . $search . '%';
+            $hashedEmail = hash_hmac('sha256', strtolower($search), config('app.key'));
+
+            $query->where(function($q) use ($searchLike, $hashedEmail) {
+                $q->where('first_name', 'like', $searchLike)
+                  ->orWhere('last_name', 'like', $searchLike)
+                  ->orWhere('email_searchable', $hashedEmail)
+                  ->orWhere('role', 'like', $searchLike);
             });
         }
 
         $users = $query->orderBy('first_name')->paginate(15)->withQueryString();
         
-        $rawPositions = Employee::select('position', 'category')->whereNotNull('position')->distinct()->get();
-        $positions = [];
-        foreach ($rawPositions as $rp) {
-            $pos = trim(preg_replace('/\s+(I|II|III|IV|V|VI|VII|VIII|IX|X)$/i', '', $rp->position));
-            $cat = in_array($rp->category, ['National', 'City']) ? $rp->category : 'National';
-            $positions[] = "{$pos} ({$cat})";
-        }
+        $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
+        $positions = $rawPositions->map(function($p) {
+            return trim(preg_replace('/\s*\(.*?\)\s*$/', '', $p));
+        })->unique()->toArray();
+
         $defaultPositions = [
-            'Assistant School Principal (National)', 'Assistant School Principal (City)',
-            'Head Teacher (National)', 'Head Teacher (City)',
-            'School Principal (National)', 'School Principal (City)',
-            'Administrative Assistant (National)', 'Administrative Assistant (City)',
-            'Administrative Aide (National)', 'Administrative Aide (City)',
-            'Administrative Officer (National)', 'Administrative Officer (City)',
-            'Nurse (National)', 'Nurse (City)',
-            'Security Guard (National)', 'Security Guard (City)',
-            'Watchman (National)', 'Watchman (City)'
+            'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
+            'Assistant School Principal', 'Assistant Schools Division Superintendent', 'Attorney',
+            'Chief Education Supervisor', 'Clerk', 'Communications Equipment Operator', 'Cook',
+            'Dental Aide', 'Dentist', 'Driver', 'Education Program Specialist', 'Education Program Supervisor',
+            'Engineer', 'Guidance Coordinator', 'Guidance Counselor', 'Head Teacher',
+            'Health Education and Promotion Officer', 'Houseparent', 'Information Technology Officer',
+            'Legal Assistant', 'Librarian', 'Medical Officer', 'Nurse', 'Nurse Maid', 'Planning Officer',
+            'Project Development Officer', 'Public Schools District Supervisor', 'Registrar',
+            'School Librarian', 'School Principal', 'Schools Division Superintendent', 'Security Guard',
+            'Senior Education Program Specialist', 'Supply Officer', 'Watchman'
         ];
         $rolesList = collect(array_merge($defaultPositions, $positions))->unique()->sort()->values()->toArray();
         
@@ -199,9 +209,13 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'suffix' => 'nullable|string|max:255',
+            'email' => 'required|email',
             'password' => 'required|string|min:4',
+            'assign' => 'nullable|string|in:National,City',
             'access' => 'nullable|array',
             'access.*' => 'string|max:255',
         ];
@@ -214,6 +228,13 @@ class UserController extends Controller
 
         $request->validate($rules);
 
+        if (!empty($request->email)) {
+            $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+            if (User::where('email_searchable', $hashedEmail)->exists()) {
+                return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => ['email' => ['The email has already been taken.']]], 422);
+            }
+        }
+
         try {
             DB::transaction(function () use ($request) {
                 $accessToGrant = $request->access ?: [];
@@ -222,19 +243,16 @@ class UserController extends Controller
                     $accessToGrant = array_intersect($accessToGrant, $myAccess);
                 }
 
-                $nameParts = explode(' ', $request->name);
-                $last = array_pop($nameParts);
-                $first = array_shift($nameParts);
-                $middle = implode(' ', $nameParts);
-
                 User::create([
-                    'first_name' => $first,
-                    'middle_name' => $middle,
-                    'last_name' => $last,
+                    'first_name' => $request->first_name,
+                    'middle_name' => $request->middle_name,
+                    'last_name' => $request->last_name,
+                    'suffix' => $request->suffix,
                     'email' => $request->email,
-                    'email_searchable' => strtolower($request->email),
+                    'email_searchable' => hash_hmac('sha256', strtolower($request->email), config('app.key')),
                     'password' => Hash::make($request->password),
                     'role' => $request->role,
+                    'assign' => $request->assign,
                     'access' => !empty($accessToGrant) ? implode(', ', $accessToGrant) : null,
                     'is_active' => true,
                     'created_by' => auth()->id(),

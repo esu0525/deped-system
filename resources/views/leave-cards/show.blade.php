@@ -167,24 +167,24 @@
             <!-- Official Leave Card Header -->
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.9rem; font-weight: 700; margin: 0; text-transform: uppercase;">{{ \App\Models\SystemSetting::get('division_office_name', 'SCHOOLS DIVISION OFFICE-QUEZON CITY') }}</p>
-                <p style="font-size: 0.8rem; color: var(--secondary); margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
+                <p style="font-size: 0.8rem; color: black; margin: 3px 0 14px;">{{ \App\Models\SystemSetting::get('division_office_address', 'Nueva Ecija St., Bago Bantay, Quezon City') }}</p>
                 <h3 style="font-weight: 800; font-size: 1rem; text-decoration: underline; text-transform: uppercase; color: var(--text-main);">{{ $tab === 'cto' ? 'CTO Card' : 'Leave Card' }} Non-Teaching Personnel</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; margin-bottom: 20px; font-size: 0.85rem; color: var(--text-main);">
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Name:</span>
                     <span style="flex: 1;">{{ $employee->full_name }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Designation:</span>
                     <span style="flex: 1;">{{ $employee->position ?? '—' }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Station:</span>
                     <span style="flex: 1;">{{ $employee->department->name ?? '—' }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid var(--border-color); padding-bottom: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Status:</span>
                     <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
                 </div>
@@ -332,17 +332,28 @@
                         </tr>
                     @endif
 
+                    @php 
+                        $wellnessBalance = 5; 
+                    @endphp
                     @foreach($page['items'] as $item)
                         @php
                             $periodText = $item['period'] ?? '';
                             $remarksText = $item['remarks'] ?? '';
                             $isLess = strpos(strtoupper($periodText), 'LESS') !== false;
+                            $isWellness = strpos(strtoupper($periodText), 'WELLNESS') !== false;
+
+                            if ($isWellness) {
+                                // Extract numeric value if standard "Wellness" exists but use 1 by default if not specified
+                                $daysUsed = (float)($item['vl_used'] ?? ($item['sl_used'] ?? 1));
+                                $wellnessBalance -= $daysUsed;
+                            }
+
                             // Suppress remarks for Monetization rows
                             if (stripos($periodText, 'Monetization') !== false) {
                                 $remarksText = '';
                             }
                             $textColorValue = !empty($item['text_color']) ? $item['text_color'] : ($isLess ? '#dc2626' : '#000000');
-                            $textColor = 'color: ' . $textColorValue . ';';
+                            $textColor = 'color: ' . $textColorValue . ' !important;';
                             // Shrink font size if string is long
                             $periodFontSize = strlen($periodText) > 20 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
                             $remarksFontSize = strlen($remarksText) > 15 ? 'font-size: 0.55rem;' : 'font-size: 0.65rem;';
@@ -372,13 +383,15 @@
                                         }
                                     }
                                 } else if ($isLess) {
-                                    $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 40));
+                                    $itSlots = max($itSlots, ceil(strlen($periodText . ' ' . $remarksText) / 50));
                                 } else {
                                     $itSlots = max($itSlots, ceil(strlen($periodText) / 18));
                                     $itSlots = max($itSlots, ceil(strlen($remarksText) / 20));
+                                    
+                                    // These only apply to standard rows where the text is actually rendered on the right
+                                    if ($vwR) $itSlots = max($itSlots, ceil((10 + strlen($vwR)) / 20));
+                                    if ($swR) $itSlots = max($itSlots, ceil((10 + strlen($swR)) / 20));
                                 }
-                                if ($vwR) $itSlots = max($itSlots, ceil((10 + strlen($vwR)) / 20));
-                                if ($swR) $itSlots = max($itSlots, ceil((10 + strlen($swR)) / 20));
                                 
                                 // Each slot is exactly 19px to match a full row size
                                 $rowHeight = 19 * $itSlots;
@@ -386,52 +399,70 @@
                         <tr class="tx-row tx-row-print cto-row" data-id="{{ $item['id'] ?? '' }}" style="height: {{ $rowHeight }}px; {{ $textColor }}">
                             @if($isCtoRow)
                                 {{-- 7 Columns (Period -> Title) with bleeding text --}}
-                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0; overflow: visible;" contenteditable="true">
-                                    <div class="cto-bleed-text" style="--screen-fs: {{ $ctoScreenFontSize }}; --print-fs: {{ $ctoPrintFontSize }}; position: absolute; left: 10px; top: 0; width: 640%; z-index: 10; padding: 2px 4px 1px 0; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
+                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: middle; position: relative; padding: 0; overflow: visible; color: inherit;" contenteditable="true">
+                                    <div class="cto-bleed-text" style="--screen-fs: {{ $ctoScreenFontSize }}; --print-fs: {{ $ctoPrintFontSize }}; position: absolute; left: 10px; top: 0; width: 640%; z-index: 10; padding: 2px 4px 1px 0; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible; color: inherit;">
                                         {{ preg_replace('/\s\d+(\.\d+)?\sday(s)?$/i', '', $periodText) }}
                                     </div>
                                 </td>
-                                <td></td> {{-- Particulars --}}
-                                <td class="cto-title-cell cto-title-first"></td> {{-- Title 1 --}}
-                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 2 --}}
-                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 3 --}}
-                                <td class="cto-title-cell cto-title-inner"></td> {{-- Title 4 --}}
-                                <td class="cto-title-cell cto-title-last"></td> {{-- Title 5 --}}
+                                <td style="color: inherit; vertical-align: middle;"></td> {{-- Particulars --}}
+                                <td class="cto-title-cell cto-title-first" style="color: inherit; vertical-align: middle;"></td> {{-- Title 1 --}}
+                                <td class="cto-title-cell cto-title-inner" style="color: inherit; vertical-align: middle;"></td> {{-- Title 2 --}}
+                                <td class="cto-title-cell cto-title-inner" style="color: inherit; vertical-align: middle;"></td> {{-- Title 3 --}}
+                                <td class="cto-title-cell cto-title-inner" style="color: inherit; vertical-align: middle;"></td> {{-- Title 4 --}}
+                                <td class="cto-title-cell cto-title-last" style="color: inherit; vertical-align: middle;"></td> {{-- Title 5 --}}
                                 
-                                <td class="num-cell">{{ ($item['cto_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_earned'], 3), '0'), '.') : '' }}</td>
-                                <td class="num-cell">{{ ($item['cto_used'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_used'], 3), '0'), '.') : '' }}</td>
-                                <td class="bal-cell" style="font-weight: 700;">{{ rtrim(rtrim(number_format($item['cto_balance_after'] ?? 0, 3), '0'), '.') }}</td>
-                                <td class="date-taken-col edit-cell" style="font-size: 0.65rem; vertical-align: middle; text-align: center;" contenteditable="true">{{ $item['action_taken'] ?? '' }}</td>
+                                <td class="num-cell" style="color: inherit; vertical-align: middle;">{{ ($item['cto_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_earned'], 3), '0'), '.') : '' }}</td>
+                                <td class="num-cell" style="color: inherit; vertical-align: middle;">{{ ($item['cto_used'] ?? 0) > 0 ? rtrim(rtrim(number_format($item['cto_used'], 3), '0'), '.') : '' }}</td>
+                                <td class="bal-cell" style="font-weight: 700; color: inherit; vertical-align: middle;">{{ rtrim(rtrim(number_format($item['cto_balance_after'] ?? 0, 3), '0'), '.') }}</td>
+                                <td class="date-taken-col edit-cell" style="font-size: 0.65rem; vertical-align: middle; text-align: center; color: inherit;" contenteditable="true">{{ $item['action_taken'] ?? '' }}</td>
                             @elseif($isLess)
-                                <td class="edit-cell date-col" style="font-weight: 600; vertical-align: top; position: relative; padding: 0; overflow: visible;" contenteditable="true">
-                                    <div class="bleed-text" style="position: absolute; left: 10px; top: 0; width: 223%; z-index: 10; padding: 2px 4px 1px 0; line-height: 19px; min-height: 19px; white-space: normal; pointer-events: none; overflow: visible;">
-                                        {{ $periodText }} &nbsp; <span style="font-size: 0.9em; font-weight: 500;">{{ $remarksText }}</span>
+                                <td colspan="2" class="edit-cell date-col" style="position: relative; padding: 0; vertical-align: middle; height: {{ $rowHeight }}px; color: inherit;">
+                                    {{-- Manually draw vertical column line between Period and Particulars --}}
+                                    <div style="position: absolute; left: 44.8%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
+                                    
+                                    {{-- The text "nakapatong" logic --}}
+                                    <div style="position: relative; z-index: 10; padding: 0 5px; color: inherit; font-size: 0.65rem; font-weight: 600;">
+                                        {{ $periodText }} &nbsp; <span style="font-size: 0.9em; font-weight: 500; color: inherit;">{{ $remarksText }}</span>
                                     </div>
                                 </td>
-                                <td></td>
                             @else
-                                <td class="edit-cell date-col" style="{{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $periodText }}</td>
-                                <td class="edit-cell particulars-col" style="{{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: top; line-height: 19px; padding-top: 0px;" contenteditable="true">{{ $remarksText }}</td>
+                                <td class="edit-cell date-col" style="{{ $periodFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: middle; line-height: 19px; padding-top: 0px; color: inherit;" contenteditable="true">{{ $periodText }}</td>
+                                <td class="edit-cell particulars-col" style="{{ $remarksFontSize }} font-weight: 600; white-space: normal; word-wrap: break-word; vertical-align: middle; line-height: 19px; padding-top: 0px; color: inherit;" contenteditable="true">{{ $remarksText }}</td>
                             @endif
 
                             @if(!$isCtoRow)
-                                <td class="num-cell edit-cell vl-earned-col">{{ ($item['vl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_earned'], 6), '0'), '.') : '' }}</td>
-                                <td class="num-cell edit-cell vl-used-col">{{ ($item['vl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_used'], 6), '0'), '.') : '' }}</td>
-                                <td class="bal-cell edit-cell vl-bal-col">
+                                <td class="num-cell edit-cell vl-earned-col" style="color: inherit; vertical-align: middle;">{{ ($item['vl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_earned'], 6), '0'), '.') : '' }}</td>
+                                <td class="num-cell edit-cell vl-used-col" style="color: inherit; vertical-align: middle;">{{ ($item['vl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['vl_used'], 6), '0'), '.') : '' }}</td>
+                                <td class="bal-cell edit-cell vl-bal-col" style="color: inherit; vertical-align: middle;">
                                     @php $isMonetRow = stripos($periodText, 'Monetization') !== false; @endphp
                                     {{ ($item['vl_wop'] ?? 0) > 0 && !$isMonetRow ? '-' : (isset($item['vl_balance_after']) ? rtrim(rtrim(number_format($item['vl_balance_after'], 6), '0'), '.') : '-') }}
                                 </td>
-                                <td class="num-cell edit-cell vl-wop-col" style="white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
-                                    @if((float)($item['vl_wop'] ?? 0) > 0)
-                                        {{ (float)$item['vl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: inherit; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['vl_wop_reason'] ?? '' }}</span>
-                                    @endif
-                                </td>
-                                <td class="num-cell edit-cell sl-earned-col">{{ ($item['sl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_earned'], 6), '0'), '.') : '' }}</td>
-                                <td class="num-cell edit-cell sl-used-col">{{ ($item['sl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_used'], 6), '0'), '.') : '' }}</td>
-                                <td class="bal-cell edit-cell sl-bal-col">
+
+                                @if($isWellness)
+                                    <td colspan="3" class="num-cell edit-cell" style="position: relative; padding: 0; vertical-align: middle; height: {{ $rowHeight }}px; color: inherit;">
+                                        {{-- Manually draw vertical column lines that were lost by colspan --}}
+                                        <div style="position: absolute; left: 35.9%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
+                                        <div style="position: absolute; left: 69.2%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
+                                        
+                                        {{-- The text "nakapatong" --}}
+                                        <div style="position: relative; z-index: 10; font-weight: 800; font-size: 0.7rem; text-align: center; white-space: nowrap; width: 100%; color: inherit;">
+                                            {{ $wellnessBalance }} {{ $wellnessBalance == 1 ? 'day' : 'days' }} remaining
+                                        </div>
+                                    </td>
+                                @else
+                                    <td class="num-cell edit-cell vl-wop-col" style="color: inherit;">
+                                        @if((float)($item['vl_wop'] ?? 0) > 0)
+                                            {{ (float)$item['vl_wop'] }} <span style="font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: inherit; display: block; line-height: 9px !important; margin-top: 1px;">{{ $item['vl_wop_reason'] ?? '' }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="num-cell edit-cell sl-earned-col" style="color: inherit;">{{ ($item['sl_earned'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_earned'], 6), '0'), '.') : '' }}</td>
+                                    <td class="num-cell edit-cell sl-used-col" style="color: inherit;">{{ ($item['sl_used'] ?? 0) > 0 ? rtrim(rtrim(number_format((float)$item['sl_used'], 6), '0'), '.') : '' }}</td>
+                                @endif
+
+                                <td class="bal-cell edit-cell sl-bal-col" style="color: inherit;">
                                     {{ ($item['sl_wop'] ?? 0) > 0 && !$isMonetRow ? '-' : (isset($item['sl_balance_after']) ? rtrim(rtrim(number_format($item['sl_balance_after'], 6), '0'), '.') : '-') }}
                                 </td>
-                                <td class="num-cell edit-cell sl-wop-col" style="white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important;">
+                                <td class="num-cell edit-cell sl-wop-col" style="white-space: normal; word-wrap: break-word; font-size: 0.65rem; padding: 1px 2px; line-height: 10px !important; vertical-align: middle !important; color: inherit;">
                                     @if((float)($item['sl_wop'] ?? 0) > 0)
                                         @if($isMonetRow)
                                             <span style="font-size: 0.6rem; font-weight: 700;">= {{ rtrim(rtrim(number_format((float)$item['sl_wop'], 6), '0'), '.') }}</span>
@@ -440,7 +471,7 @@
                                         @endif
                                     @endif
                                 </td>
-                                <td class="edit-cell action-col" style="font-size: 0.65rem; line-height: 1; text-align: center;">{{ $item['action_taken'] ?? '' }}</td>
+                                <td class="edit-cell action-col" style="font-size: 0.65rem; line-height: 1; text-align: center; color: inherit;">{{ $item['action_taken'] ?? '' }}</td>
                             @endif
                         </tr>
                     @endforeach
@@ -570,7 +601,7 @@
 
     .leave-card-table th,
     .leave-card-table td {
-        border: 1px solid var(--border-color);
+        border: 1px solid black;
         padding: 6px 8px;
         text-align: center;
         vertical-align: middle;
@@ -678,7 +709,7 @@
 
     .leave-card-table tbody td {
         font-size: 0.8rem;
-        height: 28px;
+        height: 19px;
     }
 
     .leave-card-table .beginning-row {
@@ -774,21 +805,25 @@
             margin: 0;
         }
 
+        /* Aggressively reset all parent layout containers for print */
+        html, body, main, .container, .animate-fade, .content-wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            background: white !important;
+        }
+
         * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
 
-        body {
-            background: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
         .no-print,
         .sidebar,
         .header,
-        .save-indicator {
+        .save-indicator,
+        .tab-pill-container {
             display: none !important;
         }
 
@@ -797,13 +832,14 @@
             box-shadow: none !important;
             border: none !important;
             border-radius: 0 !important;
-            padding: 5mm 0 0 !important;
-            margin: 0 !important;
+            padding: 5mm 5mm 0 !important;
+            margin: 0 auto !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
-            width: 100% !important;
+            width: 20.32cm !important;
             box-sizing: border-box !important;
             display: block !important;
+            position: relative !important;
         }
 
         /* Tighten top info section for Front Page */
@@ -824,6 +860,9 @@
         .leave-card-table td {
             overflow: visible !important;
             position: relative !important;
+            padding: 0 !important;
+            height: 19px !important;
+            line-height: 19px !important;
         }
 
         /* CTO rows: text bleeds across 7 columns (~63% of table width) */

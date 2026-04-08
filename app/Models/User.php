@@ -13,7 +13,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
-        'first_name', 'middle_name', 'last_name', 'email', 'email_searchable', 'avatar', 'password', 'role', 'access', 'is_active', 'created_by',
+        'first_name', 'middle_name', 'last_name', 'suffix', 'email', 'email_searchable', 'avatar', 'password', 'role', 'access', 'assign', 'is_active', 'created_by',
         'otp_code', 'otp_expires_at', 'otp_attempts',
         'last_login_at', 'last_login_ip', 'email_verified_at',
     ];
@@ -30,6 +30,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'access' => 'encrypted',
+            'assign' => 'encrypted',
         ];
     }
 
@@ -66,12 +67,12 @@ class User extends Authenticatable
 
     public function canApproveLeave(): bool
     {
-        return in_array($this->role, ['super_admin', 'hr_admin', 'coordinator']);
+        return in_array($this->role, ['super_admin', 'hr_admin', 'admin', 'coordinator']);
     }
 
     public function canDeleteFinalized(): bool
     {
-        return in_array($this->role, ['super_admin', 'hr_admin']);
+        return in_array($this->role, ['super_admin', 'hr_admin', 'admin']);
     }
 
     // OTP helpers
@@ -100,7 +101,8 @@ class User extends Authenticatable
 
     public function getNameAttribute(): string
     {
-        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+        $name = trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+        return $this->suffix ? "{$name} {$this->suffix}" : $name;
     }
 
     // Relationships

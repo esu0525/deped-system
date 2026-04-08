@@ -48,7 +48,8 @@ class AuthController extends Controller
         }
 
         // Find user by email (using the searchable column as 'email' is encrypted)
-        $user = User::where('email_searchable', strtolower($request->email))->first();
+        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $user = User::where('email_searchable', $hashedEmail)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             RateLimiter::hit($key, 300);
@@ -182,9 +183,15 @@ class AuthController extends Controller
 
     public function sendResetLink(Request $request)
     {
-        $request->validate(['email' => 'required|email|exists:users,email']);
+        $request->validate(['email' => 'required|email']);
 
-        $user = User::where('email', $request->email)->first();
+        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $user = User::where('email_searchable', $hashedEmail)->first();
+
+        if (!$user) {
+            return back()->withErrors(['email' => 'The selected email is invalid.']);
+        }
+
         $token = Str::random(64);
 
         DB::table('password_reset_tokens')->updateOrInsert(
@@ -207,7 +214,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'token' => 'required',
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
             'password' => 'required|min:8|confirmed',
             'password_confirmation' => 'required',
         ]);
@@ -223,7 +230,13 @@ class AuthController extends Controller
             return back()->with('error', 'Reset link has expired. Please request a new one.');
         }
 
-        $user = User::where('email', $request->email)->first();
+        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $user = User::where('email_searchable', $hashedEmail)->first();
+        
+        if (!$user) {
+            return back()->with('error', 'User not found.');
+        }
+
         $user->update(['password' => Hash::make($request->password)]);
 
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();

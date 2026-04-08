@@ -1,6 +1,10 @@
 <div class="modal-body animate-fade">
     @php 
         $hasCto = $leaveApplication->details->contains(fn($d) => stripos($d->leaveType->name ?? '', 'CTO') !== false);
+        $year = now()->year;
+        $leaveCard = \App\Models\LeaveCard::where('employee_id', $leaveApplication->employee_id)
+            ->where('year', $year)
+            ->first();
     @endphp
     <div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px;">
         <!-- Left Column: Details -->
@@ -130,38 +134,48 @@
             @endif
         </div>
 
-        <!-- Right Column: AI Insights & Actions -->
+        <!-- Right Column: Current Credits & Status -->
         <div>
-            @if($leaveApplication->status === 'Pending' && auth()->user()->canApproveLeave())
-            <div style="background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
-                <h6 style="font-weight: 700; margin-bottom: 12px; font-size: 0.75rem;"><i class="fas fa-gavel"></i> DECISION</h6>
-                <form id="modalApproveForm" action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST" style="margin-bottom: 10px;">
-                    @csrf
-                    <textarea name="remarks" class="form-control" rows="2" placeholder="Admin remarks..." style="font-size: 0.75rem; margin-bottom: 10px; border-radius: 8px;"></textarea>
-                    <button type="submit" class="btn btn-success" style="width: 100%; font-size: 0.82rem; padding: 10px; font-weight: 700;">
-                        <i class="fas fa-check"></i> Approve Application
-                    </button>
-                </form>
-                <form id="modalRejectForm" action="{{ route('leave-applications.reject', $leaveApplication) }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="remarks" id="modalRejectRemarks">
-                    <button type="button" class="btn btn-danger" style="width: 100%; font-size: 0.82rem; padding: 10px; font-weight: 700;" onclick="confirmModalReject()">
-                        <i class="fas fa-times"></i> Reject
-                    </button>
-                </form>
-            </div>
-            @else
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; font-size: 0.75rem;">
-                <div style="margin-bottom: 10px;">
-                    <span style="color: var(--secondary); font-weight: 600;">Current Status:</span> {!! $leaveApplication->status_badge !!}
-                </div>
-                <div>
-                    <span style="color: var(--secondary); font-weight: 600;">Admin Remarks:</span>
-                    <p style="margin-top: 5px; font-style: italic; color: #475569;">{{ $leaveApplication->remarks ?: 'No remarks provided.' }}</p>
+            @if($leaveCard)
+            <div style="background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 15px;">
+                <h6 style="font-weight: 700; margin-bottom: 12px; font-size: 0.75rem;"><i class="fas fa-wallet"></i> CURRENT CREDITS ({{ $year }})</h6>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #f0f9ff; padding: 10px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <span style="font-size: 0.65rem; font-weight: 700; color: #1e3a8a;">VACATION LEAVE</span>
+                        <span style="font-weight: 800; color: #1e3a8a;">{{ number_format($leaveCard->vl_balance, 3) }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #fdf2f8; padding: 10px; border-radius: 8px; border-left: 4px solid #db2777;">
+                        <span style="font-size: 0.65rem; font-weight: 700; color: #831843;">SICK LEAVE</span>
+                        <span style="font-weight: 800; color: #831843;">{{ number_format($leaveCard->sl_balance, 3) }}</span>
+                    </div>
                 </div>
             </div>
             @endif
 
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; font-size: 0.75rem;">
+                <div>
+                    <span style="color: var(--secondary); font-weight: 600;">Current Status:</span> {!! $leaveApplication->status_badge !!}
+                </div>
+
+                @if($leaveApplication->status === 'Pending' && auth()->user()->canApproveLeave())
+                <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+                    <form id="modalApproveForm" action="{{ route('leave-applications.approve', $leaveApplication) }}" method="POST">
+                        @csrf
+
+                        <button type="submit" class="btn btn-success" style="width: 100%; font-size: 0.8rem; padding: 10px; font-weight: 700;">
+                            <i class="fas fa-check"></i> Approve Application
+                        </button>
+                    </form>
+                    <form id="modalRejectForm" action="{{ route('leave-applications.reject', $leaveApplication) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="remarks" id="modalRejectRemarks">
+                        <button type="button" class="btn btn-danger" style="width: 100%; font-size: 0.8rem; padding: 10px; font-weight: 700;" onclick="confirmModalReject()">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </form>
+                </div>
+                @endif
+            </div>
         </div>
     </div>
 </div>

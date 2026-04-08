@@ -23,9 +23,16 @@
         </div>
     </td>
     <td style="padding: 15px; text-align: center;">
-        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid var(--border-color);">
-             <i class="fas fa-shield-halved" style="font-size: 0.65rem; color: var(--primary);"></i>
-             <span style="font-size: 0.7rem; color: var(--primary); font-weight: 800; text-transform: uppercase;">{{ str_replace('_', ' ', $user->role) }}</span>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; border: 1px solid var(--border-color);">
+                 <i class="fas fa-shield-halved" style="font-size: 0.65rem; color: var(--primary);"></i>
+                 <span style="font-size: 0.7rem; color: var(--primary); font-weight: 800; text-transform: uppercase;">{{ str_replace('_', ' ', $user->role) }}</span>
+            </div>
+            @if($user->assign)
+            <div style="font-size: 0.65rem; color: #a855f7; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                <i class="fas fa-location-dot" style="margin-right: 3px;"></i>{{ $user->assign }}
+            </div>
+            @endif
         </div>
     </td>
     <td style="padding: 15px; text-align: center;">

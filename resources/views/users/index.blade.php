@@ -57,18 +57,36 @@
         <form id="createUserForm" onsubmit="submitCreateUser(event)" style="padding: 30px; overflow-y: auto;">
             @csrf
             <div style="display: grid; gap: 15px;">
-                <div class="form-group">
-                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="John Doe" required style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
-                </div>
-                <div class="form-group">
-                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Email Address</label>
-                    <input type="email" name="email" class="form-control" placeholder="email@example.com" required style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="form-group">
-                        <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Default Role</label>
-                        <select name="role" class="form-control" style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">First Name</label>
+                        <input type="text" name="first_name" class="form-control" placeholder="John" required style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem; transition: all 0.2s;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Middle Name</label>
+                        <input type="text" name="middle_name" class="form-control" placeholder="M." style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 80px; gap: 12px;">
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Last Name</label>
+                        <input type="text" name="last_name" class="form-control" placeholder="Doe" required style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Suffix</label>
+                        <input type="text" name="suffix" class="form-control" placeholder="Jr." style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Email Address</label>
+                    <input type="email" name="email" class="form-control" placeholder="email@example.com" required style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Default Role</label>
+                        <select name="role" class="form-control" style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
                             @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
                             <option value="admin">System Admin</option>
                             @endif
@@ -76,32 +94,46 @@
                             <option value="ojt">OJT Trainee</option>
                         </select>
                     </div>
-                    <div class="form-group" style="grid-column: span 2; position: relative;">
-                        <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Permission Level (Select Multiple)</label>
-                        <div class="custom-dropdown" style="border: 2px solid var(--border-color); border-radius: 10px; background: var(--bg-body); cursor: pointer;">
-                            <div id="dropdownHeaderIndex" class="dropdown-header" onclick="toggleDropdown('permissionsDropdownIndex')" style="height: 45px; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
-                                <span>Select Permissions...</span>
-                                <i class="fas fa-chevron-down"></i>
+                    <div class="form-group">
+                        <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Assign To</label>
+                        <select name="assign" class="form-control" style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.9rem;">
+                            <option value="National">National</option>
+                            <option value="City">City</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="position: relative;">
+                    <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Positions (Select Multiple)</label>
+                    <div class="custom-dropdown" style="border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--bg-body); cursor: pointer;">
+                        <div id="dropdownHeaderIndex" class="dropdown-header" onclick="toggleDropdown('permissionsDropdownIndex')" style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 600; color: var(--text-main); font-size: 0.85rem;">
+                            <span>Select Positions...</span>
+                            <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
+                        </div>
+                        <div class="dropdown-body" id="permissionsDropdownIndex" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--bg-card); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: 1.5px solid var(--border-color); z-index: 100;">
+                            <div style="padding: 8px; border-bottom: 1px solid var(--border-color);">
+                                <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListIndex')" style="border-radius: 6px; height: 32px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.8rem; padding-left: 10px; width: 100%;">
                             </div>
-                            <div class="dropdown-body" id="permissionsDropdownIndex" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--bg-card); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 2px solid var(--border-color); z-index: 10;">
-                                <div style="padding: 10px; border-bottom: 1px solid var(--border-color);">
-                                    <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListIndex')" style="border-radius: 8px; height: 35px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.85rem; padding-left: 10px; width: 100%;">
-                                </div>
-                                <div id="permissionsListIndex" style="max-height: 200px; overflow-y: auto; padding: 10px;">
-                                    @foreach($rolesList as $rListItem)
-                                    <label class="dropdown-item-label" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--text-main); cursor: pointer; line-height: 1.2; padding: 8px; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.background='var(--hover-color)'" onmouseout="this.style.background='transparent'">
-                                        <input type="checkbox" name="access[]" value="{{ $rListItem }}" style="width: 16px; height: 16px; accent-color: #6366f1;" onchange="updateDropdownText('permissionsListIndex', 'dropdownHeaderIndex')">
-                                        <span class="item-text">{{ $rListItem }}</span>
-                                    </label>
-                                    @endforeach
-                                </div>
+                            <div id="permissionsListIndex" style="max-height: 180px; overflow-y: auto; padding: 8px;">
+                                @foreach($rolesList as $rListItem)
+                                <label class="dropdown-item-label" style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.background='var(--hover-color)'" onmouseout="this.style.background='transparent'">
+                                    <input type="checkbox" name="access[]" value="{{ $rListItem }}" style="width: 14px; height: 14px; accent-color: #6366f1;" onchange="updateDropdownText('permissionsListIndex', 'dropdownHeaderIndex')">
+                                    <span class="item-text">{{ $rListItem }}</span>
+                                </label>
+                                @endforeach
                             </div>
                         </div>
                     </div>
                 </div>
+
                 <div class="form-group">
-                    <label style="font-weight: 800; font-size: 0.75rem; color: var(--secondary); display: block; margin-bottom: 8px; text-transform: uppercase;">Password</label>
-                    <input type="password" name="password" class="form-control" required minlength="4" style="border-radius: 10px; height: 45px; border: 2px solid var(--border-color); background: var(--bg-body); color: var(--text-main);">
+                    <label style="font-weight: 700; font-size: 0.7rem; color: var(--secondary); display: block; margin-bottom: 5px; text-transform: uppercase;">Password</label>
+                    <div style="position: relative;">
+                        <input type="password" id="createPasswordInput" name="password" class="form-control" required minlength="4" style="border-radius: 10px; height: 40px; border: 1.5px solid var(--border-color); background: var(--bg-body); color: var(--text-main); padding-right: 40px; font-size: 0.9rem;">
+                        <button type="button" onclick="togglePasswordVisibility('createPasswordInput', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--secondary); cursor: pointer; padding: 0;">
+                            <i class="fas fa-eye" style="font-size: 0.85rem;"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div style="margin-top: 30px; display: flex; gap: 12px; justify-content: flex-end;">
@@ -212,13 +244,25 @@
         const checked = document.getElementById(listId).querySelectorAll('input[type="checkbox"]:checked');
         const header = document.querySelector(`#${headerId} span`);
         if(checked.length > 0) {
-            header.innerText = `${checked.length} role(s) selected`;
+            header.innerText = `${checked.length} selected`;
             header.style.color = '#6366f1';
             header.style.fontWeight = '800';
         } else {
-            header.innerText = 'Select Permissions...';
+            header.innerText = 'Select Positions...';
             header.style.color = '#475569';
             header.style.fontWeight = '600';
+        }
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
         }
     }
 </script>

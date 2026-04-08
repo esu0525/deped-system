@@ -17,3 +17,8 @@ Route::get('/v1/status', function () {
     'version' => '1.0.0'
     ]);
 });
+
+// Sync Routes
+Route::post('/sync-employee', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'sync']);
+Route::post('/sync-employee-bulk', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'syncBulk']);
+Route::post('/sync-users', [\App\Http\Controllers\Api\UserSyncController::class, 'receive']);

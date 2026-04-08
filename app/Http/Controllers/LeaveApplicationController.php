@@ -484,13 +484,15 @@ class LeaveApplicationController extends Controller
             'application_ids.*' => 'exists:leave_applications,id'
         ]);
 
-        $applications = LeaveApplication::whereIn('id', $request->application_ids)
+        $applications = LeaveApplication::with(['employee', 'details.leaveType'])
+            ->whereIn('id', $request->application_ids)
             ->where('status', 'Pending')
             ->get();
 
         $successCount = 0;
         $failedCount = 0;
 
+        $reasons = [];
         foreach ($applications as $leaveApplication) {
             try {
                 // Duplicate standard approve logic to maintain proper certification records
@@ -507,6 +509,8 @@ class LeaveApplicationController extends Controller
                     $slDays = 0;
                     foreach ($leaveApplication->details as $detail) {
                         $type = $detail->leaveType;
+                        if (!$type) continue;
+                        
                         if ($type->code === 'VL' || $type->code === 'FL')
                             $vlDays += floatval($detail->num_days);
                         elseif ($type->code === 'SL')
@@ -542,19 +546,20 @@ class LeaveApplicationController extends Controller
                     $successCount++;
                 } else {
                     $failedCount++;
+                    $reasons[] = "{$leaveApplication->application_no} (Insufficient Balance)";
                 }
             } catch (\Exception $e) {
-                // Log exception if needed
                 $failedCount++;
+                $reasons[] = "{$leaveApplication->application_no} (Error: " . $e->getMessage() . ")";
             }
         }
 
         $message = "Successfully approved {$successCount} applications.";
         if ($failedCount > 0) {
-            $message .= " Failed to approve {$failedCount} applications (insufficient balance or errors).";
+            $message .= " Failed: " . implode(', ', $reasons);
         }
 
-        if ($request->ajax()) {
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['success' => true, 'message' => $message]);
         }
 
