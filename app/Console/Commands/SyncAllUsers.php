@@ -32,8 +32,8 @@ class SyncAllUsers extends Command
         $total = $users->count();
         $this->info("Found {$total} users to sync...");
 
-        $url = env('TRANSMITTAL_SYNC_URL');
-        $token = env('TRANSMITTAL_SYNC_TOKEN');
+        $url = env('EXTERNAL_SYNC_URL');
+        $token = env('EXTERNAL_SYNC_TOKEN');
 
         if (!$url || !$token) {
             $this->error("Sync URL or Token not found in .env");
