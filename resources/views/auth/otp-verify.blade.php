@@ -107,6 +107,10 @@
                     Please enter it below to continue.
                 </p>
 
+                <div id="emailStatus" style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 14px 18px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 20px; color: #16a34a; font-weight: 600; text-align: left;">
+                    <i class="fas fa-check-circle" style="margin-right: 8px;"></i> Verification code sent to your email.
+                </div>
+
                 @if(session('info'))
                     <div style="background: #eff6ff; border-left: 4px solid var(--primary); padding: 14px 18px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 20px; color: var(--primary); font-weight: 600; text-align: left;">
                         <i class="fas fa-info-circle" style="margin-right: 8px;"></i> {{ session('info') }}
@@ -141,8 +145,11 @@
                         </span>
                     </div>
 
-                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; height: 52px; font-size: 1rem; border-radius: 14px;">
-                        <i class="fas fa-shield-halved"></i> Verify & Continue
+                    <button type="submit" id="verifyBtn" class="btn btn-primary" style="width: 100%; justify-content: center; height: 52px; font-size: 1rem; border-radius: 14px; transition: all 0.3s ease;">
+                        <span id="btnText"><i class="fas fa-shield-halved"></i> Verify & Continue</span>
+                        <span id="btnLoader" style="display: none;">
+                            <i class="fas fa-circle-notch fa-spin"></i> Verifying...
+                        </span>
                     </button>
                 </form>
 
@@ -199,6 +206,7 @@
 
                 // Auto submit when all 6 digits filled
                 if (hiddenInput.value.length === 6) {
+                    form.dispatchEvent(new Event('submit'));
                     form.submit();
                 }
             });
@@ -224,11 +232,25 @@
                 updateHiddenInput();
                 if (pasteData.length >= 6) {
                     digits[5].focus();
+                    form.dispatchEvent(new Event('submit'));
                     form.submit();
                 } else {
                     digits[Math.min(pasteData.length, 5)].focus();
                 }
             });
+        });
+
+        form.addEventListener('submit', function() {
+            const btn = document.getElementById('verifyBtn');
+            const text = document.getElementById('btnText');
+            const loader = document.getElementById('btnLoader');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.8';
+            text.style.display = 'none';
+            loader.style.display = 'inline-flex';
+            loader.style.alignItems = 'center';
+            loader.style.gap = '10px';
         });
 
         // ─── Countdown Timer ────────────────────────────────────────────

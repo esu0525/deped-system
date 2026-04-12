@@ -22,6 +22,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/otp/verify', [AuthController::class, 'showOtpVerify'])->name('otp.verify');
 Route::post('/otp/verify', [AuthController::class, 'verifyOtp']);
+Route::post('/otp/send-email', [AuthController::class, 'sendOtpEmail'])->name('otp.send-email');
 Route::post('/otp/resend', [AuthController::class, 'resendOtp'])->name('otp.resend');
 
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');

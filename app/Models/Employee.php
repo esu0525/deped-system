@@ -69,6 +69,39 @@ class Employee extends Model
     }
 
     // Helpers
+
+    /**
+     * Format the employee name as: Lastname, Firstname M.I. Suffix
+     * Uses the linked user's individual name columns when available.
+     * Falls back to the stored full_name column.
+     */
+    public function getFullNameAttribute(): string
+    {
+        // Use the user relationship if already eager-loaded (avoids N+1)
+        $user = $this->relationLoaded('user') ? $this->user : null;
+
+        if ($user && (!empty($user->last_name) || !empty($user->first_name))) {
+            $lastName      = trim($user->last_name   ?? '');
+            $firstName     = trim($user->first_name  ?? '');
+            $middleName    = trim($user->middle_name  ?? '');
+            $suffix        = trim($user->suffix       ?? '');
+
+            $middleInitial = !empty($middleName)
+                ? strtoupper(mb_substr($middleName, 0, 1)) . '.'
+                : '';
+
+            $name = $lastName;
+            if (!empty($firstName))     $name .= ', ' . $firstName;
+            if (!empty($middleInitial)) $name .= ' ' . $middleInitial;
+            if (!empty($suffix))        $name .= ' ' . $suffix;
+
+            return $name;
+        }
+
+        // Fallback: return the stored full_name from the DB column
+        return $this->attributes['full_name'] ?? '';
+    }
+
     public function getProfilePictureUrlAttribute(): string
     {
         if ($this->profile_picture && file_exists(storage_path('app/public/' . $this->profile_picture))) {

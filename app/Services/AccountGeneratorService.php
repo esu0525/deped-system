@@ -141,10 +141,18 @@ class AccountGeneratorService
 
         $credentials = self::generateCredentials($employee->full_name);
 
-        $nameParts = explode(' ', $employee->full_name);
-        $last = array_pop($nameParts);
-        $first = array_shift($nameParts);
-        $middle = implode(' ', $nameParts);
+        // Parse using parseName() to correctly handle "Lastname, Firstname M.I." format
+        $parsed = self::parseName($employee->full_name);
+        $last   = $parsed['surname'];
+        $first  = $parsed['first_name'];
+        // Extract middle initial/name: everything after the first name in the part after the comma
+        $middle = '';
+        if (str_contains($employee->full_name, ',')) {
+            $afterComma  = trim(explode(',', $employee->full_name, 2)[1] ?? '');
+            $afterParts  = preg_split('/\s+/', $afterComma);
+            array_shift($afterParts); // remove first name
+            $middle = implode(' ', $afterParts);
+        }
 
         $user = User::create([
             'first_name' => $first,

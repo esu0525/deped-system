@@ -51,7 +51,8 @@
             <div class="form-group">
                 <label class="form-label">Employment Status</label>
                 <select name="employment_status" class="form-control">
-                    @foreach(['Permanent', 'Temporary', 'Casual', 'Contractual', 'Job Order'] as $status)
+                    <option value="">-- Manual Select --</option>
+                    @foreach(['Regular', 'Contractual'] as $status)
                         <option value="{{ $status }}" {{ old('employment_status', $employee->employment_status) == $status ? 'selected' : '' }}>{{ $status }}</option>
                     @endforeach
                 </select>

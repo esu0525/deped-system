@@ -52,11 +52,9 @@
             <div class="form-group" x-show="['National', 'City'].includes(category)">
                 <label class="form-label">Employment Status</label>
                 <select name="employment_status" class="form-control">
-                    <option value="Permanent">Permanent</option>
-                    <option value="Temporary">Temporary</option>
-                    <option value="Casual">Casual</option>
+                    <option value="">-- Manual Select --</option>
+                    <option value="Regular">Regular</option>
                     <option value="Contractual">Contractual</option>
-                    <option value="Job Order">Job Order</option>
                 </select>
             </div>
             <div class="form-group" x-show="['National', 'City'].includes(category)">

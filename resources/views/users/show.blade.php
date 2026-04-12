@@ -42,33 +42,34 @@
                 </div>
             </div>
 
-            <!-- Recent Activity -->
             <div class="card" style="background: var(--bg-card); border-radius: 25px; border: none; box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1); padding: 30px;">
                 <h4 style="margin: 0 0 20px; font-weight: 900; font-size: 1rem; color: var(--text-main);"><i class="fas fa-history" style="color: #6366f1; margin-right: 10px;"></i>Activity Logs</h4>
-                <div style="display: grid; gap: 15px;">
-                    @forelse($activities as $activity)
-                        <div style="display: flex; gap: 12px; margin-bottom: 5px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #6366f1; margin-top: 6px; flex-shrink: 0;"></div>
-                            <div style="flex: 1;">
-                                <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
-                                    <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 700; line-height: 1.2;">
-                                        {{ $activity->module }} 
-                                        <span style="font-size: 0.65rem; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; color: var(--secondary); margin-left: 5px; font-weight: 800;">
-                                            {{ $activity->action }}
-                                        </span>
+                <div style="max-height: 350px; overflow-y: auto; padding-right: 10px; scrollbar-width: thin;">
+                    <div style="display: grid; gap: 15px;">
+                        @forelse($activities as $activity)
+                            <div style="display: flex; gap: 12px; margin-bottom: 5px;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: #6366f1; margin-top: 6px; flex-shrink: 0;"></div>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+                                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 700; line-height: 1.2;">
+                                            {{ $activity->module }} 
+                                            <span style="font-size: 0.65rem; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; color: var(--secondary); margin-left: 5px; font-weight: 800;">
+                                                {{ $activity->action }}
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; text-align: right; white-space: nowrap;">
+                                            {{ $activity->created_at->format('M d, h:i A') }}
+                                        </div>
                                     </div>
-                                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; text-align: right; white-space: nowrap;">
-                                        {{ $activity->created_at->format('M d, h:i A') }}
+                                    <div style="font-size: 0.8rem; color: var(--secondary); font-weight: 500; margin-top: 4px; line-height: 1.3;">
+                                        {{ $activity->description }}
                                     </div>
-                                </div>
-                                <div style="font-size: 0.8rem; color: var(--secondary); font-weight: 500; margin-top: 4px; line-height: 1.3;">
-                                    {{ $activity->description }}
                                 </div>
                             </div>
-                        </div>
-                    @empty
-                        <p style="color: #94a3b8; font-size: 0.85rem; text-align: center; font-weight: 500;">No system logs generated yet.</p>
-                    @endforelse
+                        @empty
+                            <p style="color: #94a3b8; font-size: 0.85rem; text-align: center; font-weight: 500;">No system logs generated yet.</p>
+                        @endforelse
+                    </div>
                 </div>
             </div>
         </div>

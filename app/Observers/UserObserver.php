@@ -18,6 +18,25 @@ class UserObserver
             return;
         }
 
+        // Only sync if relevant profile data changed (not OTP, login timestamps, etc.)
+        $syncFields = [
+            'first_name', 'middle_name', 'last_name', 'suffix', 'email', 
+            'email_searchable', 'avatar', 'password', 'role', 'access', 'assign', 'is_active'
+        ];
+        
+        $changes = array_keys($user->getChanges());
+        // If it's a new record or a relevant change, proceed. 
+        // If it only changed OTP/login fields, skip sync.
+        if (!$user->wasRecentlyCreated && !empty($changes) && empty(array_intersect($changes, $syncFields))) {
+            return;
+        }
+
+        // Only sync admin, coordinator, and ojt to the Transmittal System
+        $syncableRoles = ['admin', 'coordinator', 'ojt'];
+        if (!in_array($user->role, $syncableRoles)) {
+            return;
+        }
+
         $url = env('EXTERNAL_SYNC_URL');
         $token = env('EXTERNAL_SYNC_TOKEN');
 
@@ -26,7 +45,8 @@ class UserObserver
         }
 
         try {
-            $response = Http::withHeaders([
+            // Added 5s timeout to prevent blocking if external system is slow
+            $response = Http::timeout(5)->withHeaders([
                 'Authorization' => 'Bearer ' . $token,
                 'Accept' => 'application/json',
                 'X-SYNC-SOURCE' => 'DEPED-SYSTEM'
@@ -41,7 +61,7 @@ class UserObserver
                 'profile_image' => $user->avatar ? asset('storage/' . $user->avatar) : null,
                 'password' => $user->password,
                 'role' => $user->role,
-                'assigned' => $user->assign,
+                'assigned' => $user->access, // Correcting 'assign' to 'access' based on Model
                 'is_active' => $user->is_active,
                 'email_verified_at' => $user->email_verified_at,
             ]);
@@ -60,6 +80,12 @@ class UserObserver
     public function deleted(User $user)
     {
         if (config('syncing_from_external')) {
+            return;
+        }
+
+        // Only sync admin, coordinator, and ojt to the Transmittal System
+        $syncableRoles = ['admin', 'coordinator', 'ojt'];
+        if (!in_array($user->role, $syncableRoles)) {
             return;
         }
 

@@ -30,7 +30,7 @@ class LeaveApplicationController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $query = LeaveApplication::with(['employee.department', 'leaveType', 'approver']);
+        $query = LeaveApplication::with(['employee.department', 'employee.user', 'leaveType', 'approver']);
 
         // Employees only see their own
         if ($user->role === 'employee' && $user->employee) {
@@ -48,7 +48,7 @@ class LeaveApplicationController extends Controller
                         $cat = $matches[2] ?? null;
                         
                         $sq->orWhere(function($subQ) use ($pos, $cat) {
-                            $subQ->where('position', 'like', '%' . $pos . '%');
+                            $subQ->where('position', 'like', $pos . '%');
                             if ($cat) {
                                 $subQ->where('category', $cat);
                             }
@@ -106,7 +106,7 @@ class LeaveApplicationController extends Controller
                         $cat = $matches[2] ?? null;
                         
                         $sq->orWhere(function($subQ) use ($pos, $cat) {
-                            $subQ->where('position', 'like', '%' . $pos . '%');
+                            $subQ->where('position', 'like', $pos . '%');
                             if ($cat) {
                                 $subQ->where('category', $cat);
                             }
@@ -140,7 +140,7 @@ class LeaveApplicationController extends Controller
                     $cat = $matches[2] ?? null;
                     
                     $sq->orWhere(function($subQ) use ($pos, $cat) {
-                        $subQ->where('position', 'like', '%' . $pos . '%');
+                        $subQ->where('position', 'like', $pos . '%');
                         if ($cat) {
                             $subQ->where('category', $cat);
                         }
@@ -297,7 +297,7 @@ class LeaveApplicationController extends Controller
 
     public function show(LeaveApplication $leaveApplication, Request $request)
     {
-        $leaveApplication->load(['employee.department', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
+        $leaveApplication->load(['employee.department', 'employee.user', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
 
         if ($request->ajax()) {
             return view('leave-applications.partials.show-modal', compact('leaveApplication'));
@@ -484,7 +484,7 @@ class LeaveApplicationController extends Controller
             'application_ids.*' => 'exists:leave_applications,id'
         ]);
 
-        $applications = LeaveApplication::with(['employee', 'details.leaveType'])
+        $applications = LeaveApplication::with(['employee', 'employee.user', 'details.leaveType'])
             ->whereIn('id', $request->application_ids)
             ->where('status', 'Pending')
             ->get();

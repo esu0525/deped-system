@@ -22,11 +22,20 @@ class MailService
             $mail->SMTPAuth = true;
             $mail->Username = env('MAIL_USERNAME');
             $mail->Password = env('MAIL_PASSWORD');
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->SMTPSecure = env('MAIL_ENCRYPTION', 'tls') === 'ssl' ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = env('MAIL_PORT', 587);
 
+            // Bypass SSL certificate verification for local environments
+            $mail->SMTPOptions = [
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ];
+
             // Recipients
-            $mail->setFrom(env('MAIL_FROM_ADDRESS', 'noreply@deped.gov.ph'), env('MAIL_FROM_NAME', 'DepEd Leave Card System'));
+            $mail->setFrom(env('MAIL_FROM_ADDRESS'), env('MAIL_FROM_NAME', 'DepEd Leave Card System'));
             $mail->addAddress($to);
 
             // Content
@@ -35,11 +44,11 @@ class MailService
             $mail->Body = $message;
 
             $mail->send();
-            Log::info("Email sent to: $to");
+            \Illuminate\Support\Facades\Log::info("Email sent SUCCESSFULLY to: $to");
             return true;
         }
         catch (Exception $e) {
-            Log::error("Mail Error: {$mail->ErrorInfo}");
+            \Illuminate\Support\Facades\Log::error("Mail Error sending to {$to}: {$mail->ErrorInfo}");
             return false;
         }
     }

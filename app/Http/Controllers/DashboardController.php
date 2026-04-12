@@ -12,6 +12,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        if (auth()->user()->role === 'employee') {
+            return redirect()->route('employee.dashboard');
+        }
         $totalEmployees = Employee::count();
         $totalApplications = LeaveApplication::count();
         $pendingCount = LeaveApplication::where("status", "Pending")->count();

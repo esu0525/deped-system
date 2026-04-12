@@ -120,9 +120,12 @@
                             Password?</a>
                     </div>
 
-                    <button type="submit" class="btn btn-primary"
-                        style="width: 100%; justify-content: center; height: 56px; font-size: 1.1rem;">
-                        Sign In to Personnel Portal <i class="fas fa-arrow-right"></i>
+                    <button type="submit" id="loginBtn" class="btn btn-primary"
+                        style="width: 100%; justify-content: center; height: 56px; font-size: 1.1rem; transition: all 0.3s ease;">
+                        <span id="btnText">Sign In to Personnel Portal <i class="fas fa-arrow-right"></i></span>
+                        <span id="btnLoader" style="display: none;">
+                            <i class="fas fa-circle-notch fa-spin"></i> Authenticating...
+                        </span>
                     </button>
                     <!-- Theme Toggle in Login (Optional but nice) -->
                     <div style="text-align: center; margin-top: 20px;">
@@ -132,6 +135,22 @@
                         </button>
                     </div>
                 </form>
+
+                <script>
+                    document.querySelector('form').addEventListener('submit', function() {
+                        const btn = document.getElementById('loginBtn');
+                        const text = document.getElementById('btnText');
+                        const loader = document.getElementById('btnLoader');
+                        
+                        btn.disabled = true;
+                        btn.style.opacity = '0.8';
+                        btn.style.cursor = 'not-allowed';
+                        text.style.display = 'none';
+                        loader.style.display = 'inline-flex';
+                        loader.style.alignItems = 'center';
+                        loader.style.gap = '10px';
+                    });
+                </script>
 
                 <script>
                     (function() {

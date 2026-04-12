@@ -23,7 +23,7 @@ class EmployeePortalController extends Controller
             return view('employee-portal.no-profile');
         }
 
-        $employee->load(['department', 'leaveCards']);
+        $employee->load(['department', 'leaveCards', 'user']);
         $currentLeaveCard = $employee->leaveCards->where('year', now()->year)->first();
 
         // Get recent leave applications
@@ -55,7 +55,7 @@ class EmployeePortalController extends Controller
                 ->with('error', 'No employee profile linked to your account.');
         }
 
-        $employee->load(['department', 'leaveCards']);
+        $employee->load(['department', 'leaveCards', 'user']);
 
         // Available years from leave cards, default to current year
         $years = $employee->leaveCards->pluck('year')->unique()->sort()->values();

@@ -16,7 +16,7 @@ class LeaveCardController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Employee::with(['department', 'leaveCards'])->where('status', 'Active');
+        $query = Employee::with(['department', 'leaveCards', 'user'])->where('status', 'Active');
 
         // RBAC: Restricted Access Filter
         $user = auth()->user();
@@ -29,7 +29,7 @@ class LeaveCardController extends Controller
                     $cat = $matches[2] ?? null;
                     
                     $sq->orWhere(function($subQ) use ($pos, $cat) {
-                        $subQ->where('position', 'like', '%' . $pos . '%');
+                        $subQ->where('position', 'like', $pos . '%');
                         if ($cat) {
                             $subQ->where('category', $cat);
                         }
@@ -78,7 +78,7 @@ class LeaveCardController extends Controller
      */
     public function show(Request $request, Employee $employee)
     {
-        $employee->load(['department', 'leaveCards']);
+        $employee->load(['department', 'leaveCards', 'user']);
 
         // Available years from leave cards, default to current year
         $years = $employee->leaveCards->pluck('year')->unique()->sort()->values();

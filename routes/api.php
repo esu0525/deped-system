@@ -22,3 +22,7 @@ Route::get('/v1/status', function () {
 Route::post('/sync-employee', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'sync']);
 Route::post('/sync-employee-bulk', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'syncBulk']);
 Route::post('/sync-users', [\App\Http\Controllers\Api\UserSyncController::class, 'receive']);
+
+// New API Route Aliases (DepEd Integration V2)
+Route::post('/receive-user', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'sync']);
+Route::post('/receive-masterlist', [\App\Http\Controllers\Api\EmployeeSyncController::class, 'syncBulk']);

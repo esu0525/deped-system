@@ -32,6 +32,26 @@ class EmployeeController extends Controller
         // Default filter: only show National and City (exclude HR/NTP accounts if any in employee table)
         // Adjusting this to be flexible
         $query->whereIn('category', ['National', 'City', 'employee']);
+        
+        // RBAC: Restricted Access Filter
+        $user = auth()->user();
+        if ($user && !in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
+            $accessList = explode(', ', $user->access);
+            $query->where(function ($sq) use ($accessList) {
+                foreach ($accessList as $access) {
+                    preg_match('/^(.*?)(?:\s+\((National|City)\))?$/', trim($access), $matches);
+                    $pos = trim($matches[1] ?? '');
+                    $cat = $matches[2] ?? null;
+                    
+                    $sq->orWhere(function($subQ) use ($pos, $cat) {
+                        $subQ->where('position', 'like', $pos . '%');
+                        if ($cat) {
+                            $subQ->where('category', $cat);
+                        }
+                    });
+                }
+            });
+        }
 
         if ($request->search) {
             $search = $request->search;
@@ -116,7 +136,7 @@ class EmployeeController extends Controller
                 'password' => 'required_if:category,hrntp|nullable|string|min:4',
                 // Employee specific fields
                 'department_name' => 'nullable|string|max:255',
-                'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
+                'employment_status' => 'nullable|in:Regular,Contractual',
                 'vl_balance' => 'nullable|numeric|min:0',
                 'sl_balance' => 'nullable|numeric|min:0',
             ]);
@@ -252,7 +272,7 @@ class EmployeeController extends Controller
             'position' => 'nullable|string|max:255',
             'access' => 'nullable|string|max:255',
             'department_name' => 'nullable|string|max:255',
-            'employment_status' => 'nullable|in:Permanent,Temporary,Casual,Contractual,Job Order',
+            'employment_status' => 'nullable|in:Regular,Contractual',
             'date_hired' => 'nullable|date',
             'contact_number' => 'nullable|string|max:20',
             'address' => 'nullable|string',

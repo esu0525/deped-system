@@ -79,33 +79,67 @@ class AuthController extends Controller
 
             AuditTrail::log('LOGIN', 'Authentication', "Employee {$user->name} logged in successfully");
 
+            if ($user->role === 'employee') {
+                return redirect()->route('employee.dashboard');
+            }
             return redirect()->intended(route('dashboard'));
         }
 
-        // Generate and send OTP for administrative roles
+        // Generate OTP for administrative roles
         $otp = $user->generateOtp();
-        $sent = $this->mailService->sendOtp($user, $otp);
-
+        
         // Store user ID in session for OTP verification
-        session(['otp_user_id' => $user->id, 'otp_sent' => true]);
+        session(['otp_user_id' => $user->id, 'otp_sent_pending' => true]);
 
-        if (!$sent) {
-            // If mail fails, log the OTP for development
-            Log::info("OTP for {$user->email}: {$otp}");
+        return redirect()->route('otp.verify');
+    }
+
+    /**
+     * Show OTP verification page and send email
+     */
+    public function showOtpVerify()
+    {
+        $userId = session('otp_user_id');
+        if (!$userId) {
+            return redirect()->route('login');
         }
 
-        return redirect()->route('otp.verify')->with('info', 'An OTP has been sent to your email address.');
+        $user = User::find($userId);
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Only send if it hasn't been sent yet during this session transition
+        if (session('otp_sent_pending')) {
+            $otp = $user->otp_code;
+            if (!$otp) {
+                $otp = $user->generateOtp();
+            }
+            
+            $this->mailService->sendOtp($user, $otp);
+            session()->forget('otp_sent_pending');
+            session(['otp_sent_confirmed' => true]);
+        }
+
+        return view('auth.otp-verify');
+    }
+
+    public function sendOtpEmail(Request $request)
+    {
+        // Keep this for the 'Resend' button actually
+        $userId = session('otp_user_id');
+        if (!$userId) return response()->json(['success' => false], 403);
+        
+        $user = User::find($userId);
+        $otp = $user->generateOtp(); // Resend always generates new
+        $sent = $this->mailService->sendOtp($user, $otp);
+        
+        return response()->json(['success' => $sent]);
     }
 
     // ─── OTP Verification ────────────────────────────────────────────────────
 
-    public function showOtpVerify()
-    {
-        if (!session('otp_user_id')) {
-            return redirect()->route('login');
-        }
-        return view('auth.otp-verify');
-    }
+
 
     public function verifyOtp(Request $request)
     {

@@ -144,15 +144,29 @@
             // Sidebar Toggle
             const sidebar = document.getElementById('sidebar');
             const toggle = document.getElementById('sidebarToggle');
+            const overlay = document.createElement('div');
+            overlay.className = 'sidebar-overlay';
+            document.body.appendChild(overlay);
 
             if (sidebar && toggle) {
-                if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                // Initial check for desktop collapse
+                if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth > 1024) {
                     sidebar.classList.add('collapsed');
                 }
 
                 toggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('collapsed');
-                    localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                    if (window.innerWidth <= 1024) {
+                        sidebar.classList.toggle('open');
+                        overlay.classList.toggle('active');
+                    } else {
+                        sidebar.classList.toggle('collapsed');
+                        localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                    }
+                });
+
+                overlay.addEventListener('click', function() {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
                 });
             }
 

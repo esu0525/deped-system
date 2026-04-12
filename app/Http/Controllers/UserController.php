@@ -121,13 +121,15 @@ class UserController extends Controller
         // Audit logs for this specific user
         $activities = \App\Models\AuditTrail::where('user_id', $user->id)
             ->latest()
-            ->limit(8)
+            ->limit(20)
             ->get();
 
         $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
         $positions = $rawPositions->map(function($p) {
-            return trim(preg_replace('/\s*\(.*?\)\s*$/', '', $p));
-        })->unique()->toArray();
+            $p = preg_replace('/\s*\(.*?\)\s*$/', '', $p);
+            $p = preg_replace('/\s+(I{1,3}|IV|V|VI{0,3}|IX|X|\d+)$/i', '', $p);
+            return trim($p);
+        })->unique()->filter()->toArray();
 
         $defaultPositions = [
             'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
@@ -175,8 +177,10 @@ class UserController extends Controller
         
         $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
         $positions = $rawPositions->map(function($p) {
-            return trim(preg_replace('/\s*\(.*?\)\s*$/', '', $p));
-        })->unique()->toArray();
+            $p = preg_replace('/\s*\(.*?\)\s*$/', '', $p);
+            $p = preg_replace('/\s+(I{1,3}|IV|V|VI{0,3}|IX|X|\d+)$/i', '', $p);
+            return trim($p);
+        })->unique()->filter()->toArray();
 
         $defaultPositions = [
             'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
