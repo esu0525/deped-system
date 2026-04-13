@@ -73,6 +73,14 @@ class DatabaseSeeder extends Seeder
                 'role' => 'encoder',
                 'email_verified_at' => now(),
             ],
+            [
+                'first_name' => 'Ace',
+                'last_name' => 'Lucinicio',
+                'email' => 'acelucinicio@gmail.com',
+                'password' => Hash::make('deped123'),
+                'role' => 'super_admin',
+                'email_verified_at' => now(),
+            ],
         ];
 
         // Disable events during seeding to prevent sync errors on domestic/live servers
