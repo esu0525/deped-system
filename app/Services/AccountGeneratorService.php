@@ -103,7 +103,7 @@ class AccountGeneratorService
      */
     private static function ensureUniqueEmail(string $email): string
     {
-        $hashedEmail = hash_hmac('sha256', strtolower($email), config('app.key'));
+        $hashedEmail = User::generateEmailHash($email);
         if (!User::where('email_searchable', $hashedEmail)->exists()) {
             return $email;
         }
@@ -115,7 +115,7 @@ class AccountGeneratorService
 
         while (true) {
             $testEmail = "{$base}{$counter}@{$domain}";
-            $hashedTest = hash_hmac('sha256', strtolower($testEmail), config('app.key'));
+            $hashedTest = User::generateEmailHash($testEmail);
             if (!User::where('email_searchable', $hashedTest)->exists()) {
                 break;
             }
@@ -159,7 +159,7 @@ class AccountGeneratorService
             'middle_name' => $middle,
             'last_name' => $last,
             'email' => $credentials['email'],
-            'email_searchable' => hash_hmac('sha256', strtolower($credentials['email']), config('app.key')),
+            'email_searchable' => User::generateEmailHash($credentials['email']),
             'password' => bcrypt($credentials['password']),
             'role' => 'employee',
             'is_active' => true,

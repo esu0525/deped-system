@@ -57,7 +57,9 @@ return new class extends Migration
         }
 
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('name');
+            if (Schema::hasColumn('users', 'name')) {
+                $table->dropColumn('name');
+            }
         });
     }
 

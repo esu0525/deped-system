@@ -41,7 +41,7 @@ class UserController extends Controller
         $validated = $request->validate($rules);
 
         if (!empty($validated['email'])) {
-            $hashedEmail = hash_hmac('sha256', strtolower($validated['email']), config('app.key'));
+            $hashedEmail = User::generateEmailHash($validated['email']);
             $existingUser = User::where('email_searchable', $hashedEmail)->where('id', '!=', $user->id)->first();
             if ($existingUser) {
                 return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => ['email' => ['The email has already been taken.']]], 422);
@@ -55,7 +55,7 @@ class UserController extends Controller
                 'last_name' => $request->last_name,
                 'suffix' => $request->suffix,
                 'email' => $validated['email'],
-                'email_searchable' => hash_hmac('sha256', strtolower($validated['email']), config('app.key')),
+                'email_searchable' => User::generateEmailHash($validated['email']),
             ];
 
             if (in_array(auth()->user()->role, ['admin', 'super_admin'])) {
@@ -163,7 +163,7 @@ class UserController extends Controller
         if ($request->search) {
             $search = $request->search;
             $searchLike = '%' . $search . '%';
-            $hashedEmail = hash_hmac('sha256', strtolower($search), config('app.key'));
+            $hashedEmail = User::generateEmailHash($search);
 
             $query->where(function($q) use ($searchLike, $hashedEmail) {
                 $q->where('first_name', 'like', $searchLike)
@@ -233,27 +233,27 @@ class UserController extends Controller
         $request->validate($rules);
 
         if (!empty($request->email)) {
-            $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+            $hashedEmail = User::generateEmailHash($request->email);
             if (User::where('email_searchable', $hashedEmail)->exists()) {
                 return response()->json(['success' => false, 'message' => 'Validation error', 'errors' => ['email' => ['The email has already been taken.']]], 422);
             }
         }
 
         try {
-            DB::transaction(function () use ($request) {
+            $user = DB::transaction(function () use ($request) {
                 $accessToGrant = $request->access ?: [];
                 if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
                     $myAccess = auth()->user()->access ? explode(', ', auth()->user()->access) : [];
                     $accessToGrant = array_intersect($accessToGrant, $myAccess);
                 }
 
-                User::create([
+                return User::create([
                     'first_name' => $request->first_name,
                     'middle_name' => $request->middle_name,
                     'last_name' => $request->last_name,
                     'suffix' => $request->suffix,
                     'email' => $request->email,
-                    'email_searchable' => hash_hmac('sha256', strtolower($request->email), config('app.key')),
+                    'email_searchable' => User::generateEmailHash($request->email),
                     'password' => Hash::make($request->password),
                     'role' => $request->role,
                     'assign' => $request->assign,
@@ -263,9 +263,9 @@ class UserController extends Controller
                 ]);
             });
 
-            AuditTrail::log('CREATE', 'User Management', "Created system user account: {$request->name}");
+            AuditTrail::log('CREATE', 'User Management', "Created system user account: {$user->name}");
 
-            return response()->json(['success' => true, 'message' => 'User account created successfully in users table.']);
+            return response()->json(['success' => true, 'message' => 'User account created successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to create user: ' . $e->getMessage()], 500);
         }
@@ -290,6 +290,40 @@ class UserController extends Controller
             return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to delete user: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function activate(User $user)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        try {
+            $user->update(['is_active' => true]);
+            AuditTrail::log('UPDATE', 'User Management', "Activated user account: {$user->name}");
+            return response()->json(['success' => true, 'message' => 'User activated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to activate user: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function deactivate(User $user)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        if (auth()->id() === $user->id) {
+            return response()->json(['success' => false, 'message' => 'You cannot deactivate your own account.'], 403);
+        }
+
+        try {
+            $user->update(['is_active' => false]);
+            AuditTrail::log('UPDATE', 'User Management', "Deactivated user account: {$user->name}");
+            return response()->json(['success' => true, 'message' => 'User deactivated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to deactivate user: ' . $e->getMessage()], 500);
         }
     }
 }

@@ -18,8 +18,11 @@ class LeaveCardController extends Controller
     {
         $query = Employee::with(['department', 'leaveCards', 'user'])->where('status', 'Active');
 
-        // RBAC: Restricted Access Filter
+        // Filter by user assignment (National/City)
         $user = auth()->user();
+        if ($user->assign && strtolower($user->assign) !== 'all') {
+            $query->where('category', $user->assign);
+        }
         if ($user && !in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
             $accessList = explode(', ', $user->access);
             $query->where(function ($sq) use ($accessList) {
@@ -55,7 +58,7 @@ class LeaveCardController extends Controller
         }
 
         // Sorting & Auto-Filtering
-        $sort = $request->get('sort', 'name');
+        $sort = $request->input('sort', 'name');
         if ($sort === 'National') {
             $query->where('category', 'National')->orderBy('full_name');
         } elseif ($sort === 'City') {

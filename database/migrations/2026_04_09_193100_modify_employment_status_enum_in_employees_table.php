@@ -12,18 +12,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Temporarily change to VARCHAR to allow any value and make it nullable
-        DB::statement("ALTER TABLE employees MODIFY COLUMN employment_status VARCHAR(255) NULL");
+        // 1. Temporarily change to string to allow any value and make it nullable
+        Schema::table('employees', function (Blueprint $table) {
+            $table->string('employment_status')->nullable()->change();
+        });
 
         // 2. Clear or map existing data
-        // We set everything that doesn't match 'Regular' or 'Contractual' to NULL
-        // since the user wants the status to be manually selected.
         DB::table('employees')
             ->whereNotIn('employment_status', ['Regular', 'Contractual'])
             ->update(['employment_status' => null]);
 
-        // 3. Now safely apply the new ENUM restriction
-        DB::statement("ALTER TABLE employees MODIFY COLUMN employment_status ENUM('Regular', 'Contractual') NULL DEFAULT NULL");
+        // 3. Now apply the new ENUM restriction (or string if preferred for SQLite)
+        Schema::table('employees', function (Blueprint $table) {
+            $table->enum('employment_status', ['Regular', 'Contractual'])->nullable()->default(null)->change();
+        });
     }
 
     /**
@@ -31,6 +33,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE employees MODIFY COLUMN employment_status ENUM('Permanent', 'Temporary', 'Casual', 'Contractual', 'Job Order') DEFAULT 'Permanent'");
+        Schema::table('employees', function (Blueprint $table) {
+            $table->enum('employment_status', ['Permanent', 'Temporary', 'Casual', 'Contractual', 'Job Order'])
+                ->default('Permanent')
+                ->change();
+        });
     }
 };

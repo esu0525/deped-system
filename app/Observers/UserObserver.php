@@ -61,9 +61,9 @@ class UserObserver
                 'profile_image' => $user->avatar ? asset('storage/' . $user->avatar) : null,
                 'password' => $user->password,
                 'role' => $user->role,
-                'assigned' => $user->access, // Correcting 'assign' to 'access' based on Model
+                'assigned' => $user->assign, 
                 'is_active' => $user->is_active,
-                'email_verified_at' => $user->email_verified_at,
+                'email_verified_at' => $user->email_verified_at ? $user->email_verified_at->toDateTimeString() : null,
             ]);
 
             if ($response->failed()) {

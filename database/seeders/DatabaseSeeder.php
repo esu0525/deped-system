@@ -48,37 +48,36 @@ class DatabaseSeeder extends Seeder
         }
 
         // 3. Create Default Users
-        User::updateOrCreate(
-        ['email' => 'admin@deped.gov.ph'],
-        [
-            'name' => 'System Admin',
-            'username' => 'admin',
-            'password' => Hash::make('password123'),
-            'role' => 'super_admin',
-            'email_verified_at' => now(),
-        ]
-        );
+        $users = [
+            [
+                'first_name' => 'System',
+                'last_name' => 'Admin',
+                'email' => 'admin@deped.gov.ph',
+                'password' => Hash::make('password123'),
+                'role' => 'super_admin',
+                'email_verified_at' => now(),
+            ],
+            [
+                'first_name' => 'HR',
+                'last_name' => 'Administrator',
+                'email' => 'hr@deped.gov.ph',
+                'password' => Hash::make('password123'),
+                'role' => 'hr_admin',
+                'email_verified_at' => now(),
+            ],
+            [
+                'first_name' => 'Data',
+                'last_name' => 'Encoder',
+                'email' => 'encoder@deped.gov.ph',
+                'password' => Hash::make('password123'),
+                'role' => 'encoder',
+                'email_verified_at' => now(),
+            ],
+        ];
 
-        User::updateOrCreate(
-        ['email' => 'hr@deped.gov.ph'],
-        [
-            'name' => 'HR Administrator',
-            'username' => 'hr_admin',
-            'password' => Hash::make('password123'),
-            'role' => 'hr_admin',
-            'email_verified_at' => now(),
-        ]
-        );
-
-        User::updateOrCreate(
-        ['email' => 'encoder@deped.gov.ph'],
-        [
-            'name' => 'Data Encoder',
-            'username' => 'encoder',
-            'password' => Hash::make('password123'),
-            'role' => 'encoder',
-            'email_verified_at' => now(),
-        ]
-        );
+        foreach ($users as $userData) {
+            $userData['email_searchable'] = User::generateEmailHash($userData['email']);
+            User::updateOrCreate(['email_searchable' => $userData['email_searchable']], $userData);
+        }
     }
 }

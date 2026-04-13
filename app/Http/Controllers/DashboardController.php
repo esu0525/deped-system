@@ -12,12 +12,26 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        if (auth()->user()->role === 'employee') {
+        $user = auth()->user();
+        if ($user->role === 'employee') {
             return redirect()->route('employee.dashboard');
         }
-        $totalEmployees = Employee::count();
-        $totalApplications = LeaveApplication::count();
-        $pendingCount = LeaveApplication::where("status", "Pending")->count();
+        $employeeQuery = Employee::query();
+        $applicationQuery = LeaveApplication::query();
+        $auditQuery = AuditTrail::query();
+
+        // Filter by user assignment (National/City)
+        if ($user->assign && strtolower($user->assign) !== 'all') {
+            $employeeQuery->where('category', $user->assign);
+            $applicationQuery->whereHas('employee', function($q) use ($user) {
+                $q->where('category', $user->assign);
+            });
+            // We could also filter audits but audits are usually global for traceability
+        }
+
+        $totalEmployees = $employeeQuery->count();
+        $totalApplications = $applicationQuery->count();
+        $pendingCount = (clone $applicationQuery)->where("status", "Pending")->count();
         
         $recentActivity = AuditTrail::latest()->take(10)->get();
 
@@ -26,7 +40,7 @@ class DashboardController extends Controller
             $date = now()->subMonths($i);
             $monthName = $date->format("M");
             
-            $days = LeaveApplication::where("status", "Approved")
+            $days = (clone $applicationQuery)->where("status", "Approved")
                 ->whereMonth("date_from", $date->month)
                 ->whereYear("date_from", $date->year)
                 ->sum("num_days");

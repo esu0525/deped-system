@@ -30,6 +30,7 @@
                         <th style="padding: 15px 25px; text-align: left; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase; width: 30%;">User Detail</th>
                         <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Role</th>
                         <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Permissions</th>
+                        <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Status</th>
                         <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Last Logged In</th>
                         <th style="padding: 15px; text-align: center; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Created</th>
                         <th style="padding: 15px 25px; text-align: right; font-size: 0.75rem; font-weight: 800; color: var(--secondary); letter-spacing: 1px; text-transform: uppercase;">Actions</th>
@@ -186,6 +187,35 @@
     }
 
     function debouncedFilterUsers() { clearTimeout(window.searchTimer); window.searchTimer = setTimeout(fetchUsers, 500); }
+
+    function toggleUserStatus(id, action) {
+        const title = action === 'activate' ? 'Activate Account?' : 'Deactivate Account?';
+        const text = action === 'activate' ? 'This user will be able to log in again.' : 'This user will be prevented from logging in.';
+        const confirmBtn = action === 'activate' ? '#10b981' : '#f59e0b';
+
+        Swal.fire({
+            title: title, text: text, icon: 'question', showCancelButton: true,
+            confirmButtonColor: confirmBtn, confirmButtonText: `Yes, ${action}!`,
+            backdrop: true
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const resp = await fetch(`/users/${id}/${action}`, {
+                    method: "POST",
+                    headers: { 
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'), 
+                        "Accept": "application/json"
+                    }
+                });
+                const data = await resp.json();
+                if (data.success) { 
+                    Swal.fire('Success!', data.message, 'success'); 
+                    fetchUsers(); 
+                } else { 
+                    Swal.fire('Error!', data.message, 'error'); 
+                }
+            }
+        });
+    }
 
     function deleteUser(id, name) {
         Swal.fire({

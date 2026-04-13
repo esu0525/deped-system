@@ -3,9 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\SyncService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class SyncAllUsers extends Command
 {
@@ -14,14 +13,14 @@ class SyncAllUsers extends Command
      *
      * @var string
      */
-    protected $signature = 'users:sync-all';
+    protected $signature = 'sync:users';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Manually sync all users to the Transmittal System';
+    protected $description = 'Sync all local users to the external system';
 
     /**
      * Execute the console command.
@@ -29,66 +28,17 @@ class SyncAllUsers extends Command
     public function handle()
     {
         $users = User::all();
-        $total = $users->count();
-        $this->info("Found {$total} users to sync...");
+        $this->info("Found " . $users->count() . " users to sync.");
 
-        $url = env('EXTERNAL_SYNC_URL');
-        $token = env('EXTERNAL_SYNC_TOKEN');
-
-        if (!$url || !$token) {
-            $this->error("Sync URL or Token not found in .env");
-            return 1;
-        }
-
-        $bar = $this->output->createProgressBar($total);
-        $bar->start();
-
-        $successCount = 0;
-        $failCount = 0;
+        $bar = $this->output->createProgressBar($users->count());
 
         foreach ($users as $user) {
-            try {
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $token,
-                    'Accept' => 'application/json',
-                    'X-SYNC-SOURCE' => 'DEPED-SYSTEM-BULK'
-                ])->post($url, [
-                    'id' => $user->id,
-                    'lastname' => $user->last_name,
-                    'middle_name' => $user->middle_name,
-                    'first_name' => $user->first_name,
-                    'suffix' => $user->suffix,
-                    'email' => $user->email,
-                    'email_hash' => $user->email_searchable,
-                    'profile_image' => $user->avatar ? asset('storage/' . $user->avatar) : null,
-                    'password' => $user->password,
-                    'role' => $user->role,
-                    'assigned' => $user->assign,
-                    'is_active' => $user->is_active,
-                    'email_verified_at' => $user->email_verified_at,
-                ]);
-
-                if ($response->successful()) {
-                    $successCount++;
-                } else {
-                    $failCount++;
-                    Log::error("Bulk Sync Fail for {$user->email}: " . $response->body());
-                }
-            } catch (\Exception $e) {
-                $failCount++;
-                Log::error("Bulk Sync Exception for {$user->email}: " . $e->getMessage());
-            }
+            SyncService::syncUser($user, 'updated');
             $bar->advance();
         }
 
         $bar->finish();
         $this->newLine();
-        $this->info("Sync completed!");
-        $this->info("Success: {$successCount}");
-        if ($failCount > 0) {
-            $this->warn("Failed: {$failCount} (Check logs for details)");
-        }
-
-        return 0;
+        $this->info('Synchronization complete!');
     }
 }

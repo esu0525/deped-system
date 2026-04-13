@@ -133,7 +133,8 @@ class SyncRemoteEmployees extends Command
 
         DB::transaction(function () use ($mappedData) {
             // 1. Handle User
-            $user = User::where('email_searchable', $mappedData['email'])->first();
+            $emailHash = User::generateEmailHash($mappedData['email']);
+            $user = User::where('email_searchable', $emailHash)->first();
 
             $nameParts = explode(' ', $mappedData['full_name']);
             $lastName = array_pop($nameParts);
@@ -144,7 +145,7 @@ class SyncRemoteEmployees extends Command
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'email' => $mappedData['email'],
-                    'email_searchable' => $mappedData['email'],
+                    'email_searchable' => $emailHash,
                     'password' => Hash::make(Str::random(12)),
                     'role' => 'employee',
                     'is_active' => true,

@@ -31,6 +31,13 @@ class LeaveApplicationController extends Controller
     {
         $user = auth()->user();
         $query = LeaveApplication::with(['employee.department', 'employee.user', 'leaveType', 'approver']);
+        
+        // Filter by user assignment (National/City)
+        if ($user->assign && strtolower($user->assign) !== 'all') {
+            $query->whereHas('employee', function($q) use ($user) {
+                $q->where('category', $user->assign);
+            });
+        }
 
         // Employees only see their own
         if ($user->role === 'employee' && $user->employee) {
@@ -131,6 +138,12 @@ class LeaveApplicationController extends Controller
         $user = auth()->user();
         $leaveTypes = LeaveType::where('is_active', true)->get();
         $employeesQuery = Employee::where('status', 'Active');
+
+        // Filter by user assignment (National/City)
+        if ($user->assign && strtolower($user->assign) !== 'all') {
+            $employeesQuery->where('category', $user->assign);
+        }
+
         if (!in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
             $accessList = explode(', ', $user->access);
             $employeesQuery->where(function ($sq) use ($accessList) {
@@ -432,6 +445,9 @@ class LeaveApplicationController extends Controller
             );
         }
 
+        // Sync to external system
+        \App\Services\SyncService::syncLeaveApplication($leaveApplication);
+
         AuditTrail::log('APPROVE', 'Leave Application', "Approved leave application #{$leaveApplication->application_no}");
 
         return back()->with('success', 'Leave application approved and credits deducted.');
@@ -493,6 +509,7 @@ class LeaveApplicationController extends Controller
         $failedCount = 0;
 
         $reasons = [];
+        /** @var \App\Models\LeaveApplication $leaveApplication */
         foreach ($applications as $leaveApplication) {
             try {
                 // Duplicate standard approve logic to maintain proper certification records
@@ -541,6 +558,9 @@ class LeaveApplicationController extends Controller
                             'Bulk Approved'
                         );
                     }
+                    
+                    // Sync to external system
+                    \App\Services\SyncService::syncLeaveApplication($leaveApplication);
                     
                     AuditTrail::log('APPROVE', 'Leave Application', "Bulk approved leave application #{$leaveApplication->application_no}");
                     $successCount++;

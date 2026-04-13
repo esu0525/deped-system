@@ -35,6 +35,12 @@ class EmployeeController extends Controller
         
         // RBAC: Restricted Access Filter
         $user = auth()->user();
+        
+        // Filter by user assignment (National/City)
+        if ($user->assign && strtolower($user->assign) !== 'all') {
+            $query->where('category', $user->assign);
+        }
+
         if ($user && !in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
             $accessList = explode(', ', $user->access);
             $query->where(function ($sq) use ($accessList) {
@@ -79,7 +85,7 @@ class EmployeeController extends Controller
         }
 
         // Sorting & Auto-Filtering
-        $sort = $request->get('sort', 'name');
+        $sort = $request->input('sort', 'name');
         if ($sort === 'National') {
             $query->where('category', 'National')->orderBy('full_name');
         } elseif ($sort === 'City') {
@@ -151,8 +157,8 @@ class EmployeeController extends Controller
 
         try {
             if (!empty($validated['email'])) {
-                $hashedEmail = hash_hmac('sha256', strtolower($validated['email']), config('app.key'));
-                if (\App\Models\User::where('email_searchable', $hashedEmail)->exists()) {
+                $hashedEmail = User::generateEmailHash($validated['email']);
+                if (User::where('email_searchable', $hashedEmail)->exists()) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Validation error',
@@ -175,14 +181,14 @@ class EmployeeController extends Controller
                         'middle_name' => $middle,
                         'last_name' => $last,
                         'email' => $validated['email'],
-                        'email_searchable' => hash_hmac('sha256', strtolower($validated['email']), config('app.key')),
+                        'email_searchable' => User::generateEmailHash($validated['email']),
                         'password' => Hash::make($validated['password']),
                         'role' => $validated['position'], // This maps to position in modal name
                         'access' => $validated['access'],
                         'is_active' => true,
                     ]);
 
-                    \App\Models\AuditTrail::log('CREATE', 'System Users', "Created Coordinator User account: {$user->name}");
+                    AuditTrail::log('CREATE', 'System Users', "Created Coordinator User account: {$user->name}");
 
                     return response()->json([
                         'success' => true,
@@ -336,7 +342,7 @@ class EmployeeController extends Controller
             $name = $user->name;
             $user->delete();
             
-            \App\Models\AuditTrail::log('DELETE', 'System Users', "Deleted user account: {$name}");
+            AuditTrail::log('DELETE', 'System Users', "Deleted user account: {$name}");
             
             return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
         } catch (\Exception $e) {

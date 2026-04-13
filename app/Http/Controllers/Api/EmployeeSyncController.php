@@ -130,7 +130,7 @@ class EmployeeSyncController extends Controller
 
             // 1. Handle User
             $email = $mappedData['email'];
-            $emailHash = hash_hmac('sha256', strtolower($email), config('app.key'));
+            $emailHash = User::generateEmailHash($email);
             $user = User::where('email_searchable', $emailHash)->first();
 
             $firstName = $mappedData['first_name'];
@@ -150,7 +150,7 @@ class EmployeeSyncController extends Controller
                     'middle_name' => $middleName,
                     'suffix' => $mappedData['suffix'],
                     'email' => $email,
-                    'email_searchable' => $emailHash,
+                    'email_searchable' => User::generateEmailHash($email),
                     'password' => Hash::make($fallbackPassword),
                     'role' => 'employee',
                     'is_active' => true,

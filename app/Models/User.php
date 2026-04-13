@@ -12,6 +12,33 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasRoles;
 
+    /**
+     * Boot the model to handle automatic external sync.
+     */
+    protected static function booted()
+    {
+        static::created(function ($user) {
+            \App\Services\SyncService::syncUser($user, 'created');
+        });
+
+        static::updated(function ($user) {
+            \App\Services\SyncService::syncUser($user, 'updated');
+        });
+
+        static::deleted(function ($user) {
+            \App\Services\SyncService::syncUser($user, 'deleted');
+        });
+    }
+    
+    /**
+     * Generate a plain SHA-256 hash for an email address.
+     * This is used for searching encrypted email fields.
+     */
+    public static function generateEmailHash(string $email): string
+    {
+        return hash('sha256', strtolower(trim($email)));
+    }
+
     protected $fillable = [
         'first_name', 'middle_name', 'last_name', 'suffix', 'email', 'email_searchable', 'avatar', 'password', 'role', 'access', 'assign', 'is_active', 'created_by',
         'otp_code', 'otp_expires_at', 'otp_attempts',
@@ -30,7 +57,6 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'access' => 'encrypted',
-            'assign' => 'encrypted',
         ];
     }
 

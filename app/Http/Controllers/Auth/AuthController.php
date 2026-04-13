@@ -48,7 +48,7 @@ class AuthController extends Controller
         }
 
         // Find user by email (using the searchable column as 'email' is encrypted)
-        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $hashedEmail = User::generateEmailHash($request->email);
         $user = User::where('email_searchable', $hashedEmail)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -219,7 +219,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $hashedEmail = User::generateEmailHash($request->email);
         $user = User::where('email_searchable', $hashedEmail)->first();
 
         if (!$user) {
@@ -264,7 +264,7 @@ class AuthController extends Controller
             return back()->with('error', 'Reset link has expired. Please request a new one.');
         }
 
-        $hashedEmail = hash_hmac('sha256', strtolower($request->email), config('app.key'));
+        $hashedEmail = User::generateEmailHash($request->email);
         $user = User::where('email_searchable', $hashedEmail)->first();
         
         if (!$user) {
