@@ -75,9 +75,15 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
-        foreach ($users as $userData) {
-            $userData['email_searchable'] = User::generateEmailHash($userData['email']);
-            User::updateOrCreate(['email_searchable' => $userData['email_searchable']], $userData);
-        }
+        // Disable events during seeding to prevent sync errors on domestic/live servers
+        User::withoutEvents(function () use ($users) {
+            foreach ($users as $userData) {
+                $userData['email_searchable'] = User::generateEmailHash($userData['email']);
+                User::updateOrCreate(
+                    ['email_searchable' => $userData['email_searchable']], 
+                    $userData
+                );
+            }
+        });
     }
 }
