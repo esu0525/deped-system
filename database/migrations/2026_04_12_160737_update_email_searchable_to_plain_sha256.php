@@ -11,14 +11,24 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $users = \App\Models\User::all();
-        foreach ($users as $user) {
-            if ($user->email) {
-                // Update email_searchable with the new plain SHA-256 hash
-                $user->email_searchable = \App\Models\User::generateEmailHash($user->email);
-                $user->save();
+        DB::table('users')->orderBy('id')->chunk(100, function ($users) {
+            foreach ($users as $user) {
+                if ($user->email) {
+                    try {
+                        // Decrypt current email if encrypted
+                        $email = Crypt::decryptString($user->email);
+                    } catch (\Exception $e) {
+                        $email = $user->email;
+                    }
+                    
+                    DB::table('users')
+                        ->where('id', $user->id)
+                        ->update([
+                            'email_searchable' => \App\Models\User::generateEmailHash($email)
+                        ]);
+                }
             }
-        }
+        });
     }
 
     /**

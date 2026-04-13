@@ -3,6 +3,8 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 
 return new class extends Migration
 {
@@ -22,43 +24,58 @@ return new class extends Migration
                 $table->string('last_name')->after('middle_name')->nullable();
             }
             if (!Schema::hasColumn('users', 'email_searchable')) {
-                $table->string('email_searchable')->after('email')->nullable()->unique();
+                $table->string('email_searchable')->after('email')->nullable();
             }
         });
 
-        // Migrate data
-        $users = DB::table('users')->get();
-        foreach ($users as $user) {
-            $updates = [];
-            
-            if (isset($user->name)) {
-                $parts = explode(' ', $user->name);
-                $last = array_pop($parts);
-                $first = array_shift($parts);
-                $middle = implode(' ', $parts);
+        // Migrate data in chunks
+        DB::table('users')->orderBy('id')->chunk(100, function ($users) {
+            foreach ($users as $user) {
+                $updates = [];
                 
-                $updates['first_name'] = $first;
-                $updates['middle_name'] = $middle;
-                $updates['last_name'] = $last;
-            }
-
-            if (isset($user->email)) {
-                try {
-                    $plainEmail = Crypt::decryptString($user->email);
-                } catch (\Exception $e) {
-                    $plainEmail = $user->email;
+                // Only split if name exists and new fields are empty
+                if (isset($user->name) && !empty($user->name) && empty($user->first_name)) {
+                    $parts = explode(' ', trim($user->name));
+                    if (count($parts) > 0) {
+                        $last = array_pop($parts);
+                        $first = array_shift($parts);
+                        $middle = implode(' ', $parts);
+                        
+                        $updates['first_name'] = $first ?: $last;
+                        $updates['middle_name'] = $middle;
+                        $updates['last_name'] = $first ? $last : '';
+                    }
                 }
-                $updates['email_searchable'] = hash_hmac('sha256', strtolower($plainEmail), config('app.key'));
-            }
 
-            if (!empty($updates)) {
-                DB::table('users')->where('id', $user->id)->update($updates);
+                if (isset($user->email) && empty($user->email_searchable)) {
+                    try {
+                        $plainEmail = Crypt::decryptString($user->email);
+                    } catch (\Exception $e) {
+                        $plainEmail = $user->email;
+                    }
+                    $updates['email_searchable'] = hash_hmac('sha256', strtolower(trim($plainEmail)), config('app.key'));
+                }
+
+                if (!empty($updates)) {
+                    DB::table('users')->where('id', $user->id)->update($updates);
+                }
             }
-        }
+        });
 
         Schema::table('users', function (Blueprint $table) {
             if (Schema::hasColumn('users', 'name')) {
                 $table->dropColumn('name');
+            }
+            
+            // Add unique constraint separately to avoid failures if duplicates exist (though they shouldn't)
+            // But if we are in fresh, it's fine.
+            // Check if index exists before adding it
+            $conn = Schema::getConnection();
+            $dbName = $conn->getDatabaseName();
+            $indexes = $conn->select("SHOW INDEX FROM users WHERE Key_name = 'users_email_searchable_unique'");
+            
+            if (empty($indexes) && Schema::hasColumn('users', 'email_searchable')) {
+                $table->unique('email_searchable');
             }
         });
     }
