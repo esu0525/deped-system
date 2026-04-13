@@ -110,11 +110,11 @@ class SyncService
                     'name'              => $application->employee->full_name,
                     'position'          => $application->employee->position,
                     'school'            => $application->employee->department->name ?? 'N/A',
-                    'leave_type'        => $detail->leaveType->code ?? $detail->leaveType->name ?? 'N/A',
+                    'type_of_leave'     => $detail->leaveType->code ?? $detail->leaveType->name ?? 'N/A',
                     'inclusive_dates'   => $detail->inclusive_dates,
                     'remarks'           => $detail->is_with_pay ? 'With Pay' : 'Without Pay',
-                    'action_date'       => $application->date_filed->format('Y-m-d'),
-                    'deduction_remark'  => null, // Always empty as requested
+                    'date_of_action'    => $application->date_filed->format('Y-m-d'),
+                    'deduction_remarks' => null, // Always empty as requested
                     'incharge'          => $application->encoder->first_name ?? 'System',
                     'encoder_email'     => $application->encoder->email ?? null,
                     'encoder_id'        => $application->encoder->id ?? null,
