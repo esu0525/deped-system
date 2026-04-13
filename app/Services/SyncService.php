@@ -116,9 +116,11 @@ class SyncService
                     'date_of_action'    => $application->date_filed->format('Y-m-d'),
                     'deduction_remarks' => null, // Always empty as requested
                     'incharge'          => $application->encoder->first_name ?? 'System',
-                    'encoder_email'     => $application->encoder->email ?? null,
-                    'encoder_id'        => $application->encoder->id ?? null,
                     'assigned'          => $application->encoder->assign ?? $application->employee->category ?? 'national',
+                    'forwarded'         => 0,
+                    'is_processed'      => 1,
+                    'batch_id'          => 1,
+                    'user_id'           => $application->encoder->id ?? 1,
                 ];
 
                 Log::info('SyncService: Sending Leave Record for Application ID: ' . $application->id);
