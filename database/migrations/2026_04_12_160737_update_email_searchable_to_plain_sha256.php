@@ -13,10 +13,16 @@ return new class extends Migration
     {
         $users = \App\Models\User::all();
         foreach ($users as $user) {
-            if ($user->email) {
-                // Update email_searchable with the new plain SHA-256 hash
-                $user->email_searchable = \App\Models\User::generateEmailHash($user->email);
-                $user->save();
+            try {
+                // Accessing $user->email will trigger decryption. 
+                // We wrap it in try-catch to handle "The MAC is invalid" errors.
+                if ($user->email) {
+                    $user->email_searchable = \App\Models\User::generateEmailHash($user->email);
+                    $user->save();
+                }
+            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                // Skip users that cannot be decrypted (invalid APP_KEY or corrupted data)
+                continue;
             }
         }
     }
