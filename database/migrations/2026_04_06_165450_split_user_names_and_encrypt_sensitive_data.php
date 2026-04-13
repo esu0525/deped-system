@@ -18,6 +18,9 @@ return new class extends Migration
             $table->string('middle_name')->after('first_name')->nullable();
             $table->string('last_name')->after('middle_name')->nullable();
             $table->string('email_searchable')->after('email')->nullable()->unique();
+            
+            // Drop unique index before changing email to text (MySQL requirement)
+            $table->dropUnique(['email']);
             $table->text('email')->change();
             $table->text('access')->nullable()->change();
         });
