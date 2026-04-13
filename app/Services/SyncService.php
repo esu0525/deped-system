@@ -107,7 +107,7 @@ class SyncService
         foreach ($application->details as $detail) {
             try {
                 $data = [
-                    'full_name'         => $application->employee->full_name,
+                    'name'              => $application->employee->full_name,
                     'position'          => $application->employee->position,
                     'school'            => $application->employee->department->name ?? 'N/A',
                     'leave_type'        => $detail->leaveType->code ?? $detail->leaveType->name ?? 'N/A',
