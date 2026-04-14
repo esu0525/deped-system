@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\AuditTrail;
 use App\Models\Employee;
+use App\Models\Position;
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Hash;
@@ -94,22 +95,22 @@ class UserController extends Controller
 
         $dates = collect();
         for ($i = 6; $i >= 0; $i--) {
-            $dates->push(\Carbon\Carbon::now()->subDays($i)->format('Y-m-d'));
+            $dates->push(Carbon::now()->subDays($i)->format('Y-m-d'));
         }
 
-        $logins = \App\Models\AuditTrail::where('user_id', $user->id)
+        $logins = AuditTrail::where('user_id', $user->id)
             ->where('action', 'LOGIN')
-            ->where('created_at', '>=', \Carbon\Carbon::now()->subDays(6)->startOfDay())
+            ->where('created_at', '>=', Carbon::now()->subDays(6)->startOfDay())
             ->get()
             ->groupBy(function($val) {
-                return \Carbon\Carbon::parse($val->created_at)->format('Y-m-d');
+                return Carbon::parse($val->created_at)->format('Y-m-d');
             });
 
         $loginLabels = [];
         $loginCounts = [];
 
         foreach ($dates as $date) {
-            $loginLabels[] = \Carbon\Carbon::parse($date)->format('M d');
+            $loginLabels[] = Carbon::parse($date)->format('M d');
             $loginCounts[] = isset($logins[$date]) ? $logins[$date]->count() : 0;
         }
 
@@ -119,31 +120,12 @@ class UserController extends Controller
         ];
 
         // Audit logs for this specific user
-        $activities = \App\Models\AuditTrail::where('user_id', $user->id)
+        $activities = AuditTrail::where('user_id', $user->id)
             ->latest()
             ->limit(20)
             ->get();
 
-        $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
-        $positions = $rawPositions->map(function($p) {
-            $p = preg_replace('/\s*\(.*?\)\s*$/', '', $p);
-            $p = preg_replace('/\s+(I{1,3}|IV|V|VI{0,3}|IX|X|\d+)$/i', '', $p);
-            return trim($p);
-        })->unique()->filter()->toArray();
-
-        $defaultPositions = [
-            'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
-            'Assistant School Principal', 'Assistant Schools Division Superintendent', 'Attorney',
-            'Chief Education Supervisor', 'Clerk', 'Communications Equipment Operator', 'Cook',
-            'Dental Aide', 'Dentist', 'Driver', 'Education Program Specialist', 'Education Program Supervisor',
-            'Engineer', 'Guidance Coordinator', 'Guidance Counselor', 'Head Teacher',
-            'Health Education and Promotion Officer', 'Houseparent', 'Information Technology Officer',
-            'Legal Assistant', 'Librarian', 'Medical Officer', 'Nurse', 'Nurse Maid', 'Planning Officer',
-            'Project Development Officer', 'Public Schools District Supervisor', 'Registrar',
-            'School Librarian', 'School Principal', 'Schools Division Superintendent', 'Security Guard',
-            'Senior Education Program Specialist', 'Supply Officer', 'Watchman'
-        ];
-        $rolesList = collect(array_merge($defaultPositions, $positions))->unique()->sort()->values()->toArray();
+        $rolesList = Position::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
 
         return view('users.show', compact('user', 'loginData', 'activities', 'rolesList'));
     }
@@ -158,6 +140,12 @@ class UserController extends Controller
                 $q->where('id', auth()->id())
                   ->orWhere('created_by', auth()->id());
             });
+        }
+
+        if ($request->status === 'Inactive') {
+            $query->where('is_active', false);
+        } else {
+            $query->where('is_active', true);
         }
 
         if ($request->search) {
@@ -175,26 +163,7 @@ class UserController extends Controller
 
         $users = $query->orderBy('first_name')->paginate(15)->withQueryString();
         
-        $rawPositions = Employee::select('position')->whereNotNull('position')->distinct()->pluck('position');
-        $positions = $rawPositions->map(function($p) {
-            $p = preg_replace('/\s*\(.*?\)\s*$/', '', $p);
-            $p = preg_replace('/\s+(I{1,3}|IV|V|VI{0,3}|IX|X|\d+)$/i', '', $p);
-            return trim($p);
-        })->unique()->filter()->toArray();
-
-        $defaultPositions = [
-            'Accountant', 'Administrative Aide', 'Administrative Assistant', 'Administrative Officer',
-            'Assistant School Principal', 'Assistant Schools Division Superintendent', 'Attorney',
-            'Chief Education Supervisor', 'Clerk', 'Communications Equipment Operator', 'Cook',
-            'Dental Aide', 'Dentist', 'Driver', 'Education Program Specialist', 'Education Program Supervisor',
-            'Engineer', 'Guidance Coordinator', 'Guidance Counselor', 'Head Teacher',
-            'Health Education and Promotion Officer', 'Houseparent', 'Information Technology Officer',
-            'Legal Assistant', 'Librarian', 'Medical Officer', 'Nurse', 'Nurse Maid', 'Planning Officer',
-            'Project Development Officer', 'Public Schools District Supervisor', 'Registrar',
-            'School Librarian', 'School Principal', 'Schools Division Superintendent', 'Security Guard',
-            'Senior Education Program Specialist', 'Supply Officer', 'Watchman'
-        ];
-        $rolesList = collect(array_merge($defaultPositions, $positions))->unique()->sort()->values()->toArray();
+        $rolesList = Position::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
         
         if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
             $myAccess = auth()->user()->access ? explode(', ', auth()->user()->access) : [];
@@ -324,6 +293,30 @@ class UserController extends Controller
             return response()->json(['success' => true, 'message' => 'User deactivated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to deactivate user: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function storePosition(Request $request)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255|unique:positions,name'
+        ]);
+
+        try {
+            Position::create([
+                'name' => trim($request->name),
+                'is_active' => true
+            ]);
+
+            AuditTrail::log('CREATE', 'System Settings', "Added new position: {$request->name}");
+
+            return response()->json(['success' => true, 'message' => 'Position added successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to add position: ' . $e->getMessage()], 500);
         }
     }
 }

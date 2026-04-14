@@ -50,16 +50,26 @@
         $BACK_DATA_ROWS = 20;  
         
         $transactionsArray = $transactions->toArray();
+        $runningWellnessVal = 5; // Starting balance for the year
         
         // Filter transactions based on tab
         if ($tab === 'cto') {
             $transactionsArray = array_values(array_filter($transactionsArray, function($t) {
-                return (isset($t['period']) && stripos($t['period'], 'CTO') !== false) || 
-                       (isset($t['transaction_type']) && $t['transaction_type'] === 'earned' && stripos($t['period'], 'CTO') !== false);
+                // Determine if this is a CTO transaction
+                $isCtoType = isset($t['leave_type']) && $t['leave_type']['code'] === 'CTO';
+                $hasCtoText = (isset($t['period']) && stripos($t['period'], 'CTO') !== false) || 
+                              (isset($t['remarks']) && stripos($t['remarks'], 'CTO') !== false);
+                
+                return $isCtoType || $hasCtoText;
             }));
         } else {
             $transactionsArray = array_values(array_filter($transactionsArray, function($t) {
-                return stripos($t['period'] ?? '', 'CTO') === false;
+                // Determine if this is a CTO transaction to EXCLUDE it from FORM 6
+                $isCtoType = isset($t['leave_type']) && $t['leave_type']['code'] === 'CTO';
+                $hasCtoText = (isset($t['period']) && stripos($t['period'], 'CTO') !== false) || 
+                              (isset($t['remarks']) && stripos($t['remarks'], 'CTO') !== false);
+                
+                return !($isCtoType || $hasCtoText);
             }));
         }
 
@@ -187,6 +197,10 @@
                 <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
                     <span style="font-weight: 700; white-space: nowrap;">Status:</span>
                     <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
+                    <span style="font-weight: 700; white-space: nowrap;">Wellness Leave:</span>
+                    <span style="flex: 1;">{{ rtrim(rtrim(number_format($wellnessBalance, 1), '0'), '.') }} / 5 days remaining ({{ rtrim(rtrim(number_format($wellnessUsed, 1), '0'), '.') }} used)</span>
                 </div>
             </div>
         @endif
@@ -332,20 +346,22 @@
                         </tr>
                     @endif
 
-                    @php 
-                        $wellnessBalance = 5; 
-                    @endphp
                     @foreach($page['items'] as $item)
                         @php
                             $periodText = $item['period'] ?? '';
                             $remarksText = $item['remarks'] ?? '';
                             $isLess = strpos(strtoupper($periodText), 'LESS') !== false;
-                            $isWellness = strpos(strtoupper($periodText), 'WELLNESS') !== false;
+                            
+                            // Better wellness check: check if it's Wellness via leave_type code or text
+                            $isWellness = (isset($item['leave_type']) && stripos($item['leave_type']['name'], 'Wellness') !== false) || 
+                                          stripos($periodText, 'Wellness') !== false || 
+                                          stripos($remarksText, 'Wellness') !== false;
 
                             if ($isWellness) {
-                                // Extract numeric value if standard "Wellness" exists but use 1 by default if not specified
-                                $daysUsed = (float)($item['vl_used'] ?? ($item['sl_used'] ?? 1));
-                                $wellnessBalance -= $daysUsed;
+                                // Wellness used days are stored in 'days' column
+                                $used = floatval($item['days'] ?? 0);
+                                $runningWellnessVal -= $used;
+                                $itemWellnessBal = $runningWellnessVal;
                             }
 
                             // Suppress remarks for Monetization rows
@@ -445,8 +461,8 @@
                                         <div style="position: absolute; left: 69.2%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
                                         
                                         {{-- The text "nakapatong" --}}
-                                        <div style="position: relative; z-index: 10; font-weight: 800; font-size: 0.7rem; text-align: center; white-space: nowrap; width: 100%; color: inherit;">
-                                            {{ $wellnessBalance }} {{ $wellnessBalance == 1 ? 'day' : 'days' }} remaining
+                                        <div style="position: relative; z-index: 10; font-weight: 800; font-size: 0.65rem; text-align: center; white-space: nowrap; width: 100%; color: inherit; letter-spacing: -0.2px;">
+                                            USED: {{ rtrim(rtrim(number_format($item['days'] ?? 0, 1), '0'), '.') }} | BAL: {{ floatval($itemWellnessBal ?? 0) }}
                                         </div>
                                     </td>
                                 @else

@@ -19,7 +19,15 @@ class UserSyncController extends Controller
         $providedToken = $request->bearerToken();
         
         if ($providedToken !== $token) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            \Illuminate\Support\Facades\Log::warning('DepEd-System: Unauthorized Sync Attempt', [
+                'provided' => $providedToken,
+                'expected' => $token
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Please check your Bearer Token.',
+                'debug_provided_token' => $providedToken ? 'present' : 'missing'
+            ], 401);
         }
 
         // --- DEBUG LOG ---
@@ -62,7 +70,7 @@ class UserSyncController extends Controller
             $incomingRole = $request->role;
             $mappedRole = $incomingRole;
             if ($incomingRole === 'admin') {
-                $mappedRole = 'system_admin';
+                $mappedRole = 'admin';
             } elseif ($incomingRole === 'user') {
                 $mappedRole = 'coordinator'; // default mapping for 'user'
             }

@@ -47,7 +47,7 @@
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                             <div class="balance-box vl-box">
                                 <div class="balance-label"><i class="fas fa-umbrella-beach"></i> Vacation Leave</div>
                                 <div class="balance-value" id="vlBalance">—</div>
@@ -57,6 +57,11 @@
                                 <div class="balance-label"><i class="fas fa-briefcase-medical"></i> Sick Leave</div>
                                 <div class="balance-value" id="slBalance">—</div>
                                 <div class="balance-sub">Total Earned: <span id="slTotalEarned">—</span></div>
+                            </div>
+                            <div class="balance-box wellness-box" style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2);">
+                                <div class="balance-label" style="color: #8b5cf6;"><i class="fas fa-spa"></i> Wellness</div>
+                                <div class="balance-value" id="wellnessBalance" style="color: #7c3aed;">—</div>
+                                <div class="balance-sub">Remaining Credits</div>
                             </div>
                         </div>
                         <div id="noLeaveCardWarning" style="display: none; margin-top: 12px; padding: 10px 14px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; font-size: 0.8rem; color: #92400e;">
@@ -84,53 +89,104 @@
                     </div>
                     
                     <div id="dateEntries">
-                        <!-- Default first entry -->
-                        <div class="date-entry" data-index="0">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                                <span class="entry-label">#1</span>
+                        <datalist id="leaveTypesList">
+                            @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
+                                <option value="{{ $type->name }}" data-code="{{ $type->code }}">
+                            @endforeach
+                        </datalist>
+                        @if(old('entries'))
+                            @foreach(old('entries') as $index => $oldEntry)
+                                <div class="date-entry" data-index="{{ $index }}">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                                        <span class="entry-label">#{{ $index + 1 }}</span>
+                                        @if($index > 0)
+                                            <button type="button" class="remove-entry-btn" onclick="removeEntry(this)" style="margin-left: auto;">
+                                                <i class="fas fa-trash-alt"></i> Remove
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <div class="entry-row-grid" style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                            <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
+                                            <input type="text" name="entries[{{ $index }}][leave_type_name]" class="form-control entry-type" list="leaveTypesList" value="{{ $oldEntry['leave_type_name'] ?? '' }}" required autocomplete="off">
+                                        </div>
+                                        <div class="form-group cto-title-wrapper" style="display: none; margin-bottom: 0;">
+                                            <label class="form-label" style="font-size: 0.75rem;">CTO Title / Certificate</label>
+                                            <input type="text" name="entries[{{ $index }}][cto_title]" class="form-control entry-cto-title" list="ctoTitlesList" value="{{ $oldEntry['cto_title'] ?? '' }}">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                            <label class="form-label entry-dates-label" style="font-size: 0.75rem;">Inclusive Dates</label>
+                                            <input type="text" name="entries[{{ $index }}][inclusive_dates]" class="form-control entry-dates-text" value="{{ $oldEntry['inclusive_dates'] ?? '' }}" required>
+                                        </div>
+                                        <div class="form-group pay-status-wrapper" style="margin-bottom: 0;">
+                                            <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
+                                            <select name="entries[{{ $index }}][is_with_pay]" class="form-control entry-pay-status" required>
+                                                <option value="1" {{ (isset($oldEntry['is_with_pay']) && $oldEntry['is_with_pay'] == '1') ? 'selected' : '' }}>WITH PAY</option>
+                                                <option value="0" {{ (isset($oldEntry['is_with_pay']) && $oldEntry['is_with_pay'] == '0') ? 'selected' : '' }}>WITHOUT PAY</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
+                                            <label class="form-label entry-earned-label" style="font-size: 0.75rem;">Earned Credits</label>
+                                            <input type="number" name="entries[{{ $index }}][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" value="{{ $oldEntry['cto_earned_days'] ?? '' }}">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom: 0;">
+                                            <label class="form-label entry-days-label" style="font-size: 0.75rem;">No. of Days</label>
+                                            <input type="number" name="entries[{{ $index }}][num_days]" class="form-control entry-days" step="0.5" min="0" value="{{ $oldEntry['num_days'] ?? '' }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                                        <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                                        <input type="text" name="entries[{{ $index }}][lwop_reason]" class="form-control entry-lwop-reason" value="{{ $oldEntry['lwop_reason'] ?? '' }}" placeholder="e.g. Credits exhausted, Late filing, etc.">
+                                    </div>
+                                    <div class="others-specify" style="display: none; margin-top: 8px;">
+                                        <input type="text" name="entries[{{ $index }}][other_type]" class="form-control" value="{{ $oldEntry['other_type'] ?? '' }}" placeholder="Specify other leave type...">
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <!-- Default first entry -->
+                            <div class="date-entry" data-index="0">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                                    <span class="entry-label">#1</span>
+                                </div>
+                                <div class="entry-row-grid" style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
+                                        <input type="text" name="entries[0][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
+                                    </div>
+                                    <div class="form-group cto-title-wrapper" style="display: none; margin-bottom: 0;">
+                                        <label class="form-label" style="font-size: 0.75rem;">CTO Title / Certificate</label>
+                                        <input type="text" name="entries[0][cto_title]" class="form-control entry-cto-title" list="ctoTitlesList" placeholder="e.g. Special Event">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label entry-dates-label" style="font-size: 0.75rem;">Inclusive Dates</label>
+                                        <input type="text" name="entries[0][inclusive_dates]" class="form-control entry-dates-text" required>
+                                    </div>
+                                    <div class="form-group pay-status-wrapper" style="margin-bottom: 0;">
+                                        <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
+                                        <select name="entries[0][is_with_pay]" class="form-control entry-pay-status" required>
+                                            <option value="1" selected>WITH PAY</option>
+                                            <option value="0">WITHOUT PAY</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
+                                        <label class="form-label entry-earned-label" style="font-size: 0.75rem;">Earned Credits</label>
+                                        <input type="number" name="entries[0][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0" min="0">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label entry-days-label" style="font-size: 0.75rem;">No. of Days</label>
+                                        <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0" placeholder="0" required>
+                                    </div>
+                                </div>
+                                <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
+                                    <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
+                                    <input type="text" name="entries[0][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc.">
+                                </div>
+                                <div class="others-specify" style="display: none; margin-top: 8px;">
+                                    <input type="text" name="entries[0][other_type]" class="form-control" placeholder="Specify other leave type...">
+                                </div>
                             </div>
-                            <div class="entry-row-grid" style="display: grid; grid-template-columns: 2fr 3fr 1.2fr 1fr; gap: 15px; align-items: end;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">Type of Leave</label>
-                                    <input type="text" name="entries[0][leave_type_name]" class="form-control entry-type" list="leaveTypesList" placeholder="Type or select..." required autocomplete="off">
-                                        <datalist id="leaveTypesList">
-                                            @foreach($leaveTypes->where('code', '!=', 'OTH') as $type)
-                                                <option value="{{ $type->name }}" data-code="{{ $type->code }}">
-                                            @endforeach
-                                        </datalist>
-                                </div>
-                                <div class="form-group cto-title-wrapper" style="display: none; margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">CTO Title / Certificate</label>
-                                    <input type="text" name="entries[0][cto_title]" class="form-control entry-cto-title" list="ctoTitlesList" placeholder="e.g. Special Event">
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">Inclusive Dates</label>
-                                    <input type="text" name="entries[0][inclusive_dates]" class="form-control entry-dates-text" required>
-                                </div>
-                                <div class="form-group pay-status-wrapper" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">Pay Status</label>
-                                    <select name="entries[0][is_with_pay]" class="form-control entry-pay-status" required>
-                                        <option value="1" selected>WITH PAY</option>
-                                        <option value="0">WITHOUT PAY</option>
-                                    </select>
-                                </div>
-                                <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">Earned Credits</label>
-                                    <input type="number" name="entries[0][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0">
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label class="form-label" style="font-size: 0.75rem;">No. of Days</label>
-                                    <input type="number" name="entries[0][num_days]" class="form-control entry-days" step="0.5" min="0.5" placeholder="0" required>
-                                </div>
-                            </div>
-                            <div class="lwop-reason-wrapper" style="display: none; margin-top: 10px;">
-                                <label class="form-label" style="font-size: 0.75rem; color: #dc2626; font-weight: 700;">Reason for Without Pay</label>
-                                <input type="text" name="entries[0][lwop_reason]" class="form-control entry-lwop-reason" placeholder="e.g. Credits exhausted, Late filing, etc." style="border-color: #fecaca;">
-                            </div>
-                            <div class="others-specify" style="display: none; margin-top: 8px;">
-                                <input type="hidden" name="entries[0][other_type]" value="">
-                            </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
 
@@ -621,7 +677,14 @@
     }
 
     function fetchEmployeeBalance(employeeId) {
-        fetch(`/api/employee/${employeeId}/leave-balance`)
+        if (!employeeId) return;
+        
+        fetch(`/api/employee/${employeeId}/leave-balance`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
             .then(r => r.json())
             .then(data => {
                 employeeBalance = data;
@@ -630,6 +693,10 @@
                 document.getElementById('slBalance').textContent = parseFloat(data.sl_balance);
                 document.getElementById('vlTotalEarned').textContent = parseFloat(data.vl_total_earned);
                 document.getElementById('slTotalEarned').textContent = parseFloat(data.sl_total_earned);
+                
+                if (document.getElementById('wellnessBalance')) {
+                    document.getElementById('wellnessBalance').textContent = parseFloat(data.wellness_balance);
+                }
 
                 document.getElementById('noLeaveCardWarning').style.display = data.has_leave_card ? 'none' : 'block';
 
@@ -646,7 +713,12 @@
 
     function fetchEmployeeCtoBalances(employeeId) {
         if (!employeeId) return;
-        fetch(`/api/employee/${employeeId}/cto-balances`)
+        fetch(`/api/employee/${employeeId}/cto-balances`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
             .then(r => r.json())
             .then(data => {
                 const list = document.getElementById('ctoTitlesList');
@@ -819,8 +891,8 @@
                     </select>
                 </div>
                 <div class="form-group cto-earned-wrapper" style="display: none; margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.75rem;">Earned Credits</label>
-                    <input type="number" name="entries[${i}][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0">
+                    <label class="form-label entry-earned-label" style="font-size: 0.75rem;">Earned Credits</label>
+                    <input type="number" name="entries[${i}][cto_earned_days]" class="form-control entry-cto-earned" step="0.5" placeholder="0" min="0">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label class="form-label entry-days-label" style="font-size: 0.75rem;">No. of Days</label>
@@ -875,10 +947,13 @@
             const isMonet50 = typeValue.includes('50% monetization');
             const isMonet1030 = typeValue.includes('10-30 days monetization');
             const isCto = typeValue.includes('cto');
+            const isWellness = typeValue.includes('wellness');
 
             const datesLabel = entry.querySelector('.entry-dates-label') || entry.querySelector('label[for*="dates"]');
             const daysLabel = entry.querySelector('.entry-days-label') || entry.querySelector('label[for*="days"]');
             const ctoEarnedWrapper = entry.querySelector('.cto-earned-wrapper');
+            const earnedLabel = entry.querySelector('.entry-earned-label');
+            const ctoEarnedInput = ctoEarnedWrapper ? ctoEarnedWrapper.querySelector('input') : null;
             const ctoTitleWrapper = entry.querySelector('.cto-title-wrapper');
             const rowGrid = entry.querySelector('.entry-row-grid');
 
@@ -939,6 +1014,8 @@
                     const isExisting = options.includes(ctoTitleInput.value);
 
                     if (ctoEarnedWrapper) {
+                        if (earnedLabel) earnedLabel.textContent = 'Earned Credits';
+                        if (ctoEarnedInput) { ctoEarnedInput.removeAttribute('max'); }
                         if (isExisting) {
                             // If title exists, we don't need "Earned Credits" anymore
                             ctoEarnedWrapper.style.display = 'none';
@@ -961,6 +1038,51 @@
                 daysInput.setAttribute('required', 'required');
                 daysInput.setAttribute('min', '0.5');
                 if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
+            } else if (isWellness) {
+                // ── Wellness Leave: fixed 5-credit max, always with pay ──
+                datesTextInput.closest('.form-group').style.display = '';
+                datesTextInput.setAttribute('required', 'required');
+                if (datesLabel) datesLabel.textContent = "Inclusive Dates";
+                if (daysLabel) daysLabel.textContent = "No. of Days";
+
+                // Hide Pay Status (wellness is always WITH PAY)
+                payStatusWrapper.style.display = 'none';
+                payStatusSelect.value = "1";
+                payStatusSelect.removeAttribute('required');
+
+                // Show No. of Days (max 5)
+                daysWrapper.style.display = '';
+                daysInput.setAttribute('required', 'required');
+                daysInput.setAttribute('min', '0.5');
+                daysInput.setAttribute('step', '0.5');
+                daysInput.setAttribute('max', '5');
+
+                // Show & auto-fill Wellness Credits (remaining balance)
+                if (ctoTitleWrapper) {
+                    ctoTitleWrapper.style.display = 'none';
+                    ctoTitleWrapper.querySelector('input').removeAttribute('required');
+                }
+                if (ctoEarnedWrapper) {
+                    if (earnedLabel) earnedLabel.textContent = 'Wellness Credits';
+                    ctoEarnedWrapper.style.display = '';
+                    if (ctoEarnedInput) {
+                        // Use suggest remaining balance if available
+                        const remaining = (employeeBalance && employeeBalance.wellness_balance !== undefined) 
+                                        ? employeeBalance.wellness_balance 
+                                        : 5;
+                                        
+                        if (!ctoEarnedInput.value || parseFloat(ctoEarnedInput.value) === 0 || parseFloat(ctoEarnedInput.value) === 5) {
+                            ctoEarnedInput.value = remaining;
+                        }
+                        ctoEarnedInput.setAttribute('max', remaining);
+                        ctoEarnedInput.setAttribute('step', '0.5');
+                        ctoEarnedInput.setAttribute('required', 'required');
+                    }
+                    // 5-col grid: leave-type | dates | earned | days
+                    if (rowGrid) rowGrid.style.gridTemplateColumns = '2fr 3fr 1.2fr 1.2fr 1fr';
+                }
+
+                if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
             } else {
                 datesTextInput.closest('.form-group').style.display = '';
                 datesTextInput.setAttribute('required', 'required');
@@ -969,13 +1091,18 @@
                 if (daysLabel) daysLabel.textContent = "No. of Days";
                 payStatusWrapper.style.display = '';
                 daysWrapper.style.display = '';
+                daysInput.removeAttribute('max');
                 if (ctoTitleWrapper) {
                     ctoTitleWrapper.style.display = 'none';
                     ctoTitleWrapper.querySelector('input').removeAttribute('required');
                 }
                 if (ctoEarnedWrapper) {
+                    if (earnedLabel) earnedLabel.textContent = 'Earned Credits';
                     ctoEarnedWrapper.style.display = 'none';
-                    ctoEarnedWrapper.querySelector('input').removeAttribute('required');
+                    if (ctoEarnedInput) {
+                        ctoEarnedInput.removeAttribute('required');
+                        ctoEarnedInput.removeAttribute('max');
+                    }
                 }
                 payStatusSelect.setAttribute('required', 'required');
                 daysInput.setAttribute('required', 'required');
@@ -1079,8 +1206,26 @@
     });
 
     // Initialize
-    bindEntryEvents(document.querySelector('.date-entry'));
+    document.querySelectorAll('.date-entry').forEach(entry => {
+        bindEntryEvents(entry);
+    });
+    
+    // Set initial entry index for dynamic adds
+    entryIndex = document.querySelectorAll('.date-entry').length;
+
     updatePreview();
+
+    // Restore selected employee on page load (e.g., after validation error)
+    document.addEventListener('DOMContentLoaded', function() {
+        const preselectedId = document.getElementById('employee_id')?.value;
+        if (preselectedId) {
+            const options = dropdown.querySelectorAll('.employee-option');
+            const preselectedOption = Array.from(options).find(opt => opt.dataset.id == preselectedId);
+            if (preselectedOption) {
+                selectEmployee(preselectedOption);
+            }
+        }
+    });
 </script>
 @endpush
 @endsection

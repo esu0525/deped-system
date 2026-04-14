@@ -37,7 +37,7 @@ class EmployeeController extends Controller
         $user = auth()->user();
         
         // Filter by user assignment (National/City)
-        if ($user->assign && strtolower($user->assign) !== 'all') {
+        if (!in_array($user->role, ['admin', 'super_admin']) && $user->assign && strtolower($user->assign) !== 'all') {
             $query->where('category', $user->assign);
         }
 

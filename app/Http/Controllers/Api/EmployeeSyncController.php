@@ -85,7 +85,7 @@ class EmployeeSyncController extends Controller
             'address' => $data['address'] ?? null,
             'email' => $data['email'] ?? null,
             'contact_number' => $data['contact_number'] ?? null,
-            'agency' => ($data['agency'] ?: ($data['department'] ?: ($data['school'] ?? null))),
+            'agency' => ($data['agency'] ?? $data['department'] ?? $data['school'] ?? null),
             'profile_picture' => $data['profile_picture'] ?? null,
             'date_hired' => $data['date_hired'] ?? now()->format('Y-m-d'),
             'status' => $data['status'] ?? 'Active',

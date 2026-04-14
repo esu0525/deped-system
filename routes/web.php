@@ -58,6 +58,9 @@ Route::middleware(['auth'])->group(function () {
     // Employees can view their own profile
     Route::get('/profile', [EmployeeController::class, 'show'])->name('profile');
 
+    Route::get('/api/employee/{employee}/leave-balance', [LeaveApplicationController::class, 'getEmployeeBalance'])->name('api.employee.leave-balance');
+    Route::get('/api/employee/{employee}/cto-balances', [LeaveApplicationController::class, 'getEmployeeCtoBalances'])->name('api.employee.cto-balances');
+
     // ─── Leave Applications (Admin/Coordinator/OJT) ──────────────────────────
     Route::middleware(['role:admin,super_admin,coordinator,ojt'])->group(function () {
         Route::resource('leave-applications', LeaveApplicationController::class);
@@ -66,8 +69,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/leave-applications/{leave_application}/reject', [LeaveApplicationController::class, 'reject'])->name('leave-applications.reject');
     });
 
-    Route::get('/api/employee/{employee}/leave-balance', [LeaveApplicationController::class, 'getEmployeeBalance'])->name('api.employee.leave-balance');
-    Route::get('/api/employee/{employee}/cto-balances', [LeaveApplicationController::class, 'getEmployeeCtoBalances'])->name('api.employee.cto-balances');
 
     // ─── Leave Cards & Automation ─────────────────────────────────────────
     Route::get('/leave-cards', [LeaveCardController::class, 'index'])->name('leave-cards.index');
@@ -89,6 +90,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
         Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+        Route::post('/users/positions', [UserController::class, 'storePosition'])->name('users.positions.store');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
         // System Settings

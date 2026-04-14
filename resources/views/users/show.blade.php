@@ -161,8 +161,13 @@
                                     <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                                 </div>
                                 <div class="dropdown-body" id="permissionsDropdownShow" style="display: none; position: absolute; bottom: calc(100% + 5px); left: 0; right: 0; background: var(--bg-card); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: 1.5px solid var(--border-color); z-index: 100;">
-                                    <div style="padding: 8px; border-bottom: 1px solid var(--border-color);">
-                                        <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListShow')" style="border-radius: 6px; height: 32px; border: 1px solid var(--border-color); font-size: 0.8rem; padding-left: 10px; width: 100%; background: var(--bg-body); color: var(--text-main);">
+                                    <div style="padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px;">
+                                        <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListShow')" style="border-radius: 6px; height: 32px; border: 1px solid var(--border-color); font-size: 0.8rem; padding-left: 10px; flex: 1; background: var(--bg-body); color: var(--text-main);">
+                                        @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                                        <button type="button" onclick="addNewPosition('permissionsListShow')" style="background: #10b981; color: white; border: none; border-radius: 6px; padding: 0 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer; white-space: nowrap;">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                        @endif
                                     </div>
                                     <div id="permissionsListShow" style="max-height: 180px; overflow-y: auto; padding: 8px;">
                                         @foreach($rolesList as $rListItem)
@@ -321,6 +326,50 @@
         } else {
             input.type = 'password';
             icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    async function addNewPosition(listId) {
+        const { value: posName } = await Swal.fire({
+            title: 'Add New Position',
+            input: 'text',
+            inputLabel: 'Position Name',
+            inputPlaceholder: 'Enter position name...',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            inputValidator: (value) => {
+                if (!value) return 'You need to write something!'
+            }
+        });
+
+        if (posName) {
+            try {
+                const resp = await fetch("{{ route('users.positions.store') }}", {
+                    method: "POST",
+                    headers: { 
+                        "X-CSRF-TOKEN": "{{ csrf_token() }}", 
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ name: posName })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    Swal.fire('Added!', 'New position has been listed.', 'success');
+                    // Add to the list visually
+                    const list = document.getElementById(listId);
+                    const label = document.createElement('label');
+                    label.className = 'dropdown-item-label';
+                    label.style = "display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: 0.2s;";
+                    label.innerHTML = `<input type="checkbox" name="access[]" value="${posName}" style="width: 14px; height: 14px; accent-color: #6366f1;" onchange="updateDropdownText('${listId}', '${listId.replace('permissionsList', 'dropdownHeader')}')">
+                                     <span class="item-text">${posName}</span>`;
+                    list.appendChild(label);
+                } else {
+                    Swal.fire('Error!', data.message, 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error!', 'Failed to save position.', 'error');
+            }
         }
     }
 </script>

@@ -7,9 +7,11 @@
             <h2 style="font-weight: 900; color: var(--text-main); margin: 0; font-size: 2.5rem; letter-spacing: -1px;">Account Management</h2>
             <p style="color: var(--secondary); font-size: 1rem; margin-top: 5px; font-weight: 500;">Manage user accounts and access permissions</p>
         </div>
+        @if(auth()->user()->role !== 'ojt')
         <button type="button" class="btn-add-account" onclick="openCreateUserModal()">
             <i class="fas fa-plus"></i> Add User
         </button>
+        @endif
     </div>
 
     <!-- Search / Filter Area -->
@@ -19,6 +21,19 @@
             <input type="text" id="userSearchInput" class="form-control" placeholder="Search by name, email, or role..." 
             style="padding-left: 45px; height: 50px;" oninput="debouncedFilterUsers()">
         </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button type="button" id="tab-active" class="btn-tab active" onclick="setStatusFilter('Active')">
+            <i class="fas fa-user-check" style="margin-right: 8px;"></i> Active Users
+        </button>
+        @if(auth()->user()->role !== 'ojt')
+        <button type="button" id="tab-inactive" class="btn-tab" onclick="setStatusFilter('Inactive')">
+            <i class="fas fa-user-slash" style="margin-right: 8px;"></i> Inactive Users
+        </button>
+        @endif
+        <input type="hidden" id="currentStatusFilter" value="Active">
     </div>
 
     <!-- Accounts Table Card -->
@@ -112,8 +127,13 @@
                             <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i>
                         </div>
                         <div class="dropdown-body" id="permissionsDropdownIndex" style="display: none; position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--bg-card); border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: 1.5px solid var(--border-color); z-index: 100;">
-                            <div style="padding: 8px; border-bottom: 1px solid var(--border-color);">
-                                <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListIndex')" style="border-radius: 6px; height: 32px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.8rem; padding-left: 10px; width: 100%;">
+                            <div style="padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px;">
+                                <input type="text" placeholder="Search position..." class="form-control" onkeyup="filterDropdown(this, 'permissionsListIndex')" style="border-radius: 6px; height: 32px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); font-size: 0.8rem; padding-left: 10px; flex: 1;">
+                                @if(in_array(auth()->user()->role, ['admin', 'super_admin']))
+                                <button type="button" onclick="addNewPosition('permissionsListIndex')" style="background: #10b981; color: white; border: none; border-radius: 6px; padding: 0 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer; white-space: nowrap;">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                                @endif
                             </div>
                             <div id="permissionsListIndex" style="max-height: 180px; overflow-y: auto; padding: 8px;">
                                 @foreach($rolesList as $rListItem)
@@ -154,6 +174,27 @@
     .btn-add-account:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4); }
     .swal2-backdrop-show { backdrop-filter: blur(12px) !important; background: rgba(15, 23, 42, 0.3) !important; }
     .swal2-popup { border-radius: 25px !important; box-shadow: 0 30px 60px -12px rgba(0,0,0,0.4) !important; border: none !important; }
+    
+    .btn-tab {
+        padding: 12px 25px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        background: var(--bg-card);
+        color: var(--secondary);
+    }
+    .btn-tab.active {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: #6366f1;
+        color: #6366f1;
+    }
+    .btn-tab:hover:not(.active) {
+        background: var(--hover-color);
+        color: var(--text-main);
+    }
 </style>
 
 @push('scripts')
@@ -182,8 +223,16 @@
 
     async function fetchUsers() {
         const search = document.getElementById('userSearchInput').value;
-        const resp = await fetch(`{{ route('users.index') }}?search=${search}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const status = document.getElementById('currentStatusFilter').value;
+        const resp = await fetch(`{{ route('users.index') }}?search=${search}&status=${status}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         document.getElementById('userTableBody').innerHTML = await resp.text();
+    }
+
+    function setStatusFilter(status) {
+        document.getElementById('currentStatusFilter').value = status;
+        document.getElementById('tab-active').classList.toggle('active', status === 'Active');
+        document.getElementById('tab-inactive').classList.toggle('active', status === 'Inactive');
+        fetchUsers();
     }
 
     function debouncedFilterUsers() { clearTimeout(window.searchTimer); window.searchTimer = setTimeout(fetchUsers, 500); }
@@ -293,6 +342,50 @@
         } else {
             input.type = 'password';
             icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    async function addNewPosition(listId) {
+        const { value: posName } = await Swal.fire({
+            title: 'Add New Position',
+            input: 'text',
+            inputLabel: 'Position Name',
+            inputPlaceholder: 'Enter position name...',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            inputValidator: (value) => {
+                if (!value) return 'You need to write something!'
+            }
+        });
+
+        if (posName) {
+            try {
+                const resp = await fetch("{{ route('users.positions.store') }}", {
+                    method: "POST",
+                    headers: { 
+                        "X-CSRF-TOKEN": "{{ csrf_token() }}", 
+                        "Accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ name: posName })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    Swal.fire('Added!', 'New position has been listed.', 'success');
+                    // Add to the list visually
+                    const list = document.getElementById(listId);
+                    const label = document.createElement('label');
+                    label.className = 'dropdown-item-label';
+                    label.style = "display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: 0.2s;";
+                    label.innerHTML = `<input type="checkbox" name="access[]" value="${posName}" style="width: 14px; height: 14px; accent-color: #6366f1;" onchange="updateDropdownText('${listId}', '${listId.replace('permissionsList', 'dropdownHeader')}')">
+                                     <span class="item-text">${posName}</span>`;
+                    list.appendChild(label);
+                } else {
+                    Swal.fire('Error!', data.message, 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error!', 'Failed to save position.', 'error');
+            }
         }
     }
 </script>

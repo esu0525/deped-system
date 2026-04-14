@@ -102,25 +102,26 @@ class SyncService
             $apiUrl = dirname($baseUrl) . '/leave-records';
         }
 
-        $application->load(['employee.department', 'encoder', 'details.leaveType']);
+        $application->load(['employee.department', 'employee.user', 'encoder', 'details.leaveType']);
 
         foreach ($application->details as $detail) {
             try {
                 $data = [
-                    'name'              => $application->employee->full_name,
-                    'position'          => $application->employee->position,
-                    'school'            => $application->employee->department->name ?? 'N/A',
-                    'type_of_leave'     => $detail->leaveType->code ?? $detail->leaveType->name ?? 'N/A',
-                    'inclusive_dates'   => $detail->inclusive_dates,
+                    'full_name'         => $application->employee?->full_name ?? $application->employee?->name ?? 'Unknown Employee',
+                    'position'          => $application->employee?->position ?? 'N/A',
+                    'school'            => $application->employee?->department?->name ?? 'N/A',
+                    'leave_type'        => $detail->leaveType?->code ?? $detail->leaveType?->name ?? 'N/A',
+                    'inclusive_dates'   => $detail->inclusive_dates ?? 'N/A',
                     'remarks'           => $detail->is_with_pay ? 'With Pay' : 'Without Pay',
-                    'date_of_action'    => $application->date_filed->format('Y-m-d'),
-                    'deduction_remarks' => null, // Always empty as requested
-                    'incharge'          => $application->encoder->first_name ?? 'System',
-                    'assigned'          => $application->encoder->assign ?? $application->employee->category ?? 'national',
+                    'action_date'       => ($application->approved_at ?? $application->date_filed ?? now())->format('Y-m-d'),
+                    'deduction_remark'  => $detail->lwop_reason ?? '', 
+                    'incharge'          => $application->encoder?->full_name ?? $application->encoder?->first_name ?? 'System',
+                    'assigned'          => strtolower($application->employee?->category ?? $application->encoder?->assign ?? 'national'),
                     'forwarded'         => 0,
-                    'is_processed'      => 1,
+                    'is_processed'      => 0, 
                     'batch_id'          => 1,
-                    'user_id'           => $application->encoder->id ?? 1,
+                    'encoder_email'     => $application->encoder?->email ?? '',
+                    'applicant_email'   => $application->employee?->user?->email ?? '',
                 ];
 
                 Log::info('SyncService: Sending Leave Record for Application ID: ' . $application->id);

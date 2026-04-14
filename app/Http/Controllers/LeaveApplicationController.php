@@ -33,7 +33,7 @@ class LeaveApplicationController extends Controller
         $query = LeaveApplication::with(['employee.department', 'employee.user', 'leaveType', 'approver']);
         
         // Filter by user assignment (National/City)
-        if ($user->assign && strtolower($user->assign) !== 'all') {
+        if (!in_array($user->role, ['admin', 'super_admin']) && $user->assign && strtolower($user->assign) !== 'all') {
             $query->whereHas('employee', function($q) use ($user) {
                 $q->where('category', $user->assign);
             });
@@ -140,7 +140,7 @@ class LeaveApplicationController extends Controller
         $employeesQuery = Employee::where('status', 'Active');
 
         // Filter by user assignment (National/City)
-        if ($user->assign && strtolower($user->assign) !== 'all') {
+        if (!in_array($user->role, ['admin', 'super_admin']) && $user->assign && strtolower($user->assign) !== 'all') {
             $employeesQuery->where('category', $user->assign);
         }
 
@@ -195,6 +195,16 @@ class LeaveApplicationController extends Controller
             ]);
         }
 
+        // Wellness Balance: 5 days max per year
+        $wellnessUsed = \App\Models\LeaveApplication::where('employee_id', $employee->id)
+            ->where('status', 'Approved')
+            ->whereYear('date_filed', $year)
+            ->whereHas('leaveType', function ($q) {
+                $q->where('name', 'like', '%Wellness%');
+            })
+            ->sum('num_days');
+        $wellnessBalance = max(0, 5 - $wellnessUsed);
+
         return response()->json([
             'employee' => [
                 'full_name' => $employee->full_name,
@@ -207,6 +217,8 @@ class LeaveApplicationController extends Controller
             'vl_balance' => floatval($leaveCard->vl_balance),
             'sl_total_earned' => floatval($leaveCard->sl_beginning_balance) + floatval($leaveCard->sl_earned),
             'sl_balance' => floatval($leaveCard->sl_balance),
+            'wellness_balance' => floatval($wellnessBalance),
+            'wellness_used' => floatval($wellnessUsed),
             'has_leave_card' => true,
         ]);
     }
@@ -227,6 +239,7 @@ class LeaveApplicationController extends Controller
             'entries.*.leave_type_name' => 'required|string|max:255',
             'entries.*.inclusive_dates' => 'nullable|string|max:255',
             'entries.*.num_days' => 'required|numeric|min:0',
+            'entries.*.cto_earned_days' => 'nullable|numeric|min:0|max:999',
             'reason' => 'nullable|string|max:1000',
             'commutation' => 'nullable|string',
         ]);
@@ -257,6 +270,23 @@ class LeaveApplicationController extends Controller
             }
             
             $entry['leave_type_id'] = $leaveType->id;
+
+            // ── Wellness Leave: enforce max 5 earned credits ──
+            if (stripos($name, 'wellness') !== false) {
+                $earnedCredits = isset($entry['cto_earned_days']) && $entry['cto_earned_days'] !== ''
+                    ? floatval($entry['cto_earned_days'])
+                    : 5;
+                // Cap at 5 (maximum allowed); default to 5 if zero/unset
+                $entry['cto_earned_days'] = min(max($earnedCredits, 0), 5) ?: 5;
+
+                // Also reject if no. of days exceeds 5
+                if (floatval($entry['num_days']) > 5) {
+                    return back()->withInput()->withErrors([
+                        "entries.{$index}.num_days" => 'Wellness Leave cannot exceed 5 days.',
+                    ]);
+                }
+            }
+
             $processedEntries[$index] = $entry;
             $totalDays += floatval($entry['num_days']);
         }

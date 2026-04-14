@@ -20,7 +20,7 @@ class LeaveCardController extends Controller
 
         // Filter by user assignment (National/City)
         $user = auth()->user();
-        if ($user->assign && strtolower($user->assign) !== 'all') {
+        if (!in_array($user->role, ['admin', 'super_admin']) && $user->assign && strtolower($user->assign) !== 'all') {
             $query->where('category', $user->assign);
         }
         if ($user && !in_array($user->role, ['admin', 'super_admin']) && !empty($user->access)) {
@@ -107,23 +107,19 @@ class LeaveCardController extends Controller
             return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'tab'))->with('transactions', collect());
         }
 
-        if ($tab === 'cto') {
-            $query->whereHas('leaveType', function($q) {
-                $q->where('code', 'CTO');
-            });
-        } else {
-            // Form 6: Exclude CTO, include everything else
-            $query->where(function($q) {
-                $q->whereDoesntHave('leaveType')
-                  ->orWhereHas('leaveType', function($sq) {
-                      $sq->where('code', '!=', 'CTO');
-                  });
-            });
-        }
+        // Wellness Balance: 5 days max per year
+        $wellnessUsed = \App\Models\LeaveApplication::where('employee_id', $employee->id)
+            ->where('status', 'Approved')
+            ->whereYear('date_filed', $year)
+            ->whereHas('leaveType', function ($q) {
+                $q->where('name', 'like', '%Wellness%');
+            })
+            ->sum('num_days');
+        $wellnessBalance = max(0, 5 - $wellnessUsed);
 
         $transactions = $query->get();
 
-        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions', 'tab'));
+        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions', 'tab', 'wellnessBalance', 'wellnessUsed'));
     }
 
     /**

@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $auditQuery = AuditTrail::query();
 
         // Filter by user assignment (National/City)
-        if ($user->assign && strtolower($user->assign) !== 'all') {
+        if (!in_array($user->role, ['admin', 'super_admin']) && $user->assign && strtolower($user->assign) !== 'all') {
             $employeeQuery->where('category', $user->assign);
             $applicationQuery->whereHas('employee', function($q) use ($user) {
                 $q->where('category', $user->assign);
