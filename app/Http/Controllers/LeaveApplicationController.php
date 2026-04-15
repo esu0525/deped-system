@@ -196,17 +196,7 @@ class LeaveApplicationController extends Controller
             ]);
         }
 
-        // Wellness Balance: 5 days max per year
-        $wellnessUsed = LeaveApplication::where('employee_id', $employee->id)
-            ->where('status', 'Approved')
-            ->whereYear('date_filed', $year)
-            ->whereHas('leaveType', function ($q) {
-                $q->where('name', 'like', '%Wellness%');
-            })
-            ->sum('num_days');
-        $wellnessBalance = max(0, 5 - $wellnessUsed);
-
-        return response()->json([
+        $response = response()->json([
             'employee' => [
                 'full_name' => $employee->full_name,
                 'employee_id' => $employee->employee_id,
@@ -218,10 +208,27 @@ class LeaveApplicationController extends Controller
             'vl_balance' => floatval($leaveCard->vl_balance),
             'sl_total_earned' => floatval($leaveCard->sl_beginning_balance) + floatval($leaveCard->sl_earned),
             'sl_balance' => floatval($leaveCard->sl_balance),
-            'wellness_balance' => floatval($wellnessBalance),
-            'wellness_used' => floatval($wellnessUsed),
+            'wellness_earned' => (float)\App\Models\LeaveTransaction::where('employee_id', $employee->id)
+                ->where('transaction_type', 'earned')
+                ->whereYear('transaction_date', $year)
+                ->whereHas('leaveType', function ($q) {
+                    $q->where('name', 'like', '%Wellness%');
+                })
+                ->sum('days'),
+            'wellness_used' => (float)\App\Models\LeaveApplication::where('employee_id', $employee->id)
+                ->where('status', 'Approved')
+                ->whereYear('date_filed', $year)
+                ->whereHas('leaveType', function ($q) {
+                    $q->where('name', 'like', '%Wellness%');
+                })
+                ->sum('num_days'),
+            'cto_balances' => $employee->ctoBalances(),
             'has_leave_card' => true,
         ]);
+        
+        $data = $response->getData(true);
+        $data['wellness_balance'] = max(0, $data['wellness_earned'] - $data['wellness_used']);
+        return response()->json($data);
     }
 
     /**
@@ -271,19 +278,64 @@ class LeaveApplicationController extends Controller
             }
             
             $entry['leave_type_id'] = $leaveType->id;
+            $entry['leave_type_name'] = $name;
 
             // ── Wellness Leave: enforce max 5 earned credits ──
             if (stripos($name, 'wellness') !== false) {
-                $earnedCredits = isset($entry['cto_earned_days']) && $entry['cto_earned_days'] !== ''
+                // Determine if we should add credits
+                $earnedCredits = (isset($entry['cto_earned_days']) && $entry['cto_earned_days'] !== '')
                     ? floatval($entry['cto_earned_days'])
-                    : 5;
-                // Cap at 5 (maximum allowed); default to 5 if zero/unset
-                $entry['cto_earned_days'] = min(max($earnedCredits, 0), 5) ?: 5;
+                    : 0; 
+                
+                // Fetch total already earned this year to enforce cap
+                $year = now()->year;
+                $alreadyEarned = \App\Models\LeaveTransaction::where('employee_id', $request->employee_id)
+                    ->where('transaction_type', 'earned')
+                    ->whereYear('transaction_date', $year)
+                    ->whereHas('leaveType', function ($q) {
+                        $q->where('name', 'like', '%Wellness%');
+                    })
+                    ->sum('days');
 
-                // Also reject if no. of days exceeds 5
-                if (floatval($entry['num_days']) > 5) {
+                $newCap = max(0, 5 - $alreadyEarned);
+                $entry['cto_earned_days'] = min($earnedCredits, $newCap);
+
+                $alreadyUsed = \App\Models\LeaveApplication::where('employee_id', $request->employee_id)
+                    ->where('status', 'Approved')
+                    ->whereYear('date_filed', $year)
+                    ->whereHas('leaveType', function ($q) {
+                        $q->where('name', 'like', '%Wellness%');
+                    })
+                    ->sum('num_days');
+                
+                $remaining = max(0, ($alreadyEarned + $entry['cto_earned_days']) - $alreadyUsed);
+
+                if (floatval($entry['num_days']) > $remaining) {
                     return back()->withInput()->withErrors([
-                        "entries.{$index}.num_days" => 'Wellness Leave cannot exceed 5 days.',
+                        "entries.{$index}.num_days" => "Wellness credit cannot be added because the 5-day limit for the year has already been exhausted. (Available balance: {$remaining} days).",
+                    ]);
+                }
+            }
+
+            // ── CTO Leave: enforce balance for specifically selected title ──
+            if (stripos($name, 'cto') !== false && !empty($entry['cto_title'])) {
+                $ctoTitle = trim($entry['cto_title']);
+                $earnedCredits = (isset($entry['cto_earned_days']) && $entry['cto_earned_days'] !== '')
+                    ? floatval($entry['cto_earned_days'])
+                    : 0; 
+                
+                // Calculate current balance for THIS specific title
+                $ctoTrans = \App\Models\LeaveTransaction::where('employee_id', $request->employee_id)
+                    ->where('cto_title', $ctoTitle)
+                    ->selectRaw('SUM(COALESCE(cto_earned, 0)) - SUM(COALESCE(cto_used, 0)) as balance')
+                    ->first();
+                
+                $currentBal = floatval($ctoTrans->balance ?? 0);
+                $totalAvailable = $currentBal + $earnedCredits;
+
+                if (floatval($entry['num_days']) > $totalAvailable) {
+                    return back()->withInput()->withErrors([
+                        "entries.{$index}.num_days" => "Insufficient CTO balance for '{$ctoTitle}'. Available: {$totalAvailable} days.",
                     ]);
                 }
             }
@@ -343,11 +395,30 @@ class LeaveApplicationController extends Controller
     {
         $leaveApplication->load(['employee.department', 'employee.user', 'leaveType', 'approver', 'encoder', 'details.leaveType']);
 
+        // Calculate Wellness Balance for review
+        $year = $leaveApplication->date_filed ? $leaveApplication->date_filed->year : now()->year;
+        $wellnessEarned = \App\Models\LeaveTransaction::where('employee_id', $leaveApplication->employee_id)
+            ->where('transaction_type', 'earned')
+            ->whereYear('transaction_date', $year)
+            ->whereHas('leaveType', function ($q) {
+                $q->where('name', 'like', '%Wellness%');
+            })
+            ->sum('days');
+
+        $wellnessUsed = \App\Models\LeaveApplication::where('employee_id', $leaveApplication->employee_id)
+            ->where('status', 'Approved')
+            ->whereYear('date_filed', $year)
+            ->whereHas('leaveType', function ($q) {
+                $q->where('name', 'like', '%Wellness%');
+            })
+            ->sum('num_days');
+        $wellnessBalance = max(0, $wellnessEarned - $wellnessUsed);
+
         if ($request->ajax()) {
-            return view('leave-applications.partials.show-modal', compact('leaveApplication'));
+            return view('leave-applications.partials.show-modal', compact('leaveApplication', 'wellnessBalance'));
         }
 
-        return view('leave-applications.show', compact('leaveApplication'));
+        return view('leave-applications.show', compact('leaveApplication', 'wellnessBalance'));
     }
 
     public function edit(LeaveApplication $leaveApplication)

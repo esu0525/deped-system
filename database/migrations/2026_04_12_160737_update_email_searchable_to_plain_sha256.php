@@ -11,20 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $users = \App\Models\User::all();
-        foreach ($users as $user) {
-            try {
-                // Accessing $user->email will trigger decryption. 
-                // We wrap it in try-catch to handle "The MAC is invalid" errors.
-                if ($user->email) {
-                    $user->email_searchable = \App\Models\User::generateEmailHash($user->email);
-                    $user->save();
+        \App\Models\User::withoutEvents(function () {
+            $users = \App\Models\User::all();
+            foreach ($users as $user) {
+                try {
+                    // Accessing $user->email will trigger decryption. 
+                    // We wrap it in try-catch to handle "The MAC is invalid" errors.
+                    if ($user->email) {
+                        $user->email_searchable = \App\Models\User::generateEmailHash($user->email);
+                        $user->save();
+                    }
+                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                    // Skip users that cannot be decrypted (invalid APP_KEY or corrupted data)
+                    continue;
                 }
-            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                // Skip users that cannot be decrypted (invalid APP_KEY or corrupted data)
-                continue;
             }
-        }
+        });
     }
 
     /**

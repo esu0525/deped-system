@@ -121,7 +121,7 @@
             @endif
 
             @if($errors->any())
-                <div class="card animate-fade" style="background: #fef2f2; border-left: 5px solid var(--danger); color: #991b1b; padding: 18px; margin-bottom: 24px;">
+                <div id="formValidationErrors" class="card animate-fade" style="background: #fef2f2; border-left: 5px solid var(--danger); color: #991b1b; padding: 18px; margin-bottom: 24px; transition: opacity 0.5s ease;">
                     <h5 style="font-weight: 700; margin: 0 0 10px;">Validation Errors:</h5>
                     <ul style="margin: 0; padding-left: 20px;">
                         @foreach($errors->all() as $error)
@@ -129,6 +129,17 @@
                         @endforeach
                     </ul>
                 </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        setTimeout(function() {
+                            var el = document.getElementById('formValidationErrors');
+                            if (el) {
+                                el.style.opacity = '0';
+                                setTimeout(function() { el.style.display = 'none'; }, 500);
+                            }
+                        }, 5000);
+                    });
+                </script>
             @endif
 
             @yield('content')

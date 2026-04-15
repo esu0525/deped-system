@@ -107,7 +107,15 @@ class LeaveCardController extends Controller
             return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'tab'))->with('transactions', collect());
         }
 
-        // Wellness Balance: 5 days max per year
+        // Wellness Balance implementation
+        $wellnessEarned = \App\Models\LeaveTransaction::where('employee_id', $employee->id)
+            ->where('transaction_type', 'earned')
+            ->whereYear('transaction_date', $year)
+            ->whereHas('leaveType', function ($q) {
+                $q->where('name', 'like', '%Wellness%');
+            })
+            ->sum('days');
+
         $wellnessUsed = \App\Models\LeaveApplication::where('employee_id', $employee->id)
             ->where('status', 'Approved')
             ->whereYear('date_filed', $year)
@@ -115,11 +123,12 @@ class LeaveCardController extends Controller
                 $q->where('name', 'like', '%Wellness%');
             })
             ->sum('num_days');
-        $wellnessBalance = max(0, 5 - $wellnessUsed);
+            
+        $wellnessBalance = max(0, $wellnessEarned - $wellnessUsed);
 
         $transactions = $query->get();
 
-        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions', 'tab', 'wellnessBalance', 'wellnessUsed'));
+        return view('leave-cards.show', compact('employee', 'leaveCard', 'years', 'year', 'transactions', 'tab', 'wellnessBalance', 'wellnessUsed', 'wellnessEarned'));
     }
 
     /**

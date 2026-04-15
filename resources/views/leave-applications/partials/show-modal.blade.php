@@ -148,6 +148,18 @@
                         <span style="font-size: 0.65rem; font-weight: 700; color: #831843;">SICK LEAVE</span>
                         <span style="font-weight: 800; color: #831843;">{{ number_format($leaveCard->sl_balance, 3) }}</span>
                     </div>
+                    @php 
+                        $isWellnessApp = $leaveApplication->details->contains(fn($d) => stripos($d->leaveType->name ?? '', 'Wellness') !== false);
+                    @endphp
+                    @if($isWellnessApp)
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #f0fdf4; padding: 10px; border-radius: 8px; border-left: 4px solid #16a34a;">
+                         <span style="font-size: 0.65rem; font-weight: 700; color: #166534;">WELLNESS BALANCE</span>
+                         <span style="font-weight: 800; color: #166534;">
+                            @php $dispM = rtrim(rtrim(number_format($wellnessBalance ?? 0, 1), '0'), '.'); @endphp
+                            {{ $dispM === '' ? '0' : $dispM }}
+                         </span>
+                    </div>
+                    @endif
                 </div>
             </div>
             @endif

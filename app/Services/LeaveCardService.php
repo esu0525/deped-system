@@ -73,6 +73,9 @@ class LeaveCardService
             } else if ($detail->leaveType && stripos($detail->leaveType->name, 'CTO') !== false) {
                 $monetType = 'CTO';
                 break;
+            } else if ($detail->leaveType && stripos($detail->leaveType->name, 'Wellness') !== false) {
+                $monetType = 'Wellness';
+                break;
             }
         }
 
@@ -82,6 +85,8 @@ class LeaveCardService
             return $this->processMonetization10to30($application, $leaveCard, $remarks);
         } else if ($monetType === 'CTO') {
             return $this->processCto($application, $leaveCard, $remarks);
+        } else if ($monetType === 'Wellness') {
+            return $this->processWellness($application, $leaveCard, $remarks);
         }
 
         // Check if there are sufficient credits for ALL entries first
@@ -443,5 +448,83 @@ class LeaveCardService
         }
 
         return $count;
+    }
+
+    /**
+     * Process logic for "Wellness" (Add 5 if needed, then Less)
+     */
+    protected function processWellness(LeaveApplication $application, LeaveCard $leaveCard, ?string $remarks = null): bool
+    {
+        $filer = $application->encoder;
+        $filerName = $filer ? ($filer->employee ? $filer->employee->first_name : $filer->name) : 'System';
+        $filerSign = explode(' ', trim($filerName))[0];
+
+        foreach ($application->details as $detail) {
+            $formattedDates = $detail->inclusive_dates ? $detail->inclusive_dates : "";
+            $earned = floatval($detail->cto_earned_days);
+            $used = floatval($detail->num_days);
+
+            // Calculate current balance for the year
+            $year = $application->date_filed ? $application->date_filed->year : now()->year;
+            $existingEarned = LeaveTransaction::where('employee_id', $leaveCard->employee_id)
+                ->where('transaction_type', 'earned')
+                ->whereYear('transaction_date', $year)
+                ->whereHas('leaveType', function ($q) {
+                    $q->where('name', 'like', '%Wellness%');
+                })
+                ->sum('days');
+
+            $existingUsed = LeaveTransaction::where('employee_id', $leaveCard->employee_id)
+                ->where('transaction_type', 'used')
+                ->whereYear('transaction_date', $year)
+                ->whereHas('leaveType', function ($q) {
+                    $q->where('name', 'like', '%Wellness%');
+                })
+                ->sum('days');
+
+            $currentBalance = $existingEarned - $existingUsed;
+
+            // 1. ADD row (Initialization)
+            if ($earned > 0) {
+                // Ensure we don't exceed 5 total earned per year
+                $newEarned = min($earned, 5 - $existingEarned); 
+                if ($newEarned > 0) {
+                    LeaveTransaction::create([
+                        'employee_id' => $leaveCard->employee_id,
+                        'leave_card_id' => $leaveCard->id,
+                        'leave_application_id' => $application->id,
+                        'leave_type_id' => $detail->leave_type_id,
+                        'transaction_date' => $application->date_from ?? now(),
+                        'period' => "ADD: Wellness",
+                        'transaction_type' => 'earned',
+                        'days' => $newEarned,
+                        'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
+                        'encoded_by' => auth()->id(),
+                        'remarks' => 'HIDDEN_WELLNESS' // We will use this to hide it from ledger
+                    ]);
+                    $currentBalance += $newEarned;
+                }
+            }
+
+            // 2. LESS row
+            if ($used > 0) {
+                LeaveTransaction::create([
+                    'employee_id' => $leaveCard->employee_id,
+                    'leave_card_id' => $leaveCard->id,
+                    'leave_application_id' => $application->id,
+                    'leave_type_id' => $detail->leave_type_id,
+                    'transaction_date' => $application->date_from ?? now(),
+                    'period' => "LESS: {$formattedDates} Wellness",
+                    'transaction_type' => 'used',
+                    'days' => $used,
+                    'vl_used' => $used, // Show under "ABS UND W/P" column
+                    'action_taken' => $filerSign . ' ' . now()->format('m/d/Y'),
+                    'encoded_by' => auth()->id(),
+                    'text_color' => '#dc2626'
+                ]);
+            }
+        }
+
+        return true;
     }
 }

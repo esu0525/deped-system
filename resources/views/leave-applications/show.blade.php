@@ -23,7 +23,24 @@
                 </div>
                 <div>
                     <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Leave Type</label>
-                    <p style="font-weight: 700; margin-top: 5px;">{{ $leaveApplication->leaveType->name ?? 'N/A' }}</p>
+                    <p style="font-weight: 700; margin-top: 5px;">
+                        {{ $leaveApplication->leaveType->name ?? 'N/A' }}
+                        @php 
+                            $hasWellness = false;
+                            foreach($leaveApplication->details as $d) {
+                                if($d->leaveType && stripos($d->leaveType->name, 'Wellness') !== false) {
+                                    $hasWellness = true; break;
+                                }
+                            }
+                        @endphp
+                        @if($hasWellness)
+                            <span style="display: block; font-size: 0.8rem; color: #16a34a; font-weight: 800; margin-top: 4px;">
+                                <i class="fas fa-info-circle"></i> Remaining Wellness: 
+                                @php $dispW = rtrim(rtrim(number_format($wellnessBalance, 1), '0'), '.'); @endphp
+                                {{ $dispW === '' ? '0' : $dispW }} days
+                            </span>
+                        @endif
+                    </p>
                 </div>
                 <div>
                     <label style="font-size: 0.75rem; color: var(--secondary); font-weight: 700; text-transform: uppercase;">Number of Days</label>

@@ -1008,10 +1008,16 @@
                     const ctoTitleInput = ctoTitleWrapper.querySelector('input');
                     ctoTitleInput.setAttribute('required', 'required');
 
-                    // Check if the title is an existing one from the datalist
                     const list = document.getElementById('ctoTitlesList');
                     const options = list ? Array.from(list.options).map(o => o.value) : [];
                     const isExisting = options.includes(ctoTitleInput.value);
+
+                    // Find existing balance if any
+                    let existingCtoBal = 0;
+                    if (employeeBalance && employeeBalance.cto_balances) {
+                        const found = employeeBalance.cto_balances.find(b => b.cto_title == ctoTitleInput.value);
+                        if (found) existingCtoBal = parseFloat(found.balance);
+                    }
 
                     if (ctoEarnedWrapper) {
                         if (earnedLabel) earnedLabel.textContent = 'Earned Credits';
@@ -1021,10 +1027,24 @@
                             ctoEarnedWrapper.style.display = 'none';
                             ctoEarnedWrapper.querySelector('input').removeAttribute('required');
                             ctoEarnedWrapper.querySelector('input').value = '0';
+                            
+                            // Max is the existing balance
+                            daysInput.setAttribute('max', existingCtoBal);
                         } else {
                             // If new title, "Earned Credits" is required
                             ctoEarnedWrapper.style.display = '';
                             ctoEarnedWrapper.querySelector('input').setAttribute('required', 'required');
+                            
+                            // If new title, they are earning it now.
+                            // The max should be tied to the earned input.
+                            const earnedInput = ctoEarnedWrapper.querySelector('input');
+                            daysInput.setAttribute('max', earnedInput.value || 0);
+                            
+                            earnedInput.removeEventListener('input', updateCtoMax);
+                            earnedInput.addEventListener('input', updateCtoMax);
+                            function updateCtoMax() {
+                                daysInput.setAttribute('max', earnedInput.value || 0);
+                            }
                         }
                     }
                     if (rowGrid) {
@@ -1039,47 +1059,60 @@
                 daysInput.setAttribute('min', '0.5');
                 if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
             } else if (isWellness) {
-                // ── Wellness Leave: fixed 5-credit max, always with pay ──
+                if (daysLabel) daysLabel.textContent = "No. of Days";
                 datesTextInput.closest('.form-group').style.display = '';
                 datesTextInput.setAttribute('required', 'required');
-                if (datesLabel) datesLabel.textContent = "Inclusive Dates";
-                if (daysLabel) daysLabel.textContent = "No. of Days";
-
-                // Hide Pay Status (wellness is always WITH PAY)
+                
                 payStatusWrapper.style.display = 'none';
                 payStatusSelect.value = "1";
                 payStatusSelect.removeAttribute('required');
-
-                // Show No. of Days (max 5)
+                
                 daysWrapper.style.display = '';
                 daysInput.setAttribute('required', 'required');
-                daysInput.setAttribute('min', '0.5');
                 daysInput.setAttribute('step', '0.5');
-                daysInput.setAttribute('max', '5');
 
-                // Show & auto-fill Wellness Credits (remaining balance)
+                const hasEarned = (employeeBalance && employeeBalance.wellness_earned > 0);
+                const wellnessBal = employeeBalance ? parseFloat(employeeBalance.wellness_balance) : 0;
+                
+                // If they have ALREADY earned, the max is their current balance.
+                // If they haven't earned yet, the max is 5 (which they will earn now).
+                const maxAllowed = hasEarned ? wellnessBal : 5;
+                
+                daysInput.setAttribute('max', maxAllowed);
+
+                // Show & auto-fill Wellness Credits only if they haven't earned yet
                 if (ctoTitleWrapper) {
                     ctoTitleWrapper.style.display = 'none';
                     ctoTitleWrapper.querySelector('input').removeAttribute('required');
                 }
+                
+                const earnedLabel = ctoEarnedWrapper ? ctoEarnedWrapper.querySelector('.form-label') : null;
+                const ctoEarnedInput = ctoEarnedWrapper ? ctoEarnedWrapper.querySelector('input') : null;
+                
                 if (ctoEarnedWrapper) {
-                    if (earnedLabel) earnedLabel.textContent = 'Wellness Credits';
-                    ctoEarnedWrapper.style.display = '';
-                    if (ctoEarnedInput) {
-                        // Use suggest remaining balance if available
-                        const remaining = (employeeBalance && employeeBalance.wellness_balance !== undefined) 
-                                        ? employeeBalance.wellness_balance 
-                                        : 5;
-                                        
-                        if (!ctoEarnedInput.value || parseFloat(ctoEarnedInput.value) === 0 || parseFloat(ctoEarnedInput.value) === 5) {
-                            ctoEarnedInput.value = remaining;
+                    if (earnedLabel) earnedLabel.textContent = 'Earned Credits';
+                    
+                    const hasEarned = (employeeBalance && employeeBalance.wellness_earned > 0);
+                    
+                    if (!hasEarned) {
+                        ctoEarnedWrapper.style.display = '';
+                        if (ctoEarnedInput) {
+                            if (!ctoEarnedInput.value || ctoEarnedInput.value == '0') {
+                                ctoEarnedInput.value = 5; 
+                            }
+                            ctoEarnedInput.setAttribute('max', 5);
+                            ctoEarnedInput.setAttribute('step', '0.5');
+                            ctoEarnedInput.setAttribute('required', 'required');
                         }
-                        ctoEarnedInput.setAttribute('max', remaining);
-                        ctoEarnedInput.setAttribute('step', '0.5');
-                        ctoEarnedInput.setAttribute('required', 'required');
+                        if (rowGrid) rowGrid.style.gridTemplateColumns = '1.2fr 2.5fr 1fr 1fr 1fr';
+                    } else {
+                        ctoEarnedWrapper.style.display = 'none';
+                        if (ctoEarnedInput) {
+                            ctoEarnedInput.removeAttribute('required');
+                            ctoEarnedInput.value = '0';
+                        }
+                        if (rowGrid) rowGrid.style.gridTemplateColumns = '2fr 3fr 1.2fr 1.2fr 1fr';
                     }
-                    // 5-col grid: leave-type | dates | earned | days
-                    if (rowGrid) rowGrid.style.gridTemplateColumns = '2fr 3fr 1.2fr 1.2fr 1fr';
                 }
 
                 if (lwopReasonWrapper) lwopReasonWrapper.style.display = 'none';
@@ -1108,6 +1141,14 @@
                 daysInput.setAttribute('required', 'required');
                 daysInput.setAttribute('min', '0.5');
                 daysInput.setAttribute('step', '0.5');
+                daysInput.removeAttribute('max');
+                daysInput.setCustomValidity('');
+            }
+
+            if (isWellness && daysInput.max && parseFloat(daysInput.value) > parseFloat(daysInput.max)) {
+                daysInput.setCustomValidity(`Insufficient balance. Remaining wellness is only ${daysInput.max} days.`);
+            } else if (isWellness) {
+                daysInput.setCustomValidity('');
             }
 
             updatePreview();
@@ -1115,13 +1156,27 @@
         };
 
         typeSelect.addEventListener('input', updateAll);
-        daysInput.addEventListener('input', updateAll);
-        datesTextInput.addEventListener('input', updatePreview);
-        
+        daysInput.addEventListener('input', () => {
+            const currentType = (typeSelect.value || '').toLowerCase();
+            const currentIsWellness = currentType.includes('wellness');
+            const currentIsCto = currentType.includes('cto');
+            
+            if (currentIsWellness && daysInput.max && parseFloat(daysInput.value) > parseFloat(daysInput.max)) {
+                daysInput.setCustomValidity(`Insufficient balance. Remaining wellness is only ${daysInput.max} days.`);
+            } else if (currentIsCto && daysInput.max && parseFloat(daysInput.value) > parseFloat(daysInput.max)) {
+                daysInput.setCustomValidity(`Insufficient balance. Available CTO for this title is only ${daysInput.max} days.`);
+            } else {
+                daysInput.setCustomValidity('');
+            }
+            updateAll();
+        });
+
         const ctoTitleInput = entry.querySelector('.entry-cto-title');
         if (ctoTitleInput) {
             ctoTitleInput.addEventListener('input', updateAll);
         }
+
+        datesTextInput.addEventListener('input', updatePreview);
 
         if (reasonInput) reasonInput.addEventListener('input', updatePreview);
         

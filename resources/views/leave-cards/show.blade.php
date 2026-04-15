@@ -50,7 +50,7 @@
         $BACK_DATA_ROWS = 20;  
         
         $transactionsArray = $transactions->toArray();
-        $runningWellnessVal = 5; // Starting balance for the year
+        $runningWellnessVal = 0; 
         
         // Filter transactions based on tab
         if ($tab === 'cto') {
@@ -198,10 +198,7 @@
                     <span style="font-weight: 700; white-space: nowrap;">Status:</span>
                     <span style="flex: 1;">{{ $employee->employment_status ?? 'Permanent' }}</span>
                 </div>
-                <div style="display: flex; gap: 8px; align-items: baseline; border-bottom: 1.5px solid black; padding-bottom: 2px;">
-                    <span style="font-weight: 700; white-space: nowrap;">Wellness Leave:</span>
-                    <span style="flex: 1;">{{ rtrim(rtrim(number_format($wellnessBalance, 1), '0'), '.') }} / 5 days remaining ({{ rtrim(rtrim(number_format($wellnessUsed, 1), '0'), '.') }} used)</span>
-                </div>
+
             </div>
         @endif
 
@@ -351,17 +348,24 @@
                             $periodText = $item['period'] ?? '';
                             $remarksText = $item['remarks'] ?? '';
                             $isLess = strpos(strtoupper($periodText), 'LESS') !== false;
-                            
-                            // Better wellness check: check if it's Wellness via leave_type code or text
+
                             $isWellness = (isset($item['leave_type']) && stripos($item['leave_type']['name'], 'Wellness') !== false) || 
                                           stripos($periodText, 'Wellness') !== false || 
                                           stripos($remarksText, 'Wellness') !== false;
 
                             if ($isWellness) {
-                                // Wellness used days are stored in 'days' column
-                                $used = floatval($item['days'] ?? 0);
-                                $runningWellnessVal -= $used;
+                                $val = floatval($item['days'] ?? 0);
+                                if (($item['transaction_type'] ?? '') === 'earned') {
+                                    $runningWellnessVal += $val;
+                                } else {
+                                    $runningWellnessVal -= $val;
+                                }
                                 $itemWellnessBal = $runningWellnessVal;
+                            }
+
+                            // Skip rendering HIDDEN rows (like Wellness initialization)
+                            if (($item['remarks'] ?? '') === 'HIDDEN_WELLNESS') {
+                                continue;
                             }
 
                             // Suppress remarks for Monetization rows
@@ -455,14 +459,15 @@
                                 </td>
 
                                 @if($isWellness)
-                                    <td colspan="3" class="num-cell edit-cell" style="position: relative; padding: 0; vertical-align: middle; height: {{ $rowHeight }}px; color: inherit;">
+                                    <td colspan="3" class="num-cell edit-cell" style="position: relative; padding: 0; vertical-align: middle; height: {{ $rowHeight }}px;">
                                         {{-- Manually draw vertical column lines that were lost by colspan --}}
                                         <div style="position: absolute; left: 35.9%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
                                         <div style="position: absolute; left: 69.2%; top: 0; bottom: 0; width: 1px; background: black; z-index: 5;"></div>
                                         
                                         {{-- The text "nakapatong" --}}
-                                        <div style="position: relative; z-index: 10; font-weight: 800; font-size: 0.65rem; text-align: center; white-space: nowrap; width: 100%; color: inherit; letter-spacing: -0.2px;">
-                                            USED: {{ rtrim(rtrim(number_format($item['days'] ?? 0, 1), '0'), '.') }} | BAL: {{ floatval($itemWellnessBal ?? 0) }}
+                                        <div style="position: relative; z-index: 10; font-weight: 800; font-size: 0.65rem; text-align: center; white-space: nowrap; width: 100%; color: {{ $textColorValue }}; letter-spacing: -0.2px;">
+                                            @php $dispBal = rtrim(rtrim(number_format(floatval($itemWellnessBal ?? 0), 1), '0'), '.'); @endphp
+                                            {{ $dispBal === '' ? '0' : $dispBal }} Days Remaining
                                         </div>
                                     </td>
                                 @else
