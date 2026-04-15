@@ -63,10 +63,12 @@ class EmployeeSyncController extends Controller
 
         // Map Employment Status to DepEd new values
         $incomingStatus = $data['employment_status'] ?? $data['type_of_employment'] ?? '';
-        $empStatus = null; // Default to none as requested
-        if (stripos($incomingStatus, 'Permanent') !== false || stripos($incomingStatus, 'Regular') !== false) {
+        $empStatus = null; 
+        
+        $statusLower = strtolower($incomingStatus);
+        if (str_contains($statusLower, 'permanent') || str_contains($statusLower, 'regular') || str_contains($statusLower, 'original')) {
             $empStatus = 'Regular';
-        } elseif (stripos($incomingStatus, 'Contract') !== false || stripos($incomingStatus, 'COS') !== false) {
+        } elseif (str_contains($statusLower, 'contract') || str_contains($statusLower, 'cos') || str_contains($statusLower, 'probation')) {
             $empStatus = 'Contractual';
         }
 
@@ -129,45 +131,50 @@ class EmployeeSyncController extends Controller
         return DB::transaction(function () use ($mappedData, $departmentId) {
 
             // 1. Handle User
-            $email = $mappedData['email'];
-            $emailHash = User::generateEmailHash($email);
-            $user = User::where('email_searchable', $emailHash)->first();
+            $email = $mappedData['email'] ?? null;
+            $user = null;
 
-            $firstName = $mappedData['first_name'];
-            $lastName = $mappedData['last_name'];
-            $middleName = $mappedData['middle_name'];
+            // Only process user if email is valid and not malformed
+            if ($email && filter_var($email, FILTER_VALIDATE_EMAIL) && !str_starts_with($email, '.')) {
+                $emailHash = User::generateEmailHash($email);
+                $user = User::where('email_searchable', $emailHash)->first();
 
-            if (!$user) {
-                // Generate fallback password: # + First 2 letters of Lastname + d3P3d
-                // e.g., Abadilla -> #Abd3P3d
-                $cleanLastName = preg_replace('/[^A-Za-z]/', '', $lastName);
-                $prefix = ucfirst(strtolower(substr($cleanLastName, 0, 2)));
-                $fallbackPassword = "#" . $prefix . "d3P3d";
+                $firstName = $mappedData['first_name'];
+                $lastName = $mappedData['last_name'];
+                $middleName = $mappedData['middle_name'];
 
-                $user = User::create([
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'middle_name' => $middleName,
-                    'suffix' => $mappedData['suffix'],
-                    'email' => $email,
-                    'email_searchable' => User::generateEmailHash($email),
-                    'password' => Hash::make($fallbackPassword),
-                    'role' => 'employee',
-                    'is_active' => true,
-                ]);
-            } else {
-                $user->update([
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'middle_name' => $middleName,
-                    'suffix' => $mappedData['suffix'],
-                ]);
+                if (!$user) {
+                    $cleanLastName = preg_replace('/[^A-Za-z]/', '', $lastName ?? 'User');
+                    $prefix = ucfirst(strtolower(substr($cleanLastName, 0, 2)));
+                    $fallbackPassword = "#" . $prefix . "d3P3d";
+
+                    $user = User::create([
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'middle_name' => $middleName,
+                        'suffix' => $mappedData['suffix'],
+                        'email' => $email,
+                        'email_searchable' => User::generateEmailHash($email),
+                        'password' => Hash::make($fallbackPassword),
+                        'role' => 'employee',
+                        'is_active' => true,
+                    ]);
+                } else {
+                    $user->update([
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'middle_name' => $middleName,
+                        'suffix' => $mappedData['suffix'],
+                    ]);
+                }
             }
 
 
             // 2. Handle Employee
             $employeeData = $mappedData;
-            $employeeData['user_id'] = $user->id;
+            if ($user) {
+                $employeeData['user_id'] = $user->id;
+            }
             $employeeData['department_id'] = $departmentId;
 
             $employee = Employee::updateOrCreate(

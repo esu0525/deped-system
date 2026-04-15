@@ -88,7 +88,7 @@ class DatabaseSeeder extends Seeder
             foreach ($users as $userData) {
                 $userData['email_searchable'] = User::generateEmailHash($userData['email']);
                 User::updateOrCreate(
-                    ['email_searchable' => $userData['email_searchable']], 
+                    ['email_searchable' => $userData['email_searchable']],
                     $userData
                 );
             }

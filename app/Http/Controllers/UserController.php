@@ -125,7 +125,9 @@ class UserController extends Controller
             ->limit(20)
             ->get();
 
-        $rolesList = Position::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+        $employeePositions = Employee::distinct()->whereNotNull('position')->pluck('position')->toArray();
+        $storedPositions = Position::where('is_active', true)->pluck('name')->toArray();
+        $rolesList = collect(array_merge($employeePositions, $storedPositions))->unique()->sort()->values()->toArray();
 
         return view('users.show', compact('user', 'loginData', 'activities', 'rolesList'));
     }
@@ -163,7 +165,9 @@ class UserController extends Controller
 
         $users = $query->orderBy('first_name')->paginate(15)->withQueryString();
         
-        $rolesList = Position::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+        $employeePositions = Employee::distinct()->whereNotNull('position')->pluck('position')->toArray();
+        $storedPositions = Position::where('is_active', true)->pluck('name')->toArray();
+        $rolesList = collect(array_merge($employeePositions, $storedPositions))->unique()->sort()->values()->toArray();
         
         if (!in_array(auth()->user()->role, ['admin', 'super_admin'])) {
             $myAccess = auth()->user()->access ? explode(', ', auth()->user()->access) : [];

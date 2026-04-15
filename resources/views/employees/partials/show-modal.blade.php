@@ -15,7 +15,7 @@
                 <div style="margin-bottom: 10px;"><i class="fas fa-id-badge" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> <strong>Ref ID: {{ $employee->employee_id }}</strong></div>
                 <div style="margin-bottom: 10px;"><i class="fas fa-building" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> {{ $employee->department->name ?? 'No Office/Department' }}</div>
                 <div style="margin-bottom: 10px;"><i class="fas fa-briefcase" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> {{ $employee->employment_status ?? 'N/A' }}</div>
-
+                <div style="margin-bottom: 2px;"><i class="fas fa-calendar-alt" style="width: 18px; color: var(--primary); opacity: 0.7;"></i> {{ $employee->date_hired ? $employee->date_hired->format('M d, Y') : 'N/A' }}</div>
             </div>
 
             <div style="margin-top: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">

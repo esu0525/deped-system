@@ -112,7 +112,11 @@
     </div>
 </div>
 
-
+        <div id="importModalContent">
+            @include('employees.partials.import-modal')
+        </div>
+    </div>
+</div>
 
 
 @push('scripts')
@@ -214,9 +218,6 @@
 
     function openImportModal() { document.getElementById('importModalOverlay').classList.add('active'); }
     function closeImportModal() { document.getElementById('importModalOverlay').classList.remove('active'); }
-
-
-
 
     // Modal Close events
     window.addEventListener('click', (e) => {

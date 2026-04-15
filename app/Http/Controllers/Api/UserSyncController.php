@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use App\Services\SyncService;
 
 class UserSyncController extends Controller
 {
@@ -19,7 +21,7 @@ class UserSyncController extends Controller
         $providedToken = $request->bearerToken();
         
         if ($providedToken !== $token) {
-            \Illuminate\Support\Facades\Log::warning('DepEd-System: Unauthorized Sync Attempt', [
+            Log::warning('DepEd-System: Unauthorized Sync Attempt', [
                 'provided' => $providedToken,
                 'expected' => $token
             ]);
@@ -31,7 +33,7 @@ class UserSyncController extends Controller
         }
 
         // --- DEBUG LOG ---
-        \Illuminate\Support\Facades\Log::info('DepEd-System Incoming Sync Data:', $request->all());
+        Log::info('DepEd-System Incoming Sync Data:', $request->all());
 
         if ($request->action === 'deleted') {
             $user = User::find($request->id);
@@ -55,7 +57,7 @@ class UserSyncController extends Controller
             $hashedEmail = $request->email_hash ?? User::generateEmailHash($request->email);
 
             // We use a global state or static flag to prevent infinite loops
-            \App\Services\SyncService::$isSyncing = true;
+            SyncService::$isSyncing = true;
 
             $user = null;
             if ($request->has('id')) {
@@ -93,9 +95,9 @@ class UserSyncController extends Controller
                     // Make sure the filename is clean
                     $fileName = ltrim($fileName, '/');
                     
-                    \Illuminate\Support\Facades\Storage::disk('public')->put($fileName, $imageData);
+                    Storage::disk('public')->put($fileName, $imageData);
                     $avatarPath = $fileName;
-                    \Illuminate\Support\Facades\Log::info("DepEd-System: Profile image synced: {$fileName}");
+                    Log::info("DepEd-System: Profile image synced: {$fileName}");
                 }
             }
 
@@ -131,7 +133,7 @@ class UserSyncController extends Controller
                 $status = 'updated';
             }
 
-            \App\Services\SyncService::$isSyncing = false;
+            SyncService::$isSyncing = false;
 
             return response()->json([
                 'success' => true,
@@ -140,7 +142,7 @@ class UserSyncController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \App\Services\SyncService::$isSyncing = false;
+            SyncService::$isSyncing = false;
             Log::error("User Sync Error in DepEd System: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

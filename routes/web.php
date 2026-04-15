@@ -84,6 +84,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Import ───────────────────────────────────────────────────────────
     Route::middleware(['role:admin,super_admin'])->group(function () {
         Route::post('/import/employees', [ImportController::class, 'importEmployees'])->name('import.employees');
+        Route::post('/sync-masterlist', [\App\Http\Controllers\Api\MasterlistSyncController::class, 'pullFromMasterlist'])->name('sync.masterlist');
     });
 
     // ─── User Management & Settings (Admin only) ──────────────────────────────────────────────────

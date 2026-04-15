@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\AuditTrail;
 use App\Services\LeaveCardService;
 use App\Services\MailService;
+use App\Services\SyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -196,7 +197,7 @@ class LeaveApplicationController extends Controller
         }
 
         // Wellness Balance: 5 days max per year
-        $wellnessUsed = \App\Models\LeaveApplication::where('employee_id', $employee->id)
+        $wellnessUsed = LeaveApplication::where('employee_id', $employee->id)
             ->where('status', 'Approved')
             ->whereYear('date_filed', $year)
             ->whereHas('leaveType', function ($q) {
@@ -476,7 +477,7 @@ class LeaveApplicationController extends Controller
         }
 
         // Sync to external system
-        \App\Services\SyncService::syncLeaveApplication($leaveApplication);
+        SyncService::syncLeaveApplication($leaveApplication);
 
         AuditTrail::log('APPROVE', 'Leave Application', "Approved leave application #{$leaveApplication->application_no}");
 
@@ -590,7 +591,7 @@ class LeaveApplicationController extends Controller
                     }
                     
                     // Sync to external system
-                    \App\Services\SyncService::syncLeaveApplication($leaveApplication);
+                    SyncService::syncLeaveApplication($leaveApplication);
                     
                     AuditTrail::log('APPROVE', 'Leave Application', "Bulk approved leave application #{$leaveApplication->application_no}");
                     $successCount++;
